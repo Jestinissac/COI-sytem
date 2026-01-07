@@ -409,4 +409,463 @@ export function resetRulesEngine() {
   return { success: true, message: 'Rules engine reset' }
 }
 
+/**
+ * Analyze impact of changing a business rule
+ * Returns detailed impact analysis before rule is updated
+ */
+export function analyzeRuleChange(ruleId, proposedChanges) {
+  try {
+    const currentRule = db.prepare('SELECT * FROM business_rules_config WHERE id = ?').get(ruleId)
+    
+    if (!currentRule) {
+      return {
+        error: 'Rule not found',
+        allowed: false
+      }
+    }
+
+    const changeType = determineChangeType(currentRule, proposedChanges)
+    const impact = {
+      ruleId,
+      ruleName: currentRule.rule_name,
+      ruleType: currentRule.rule_type,
+      changeType,
+      affectedRequests: {
+        currentlyMatching: 0,
+        wouldMatch: 0,
+        wouldStopMatching: 0,
+        wouldStartMatching: 0,
+        requestIds: []
+      },
+      historicalExecutions: {
+        totalExecutions: 0,
+        uniqueRequests: 0
+      },
+      pendingReviewsAffected: 0,
+      riskLevel: 'low',
+      warnings: [],
+      errors: [],
+      requiresApproval: false,
+      actionTypeChange: proposedChanges.action_type !== undefined && proposedChanges.action_type !== currentRule.action_type
+        ? { from: currentRule.action_type, to: proposedChanges.action_type }
+        : null
+    }
+
+    // 1. Get historical rule executions
+    try {
+      const executions = db.prepare(`
+        SELECT 
+          COUNT(*) as total_executions,
+          COUNT(DISTINCT coi_request_id) as unique_requests
+        FROM rule_execution_log 
+        WHERE rule_id = ?
+      `).get(ruleId)
+      
+      impact.historicalExecutions = {
+        totalExecutions: executions?.total_executions || 0,
+        uniqueRequests: executions?.unique_requests || 0
+      }
+      
+      if (impact.historicalExecutions.totalExecutions > 0) {
+        impact.warnings.push(`Rule has been executed ${impact.historicalExecutions.totalExecutions} times historically`)
+      }
+    } catch (error) {
+      // Table might not exist yet, continue
+      console.log('Rule execution log table not available:', error.message)
+    }
+
+    // 2. Find requests that currently match this rule
+    const currentlyMatching = findMatchingRequests(currentRule)
+    impact.affectedRequests.currentlyMatching = currentlyMatching.length
+    impact.affectedRequests.requestIds = currentlyMatching.map(r => r.id)
+
+    // 3. If rule is being changed, simulate new rule and find differences
+    if (Object.keys(proposedChanges).length > 0) {
+      const proposedRule = {
+        ...currentRule,
+        ...proposedChanges
+      }
+      
+      const wouldMatch = findMatchingRequests(proposedRule)
+      impact.affectedRequests.wouldMatch = wouldMatch.length
+      
+      const wouldMatchIds = new Set(wouldMatch.map(r => r.id))
+      const currentlyMatchIds = new Set(currentlyMatching.map(r => r.id))
+      
+      // Requests that would stop matching
+      const wouldStopMatching = currentlyMatching.filter(r => !wouldMatchIds.has(r.id))
+      impact.affectedRequests.wouldStopMatching = wouldStopMatching.length
+      
+      // Requests that would start matching
+      const wouldStartMatching = wouldMatch.filter(r => !currentlyMatchIds.has(r.id))
+      impact.affectedRequests.wouldStartMatching = wouldStartMatching.length
+      
+      if (wouldStopMatching.length > 0) {
+        impact.warnings.push(`${wouldStopMatching.length} request(s) would no longer match this rule`)
+      }
+      
+      if (wouldStartMatching.length > 0) {
+        impact.warnings.push(`${wouldStartMatching.length} request(s) would newly match this rule`)
+      }
+    }
+
+    // 4. Check pending compliance reviews that reference this rule
+    try {
+      const pendingWithRule = db.prepare(`
+        SELECT id, request_id, status, duplication_matches
+        FROM coi_requests
+        WHERE status IN ('Pending Compliance', 'Pending Partner', 'Pending Director Approval')
+        AND duplication_matches IS NOT NULL
+        AND duplication_matches != ''
+      `).all()
+      
+      let pendingCount = 0
+      for (const request of pendingWithRule) {
+        try {
+          const matches = typeof request.duplication_matches === 'string'
+            ? JSON.parse(request.duplication_matches)
+            : request.duplication_matches
+          
+          const recommendations = matches?.ruleRecommendations || []
+          const hasThisRule = recommendations.some(rec => rec.ruleId === ruleId)
+          
+          if (hasThisRule) {
+            pendingCount++
+          }
+        } catch {
+          // Invalid JSON, skip
+        }
+      }
+      
+      impact.pendingReviewsAffected = pendingCount
+      
+      if (pendingCount > 0) {
+        impact.warnings.push(`${pendingCount} pending compliance review(s) reference this rule`)
+      }
+    } catch (error) {
+      console.log('Error checking pending reviews:', error.message)
+    }
+
+    // 5. Check if current rule configuration is problematic (even without changes)
+    if (currentRule.rule_type === 'conflict' && 
+        (currentRule.action_type === 'recommend_approve' || currentRule.action_type === 'set_status')) {
+      impact.warnings.push('WARNING: Conflict rule is configured with a non-blocking action - this may allow prohibited conflicts')
+      // Add risk for misconfigured conflict rules
+      if (!impact.actionTypeChange || impact.actionTypeChange.to === 'recommend_approve') {
+        impact.warnings.push('CRITICAL: Conflict rules should block or recommend rejection, not approval')
+      }
+    }
+    
+    // 6. Calculate risk level (pass currentRule and proposedChanges for action type analysis)
+    impact.riskLevel = calculateRuleChangeRisk(impact, currentRule, proposedChanges)
+    
+    // 7. Determine if approval is required
+    impact.requiresApproval = impact.riskLevel === 'high' || impact.riskLevel === 'critical'
+    
+    if (impact.requiresApproval) {
+      impact.warnings.push('This rule change requires approval due to high impact')
+    }
+
+    return {
+      allowed: true,
+      impact,
+      requiresApproval: impact.requiresApproval
+    }
+  } catch (error) {
+    console.error('Error analyzing rule change impact:', error)
+    return {
+      allowed: false,
+      error: error.message,
+      requiresManualApproval: true
+    }
+  }
+}
+
+/**
+ * Find all requests that match a given rule
+ */
+function findMatchingRequests(rule) {
+  try {
+    // Get all active/pending requests
+    const requests = db.prepare(`
+      SELECT id, request_id, status, service_type, client_id, pie_status,
+             client_name, client_type, custom_fields
+      FROM coi_requests
+      WHERE status NOT IN ('Draft', 'Rejected', 'Cancelled')
+      ORDER BY created_at DESC
+      LIMIT 500
+    `).all()
+    
+    const matchingRequests = []
+    
+    for (const request of requests) {
+      // Get client info if needed
+      let client = null
+      if (request.client_id) {
+        client = db.prepare('SELECT * FROM clients WHERE id = ?').get(request.client_id)
+      }
+      
+      // Build request data object for rule evaluation
+      const requestData = {
+        id: request.id,
+        request_id: request.request_id,
+        service_type: request.service_type,
+        pie_status: request.pie_status,
+        client_name: request.client_name || client?.client_name,
+        client_type: request.client_type || client?.client_type,
+        ...(request.custom_fields ? JSON.parse(request.custom_fields) : {})
+      }
+      
+      // Evaluate if rule matches
+      if (evaluateRuleMatch(rule, requestData)) {
+        matchingRequests.push({
+          id: request.id,
+          request_id: request.request_id,
+          status: request.status
+        })
+      }
+    }
+    
+    return matchingRequests
+  } catch (error) {
+    console.error('Error finding matching requests:', error)
+    return []
+  }
+}
+
+/**
+ * Evaluate if a rule matches request data
+ * Simplified version of evaluateRule from businessRulesEngine
+ */
+function evaluateRuleMatch(rule, requestData) {
+  // If no condition field, rule always matches (catch-all rule)
+  if (!rule.condition_field) {
+    return true
+  }
+
+  const fieldValue = getFieldValueForRule(requestData, rule.condition_field)
+  
+  if (fieldValue === undefined || fieldValue === null) {
+    return false
+  }
+
+  const conditionValue = rule.condition_value
+  const operator = rule.condition_operator || 'equals'
+
+  return evaluateConditionForRule(fieldValue, operator, conditionValue)
+}
+
+/**
+ * Get field value from request data for rule evaluation
+ */
+function getFieldValueForRule(requestData, fieldId) {
+  // Direct property access
+  if (requestData[fieldId] !== undefined) {
+    return requestData[fieldId]
+  }
+  
+  // Check nested properties (e.g., client.name)
+  const parts = fieldId.split('.')
+  let value = requestData
+  for (const part of parts) {
+    if (value && typeof value === 'object') {
+      value = value[part]
+    } else {
+      return undefined
+    }
+  }
+  
+  return value
+}
+
+/**
+ * Evaluate condition for rule matching
+ */
+function evaluateConditionForRule(fieldValue, operator, conditionValue) {
+  const fieldStr = String(fieldValue).toLowerCase()
+  const conditionStr = String(conditionValue).toLowerCase()
+
+  switch (operator) {
+    case 'equals':
+    case '=':
+      return fieldStr === conditionStr
+    
+    case 'not_equals':
+    case '!=':
+      return fieldStr !== conditionStr
+    
+    case 'contains':
+      return fieldStr.includes(conditionStr)
+    
+    case 'not_contains':
+      return !fieldStr.includes(conditionStr)
+    
+    case 'in':
+      const values = conditionValue.split(',').map(v => v.trim().toLowerCase())
+      return values.some(v => fieldStr.includes(v))
+    
+    case 'not_in':
+      const notValues = conditionValue.split(',').map(v => v.trim().toLowerCase())
+      return !notValues.some(v => fieldStr.includes(v))
+    
+    default:
+      return fieldStr === conditionStr
+  }
+}
+
+/**
+ * Determine what type of change is being made
+ */
+function determineChangeType(currentRule, proposedChanges) {
+  const changes = []
+  
+  if (proposedChanges.condition_field !== undefined && proposedChanges.condition_field !== currentRule.condition_field) {
+    changes.push('condition_field')
+  }
+  if (proposedChanges.condition_operator !== undefined && proposedChanges.condition_operator !== currentRule.condition_operator) {
+    changes.push('condition_operator')
+  }
+  if (proposedChanges.condition_value !== undefined && proposedChanges.condition_value !== currentRule.condition_value) {
+    changes.push('condition_value')
+  }
+  if (proposedChanges.action_type !== undefined && proposedChanges.action_type !== currentRule.action_type) {
+    changes.push('action_type')
+  }
+  if (proposedChanges.action_value !== undefined && proposedChanges.action_value !== currentRule.action_value) {
+    changes.push('action_value')
+  }
+  if (proposedChanges.is_active !== undefined && proposedChanges.is_active !== currentRule.is_active) {
+    changes.push('is_active')
+  }
+  
+  if (changes.includes('condition_field') || changes.includes('condition_operator') || changes.includes('condition_value')) {
+    return 'condition_changed'
+  }
+  if (changes.includes('action_type') || changes.includes('action_value')) {
+    return 'action_changed'
+  }
+  if (changes.includes('is_active')) {
+    return 'activation_changed'
+  }
+  
+  return changes.length > 0 ? 'other' : 'no_change'
+}
+
+/**
+ * Calculate risk level for rule change
+ */
+function calculateRuleChangeRisk(impact, currentRule, proposedChanges) {
+  let riskScore = 0
+  
+  // CRITICAL: Check if conflict rule has inappropriate action type (even without changes)
+  const finalActionType = proposedChanges?.action_type !== undefined 
+    ? proposedChanges.action_type 
+    : currentRule.action_type
+  
+  if (impact.ruleType === 'conflict') {
+    if (finalActionType === 'recommend_approve' || finalActionType === 'set_status') {
+      riskScore += 6  // Critical - conflict rules should never approve
+      impact.warnings.push('CRITICAL: Conflict rules must block or recommend rejection, not approval')
+    } else if (finalActionType === 'recommend_review' || finalActionType === 'require_approval') {
+      riskScore += 3  // High - conflict rules should be more strict
+      impact.warnings.push('WARNING: Conflict rules should recommend rejection, not just review')
+    } else if (finalActionType === 'block' || finalActionType === 'recommend_reject') {
+      // This is correct for conflict rules - no penalty
+    }
+  }
+  
+  // CRITICAL: Action type changes - especially for conflict rules
+  if (impact.actionTypeChange) {
+    const { from, to } = impact.actionTypeChange
+    
+    // Define action severity levels
+    const actionSeverity = {
+      'block': 5,                    // Highest severity - blocks requests
+      'recommend_reject': 4,        // High severity - recommends rejection
+      'flag': 3,                     // Medium-high - flags for review
+      'recommend_flag': 3,           // Medium-high - recommends flagging
+      'require_approval': 2,         // Medium - requires approval
+      'recommend_review': 2,         // Medium - recommends review
+      'set_status': 1,               // Low - status change
+      'send_notification': 1,        // Low - notification only
+      'recommend_approve': 0         // Lowest - recommends approval
+    }
+    
+    const fromSeverity = actionSeverity[from] || 2
+    const toSeverity = actionSeverity[to] || 2
+    const severityChange = fromSeverity - toSeverity
+    
+    // If changing from a blocking/rejecting action to a less severe action (especially approve)
+    if (severityChange > 0) {
+      // Conflict rules changing to less severe actions are CRITICAL
+      if (impact.ruleType === 'conflict' && toSeverity <= 1) {
+        riskScore += 5  // Critical risk for conflict rules being weakened
+        impact.warnings.push(`CRITICAL: Conflict rule is being changed from "${from}" to "${to}" - this may allow prohibited conflicts`)
+      } else if (impact.ruleType === 'conflict') {
+        riskScore += 3  // High risk for any conflict rule action change
+      } else if (severityChange >= 3) {
+        riskScore += 4  // High risk for major severity reduction
+      } else if (severityChange >= 2) {
+        riskScore += 3  // Medium-high risk
+      } else {
+        riskScore += 2  // Medium risk
+      }
+    } else if (severityChange < 0) {
+      // Changing to more severe action (less risky but still needs review)
+      riskScore += 1
+    }
+  }
+  
+  // Rule type weight - conflict rules are more critical
+  if (impact.ruleType === 'conflict') {
+    riskScore += 1
+  } else if (impact.ruleType === 'validation') {
+    riskScore += 0.5
+  }
+  
+  // Historical executions
+  if (impact.historicalExecutions.totalExecutions > 50) {
+    riskScore += 3
+  } else if (impact.historicalExecutions.totalExecutions > 10) {
+    riskScore += 2
+  } else if (impact.historicalExecutions.totalExecutions > 0) {
+    riskScore += 1
+  }
+  
+  // Currently matching requests
+  if (impact.affectedRequests.currentlyMatching > 20) {
+    riskScore += 3
+  } else if (impact.affectedRequests.currentlyMatching > 5) {
+    riskScore += 2
+  } else if (impact.affectedRequests.currentlyMatching > 0) {
+    riskScore += 1
+  }
+  
+  // Pending reviews affected
+  if (impact.pendingReviewsAffected > 5) {
+    riskScore += 3
+  } else if (impact.pendingReviewsAffected > 0) {
+    riskScore += 2
+  }
+  
+  // Requests that would stop matching
+  if (impact.affectedRequests.wouldStopMatching > 10) {
+    riskScore += 2
+  } else if (impact.affectedRequests.wouldStopMatching > 0) {
+    riskScore += 1
+  }
+  
+  // Determine risk level
+  if (riskScore >= 7) {
+    return 'critical'
+  } else if (riskScore >= 4) {
+    return 'high'
+  } else if (riskScore >= 2) {
+    return 'medium'
+  } else {
+    return 'low'
+  }
+}
+
+
 

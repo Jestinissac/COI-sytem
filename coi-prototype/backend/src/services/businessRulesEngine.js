@@ -1,5 +1,7 @@
 import { getDatabase } from '../database/init.js'
 import { getSystemEdition, isProEdition } from './configService.js'
+import { checkRedLines } from './redLinesService.js'
+import { evaluateIESBADecisionMatrix } from './iesbaDecisionMatrix.js'
 
 const db = getDatabase()
 
@@ -40,7 +42,8 @@ export function evaluateRules(requestData) {
             canOverride: canOverrideAction(rule.action_type),
             overrideGuidance: getOverrideGuidance(rule),
             requiresComplianceReview: true,
-            guidance: `Rule: ${rule.rule_name}`
+            guidance: `Rule: ${rule.rule_name}`,
+            regulation: getRegulationReference(rule)
           })
         } else {
           // Standard edition: Return actions
@@ -77,10 +80,24 @@ export function evaluateRules(requestData) {
     }
 
     if (isPro) {
+      // Pro edition: Combine business rules with red lines and IESBA matrix
+      const redLineRecommendations = checkRedLines(requestData)
+      const iesbaRecommendations = evaluateIESBADecisionMatrix(requestData)
+      
+      // Combine all recommendations
+      const allRecommendations = [
+        ...redLineRecommendations,
+        ...iesbaRecommendations,
+        ...results
+      ]
+      
       return {
-        recommendations: results,
+        recommendations: allRecommendations,
         totalRulesEvaluated: rules.length,
-        matchedRules: results.length
+        matchedRules: results.length,
+        redLinesDetected: redLineRecommendations.length,
+        iesbaRecommendations: iesbaRecommendations.length,
+        businessRuleRecommendations: results.length
       }
     } else {
       return {
@@ -106,6 +123,10 @@ function mapActionToRecommendation(actionType) {
     'block': 'REJECT',
     'flag': 'FLAG',
     'require_approval': 'REVIEW',
+    'recommend_reject': 'REJECT',
+    'recommend_flag': 'FLAG',
+    'recommend_review': 'REVIEW',
+    'recommend_approve': 'APPROVE',
     'set_status': 'REVIEW',
     'send_notification': 'REVIEW'
   }
@@ -138,8 +159,45 @@ function getOverrideGuidance(rule) {
   return 'Override requires Compliance review and justification'
 }
 
+function getRegulationReference(rule) {
+  // Map rule types to IESBA regulation references
+  const regulationMap = {
+    'red_line': 'IESBA Code Section 290',
+    'conflict': 'IESBA Code Section 290',
+    'pie_tax': 'IESBA Code Section 290.212',
+    'pie_planning': 'IESBA Code Section 290.212',
+    'validation': 'IESBA Code Section 290',
+    'management_responsibility': 'IESBA Code Section 290.104',
+    'advocacy': 'IESBA Code Section 290.105',
+    'contingent_fees': 'IESBA Code Section 290.106'
+  }
+  
+  // Check rule name for specific patterns
+  const ruleNameLower = (rule.rule_name || '').toLowerCase()
+  if (ruleNameLower.includes('management responsibility') || ruleNameLower.includes('management')) {
+    return 'IESBA Code Section 290.104'
+  }
+  if (ruleNameLower.includes('advocacy')) {
+    return 'IESBA Code Section 290.105'
+  }
+  if (ruleNameLower.includes('contingent fee') || ruleNameLower.includes('contingent')) {
+    return 'IESBA Code Section 290.106'
+  }
+  if (ruleNameLower.includes('pie') && ruleNameLower.includes('tax')) {
+    return 'IESBA Code Section 290.212'
+  }
+  
+  // Default based on rule type
+  return regulationMap[rule.rule_type] || 'IESBA Code Section 290'
+}
+
 function evaluateRule(rule, requestData) {
-  // If no condition field, rule always matches (catch-all rule)
+  // Check if rule has advanced condition groups
+  if (rule.condition_groups) {
+    return evaluateConditionGroups(rule, requestData)
+  }
+  
+  // If no condition field and no condition groups, rule always matches (catch-all rule)
   if (!rule.condition_field) {
     return { matched: true, reason: 'No condition specified' }
   }
@@ -163,9 +221,101 @@ function evaluateRule(rule, requestData) {
   }
 }
 
+/**
+ * Evaluate condition groups with AND/OR logic
+ */
+function evaluateConditionGroups(rule, requestData) {
+  let groups
+  try {
+    groups = typeof rule.condition_groups === 'string' 
+      ? JSON.parse(rule.condition_groups) 
+      : rule.condition_groups
+  } catch (e) {
+    return { matched: false, reason: 'Invalid condition_groups format' }
+  }
+  
+  if (!groups || groups.length === 0) {
+    return { matched: true, reason: 'No condition groups specified' }
+  }
+  
+  const matchedConditions = []
+  const unmatchedConditions = []
+  let overallResult = false
+  
+  for (let gIdx = 0; gIdx < groups.length; gIdx++) {
+    const group = groups[gIdx]
+    let groupResult = null
+    const groupConditions = []
+    
+    for (let cIdx = 0; cIdx < (group.conditions || []).length; cIdx++) {
+      const cond = group.conditions[cIdx]
+      
+      // Skip empty conditions
+      if (!cond.field || !cond.conditionOperator) {
+        continue
+      }
+      
+      const fieldValue = getFieldValue(requestData, cond.field)
+      const condResult = evaluateCondition(fieldValue, cond.conditionOperator, cond.value)
+      
+      const conditionDesc = `${cond.field} ${cond.conditionOperator} "${cond.value}"`
+      
+      if (condResult) {
+        groupConditions.push({ condition: conditionDesc, matched: true })
+      } else {
+        groupConditions.push({ condition: conditionDesc, matched: false })
+      }
+      
+      // Apply condition operator (AND/OR within group)
+      if (groupResult === null) {
+        groupResult = condResult
+      } else {
+        const condOp = cond.operator || 'AND'
+        groupResult = condOp === 'AND' ? (groupResult && condResult) : (groupResult || condResult)
+      }
+    }
+    
+    // If group has no valid conditions, skip it
+    if (groupResult === null) {
+      continue
+    }
+    
+    // Record group result
+    if (groupResult) {
+      matchedConditions.push(...groupConditions.filter(c => c.matched))
+    } else {
+      unmatchedConditions.push(...groupConditions.filter(c => !c.matched))
+    }
+    
+    // Apply group operator (AND/OR between groups)
+    if (gIdx === 0) {
+      overallResult = groupResult
+    } else {
+      const groupOp = group.operator || 'OR'
+      overallResult = groupOp === 'AND' ? (overallResult && groupResult) : (overallResult || groupResult)
+    }
+  }
+  
+  return {
+    matched: overallResult,
+    reason: overallResult 
+      ? `Matched conditions: ${matchedConditions.map(c => c.condition).join(', ')}`
+      : `Unmatched conditions: ${unmatchedConditions.map(c => c.condition).join(', ')}`,
+    details: {
+      matchedConditions,
+      unmatchedConditions
+    }
+  }
+}
+
 function evaluateCondition(fieldValue, operator, conditionValue) {
+  // Handle null/undefined values
+  if (fieldValue === undefined || fieldValue === null) {
+    fieldValue = ''
+  }
+  
   const fieldStr = String(fieldValue).toLowerCase()
-  const conditionStr = String(conditionValue).toLowerCase()
+  const conditionStr = String(conditionValue || '').toLowerCase()
 
   switch (operator) {
     case 'equals':
@@ -200,11 +350,11 @@ function evaluateCondition(fieldValue, operator, conditionValue) {
     
     case 'in':
       // Comma-separated values
-      const values = conditionValue.split(',').map(v => v.trim().toLowerCase())
+      const values = conditionStr.split(',').map(v => v.trim().toLowerCase())
       return values.includes(fieldStr)
     
     case 'not_in':
-      const notValues = conditionValue.split(',').map(v => v.trim().toLowerCase())
+      const notValues = conditionStr.split(',').map(v => v.trim().toLowerCase())
       return !notValues.includes(fieldStr)
     
     case 'starts_with':
@@ -212,6 +362,18 @@ function evaluateCondition(fieldValue, operator, conditionValue) {
     
     case 'ends_with':
       return fieldStr.endsWith(conditionStr)
+    
+    case 'is_empty':
+      return !fieldValue || fieldValue === ''
+    
+    case 'is_not_empty':
+      return fieldValue && fieldValue !== ''
+    
+    case 'is_true':
+      return fieldValue === true || fieldValue === 1 || fieldStr === 'true' || fieldStr === 'yes'
+    
+    case 'is_false':
+      return fieldValue === false || fieldValue === 0 || fieldStr === 'false' || fieldStr === 'no'
     
     default:
       // Default to equals

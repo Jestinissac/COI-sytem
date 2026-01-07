@@ -360,6 +360,26 @@ export async function approveRequest(req, res) {
       notesField = 'compliance_review_notes'
       restrictionsField = 'compliance_restrictions'
       nextStatus = 'Pending Partner'
+      
+      // Enhanced audit trail for Compliance decisions
+      const recommendations = parseRecommendations(request)
+      const { acceptedRecommendations = [], rejectedRecommendations = [], overriddenRecommendations = [] } = req.body
+      
+      logComplianceDecision({
+        requestId: req.params.id,
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        decision: approvalStatus,
+        recommendations: recommendations,
+        acceptedRecommendations: acceptedRecommendations,
+        rejectedRecommendations: rejectedRecommendations,
+        overriddenRecommendations: overriddenRecommendations,
+        justification: comments,
+        approvalLevel: approvalStatus === 'Approved with Restrictions' ? 'Compliance' : 'Compliance',
+        restrictions: restrictions,
+        notes: comments
+      })
     } else if (user.role === 'Partner' && request.status === 'Pending Partner') {
       updateField = 'partner_approval_status'
       dateField = 'partner_approval_date'
@@ -447,7 +467,8 @@ export async function requestMoreInfo(req, res) {
 export async function rejectRequest(req, res) {
   try {
     const user = getUserById(req.userId)
-    const { reason } = req.body
+    const { reason, recommendations = [] } = req.body
+    const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
 
     db.prepare(`
       UPDATE coi_requests 
@@ -455,6 +476,25 @@ export async function rejectRequest(req, res) {
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(req.params.id)
+    
+    // Enhanced audit trail for Compliance rejections
+    if (user.role === 'Compliance') {
+      const allRecommendations = parseRecommendations(request)
+      const { rejectedRecommendations = [] } = req.body
+      
+      logComplianceDecision({
+        requestId: req.params.id,
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        decision: 'Rejected',
+        recommendations: allRecommendations,
+        rejectedRecommendations: rejectedRecommendations.length > 0 ? rejectedRecommendations : allRecommendations,
+        justification: reason,
+        approvalLevel: 'Compliance',
+        notes: reason
+      })
+    }
     
     // Send rejection notification
     sendRejectionNotification(req.params.id, user.name, reason || 'No reason provided')
@@ -585,6 +625,101 @@ export async function getMonitoringAlerts(req, res) {
     const exceeded = getExceededLimitRequests()
     res.json({ approaching, exceeded })
   } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Re-evaluate a stale request against current rules
+ * Clears the stale flag and updates compliance checks
+ */
+export async function reEvaluateRequest(req, res) {
+  try {
+    const { id } = req.params
+    const userId = req.userId
+    
+    // Get the request
+    const request = db.prepare(`
+      SELECT r.*, c.client_name, c.client_code
+      FROM coi_requests r
+      LEFT JOIN clients c ON r.client_id = c.id
+      WHERE r.id = ?
+    `).get(id)
+    
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    if (!request.requires_re_evaluation) {
+      return res.status(400).json({ 
+        error: 'Request does not require re-evaluation',
+        message: 'This request is already up to date with current rules'
+      })
+    }
+    
+    // Run the rules engine
+    const requestData = {
+      id: request.id,
+      client_id: request.client_id,
+      client_name: request.client_name,
+      service_type: request.service_type,
+      service_description: request.service_description,
+      department: request.department,
+      pie_status: request.pie_status,
+      international_operations: request.international_operations
+    }
+    
+    const ruleResults = evaluateRules(requestData)
+    
+    // Format compliance checks
+    const complianceChecks = []
+    const recommendations = ruleResults.recommendations || ruleResults.actions || []
+    
+    for (const result of recommendations) {
+      complianceChecks.push({
+        rule: result.ruleName || result.rule_name || 'Unknown Rule',
+        rule_id: result.ruleId || result.rule_id,
+        status: result.action === 'block' || result.recommendedAction === 'REJECT' ? 'failed' : 
+                result.action === 'flag' || result.recommendedAction === 'FLAG' ? 'warning' : 'passed',
+        is_outdated: false,
+        checked_at: new Date().toISOString()
+      })
+    }
+    
+    // Add a general check result if no specific rules matched
+    if (complianceChecks.length === 0) {
+      complianceChecks.push({
+        rule: 'General Compliance Check',
+        status: 'passed',
+        is_outdated: false,
+        checked_at: new Date().toISOString()
+      })
+    }
+    
+    // Update the request
+    db.prepare(`
+      UPDATE coi_requests 
+      SET requires_re_evaluation = 0, 
+          stale_reason = NULL,
+          compliance_checks = ?,
+          last_rule_check_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(JSON.stringify(complianceChecks), id)
+    
+    // Log the re-evaluation
+    console.log(`Request ${id} re-evaluated by user ${userId}. ${complianceChecks.length} checks performed.`)
+    
+    res.json({ 
+      success: true, 
+      message: 'Request re-evaluated successfully',
+      complianceChecks,
+      ruleResults: {
+        totalRulesEvaluated: ruleResults.totalRulesEvaluated || 0,
+        matchedRules: ruleResults.matchedRules || 0
+      }
+    })
+  } catch (error) {
+    console.error('Error re-evaluating request:', error)
     res.status(500).json({ error: error.message })
   }
 }

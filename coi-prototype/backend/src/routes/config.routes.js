@@ -11,6 +11,7 @@ import {
   getBusinessRules,
   saveBusinessRule,
   updateBusinessRule,
+  getRuleChangeImpact,
   approveBusinessRule,
   rejectBusinessRule,
   deleteBusinessRule,
@@ -21,7 +22,10 @@ import {
   loadFormTemplate,
   getSystemEditionConfig,
   updateSystemEdition,
-  getEnabledFeatures
+  getEnabledFeatures,
+  getRuleFields,
+  validateRuleEndpoint,
+  testRule
 } from '../controllers/configController.js'
 
 const router = express.Router()
@@ -44,9 +48,19 @@ router.post('/workflow', requireRole('Admin', 'Super Admin'), saveWorkflowConfig
 router.get('/business-rules', getBusinessRules)
 router.post('/business-rules', requireRole('Admin', 'Super Admin', 'Compliance'), saveBusinessRule)
 router.put('/business-rules/:id', requireRole('Admin', 'Super Admin', 'Compliance'), updateBusinessRule)
+router.post('/business-rules/:id/impact', requireRole('Admin', 'Super Admin', 'Compliance'), getRuleChangeImpact)
 router.delete('/business-rules/:id', requireRole('Admin', 'Super Admin', 'Compliance'), deleteBusinessRule)
 router.post('/business-rules/:id/approve', requireRole('Super Admin'), approveBusinessRule)
 router.post('/business-rules/:id/reject', requireRole('Super Admin'), rejectBusinessRule)
+
+// Rule Fields API - Get all available fields for rule building
+router.get('/rule-fields', getRuleFields)
+
+// Rule Validation API - Validate rule before saving
+router.post('/validate-rule', validateRuleEndpoint)
+
+// Test Rule API - Test rule against sample/real requests
+router.post('/test-rule', testRule)
 
 // Form Templates (Admin only)
 router.get('/templates', getFormTemplates)

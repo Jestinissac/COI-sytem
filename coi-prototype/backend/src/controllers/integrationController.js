@@ -5,7 +5,18 @@ const db = getDatabase()
 export async function getClients(req, res) {
   try {
     const clients = db.prepare('SELECT * FROM clients WHERE status = ? ORDER BY client_name').all('Active')
-    res.json(clients)
+    // Transform to match frontend expectations (name, code)
+    const transformedClients = clients.map(client => ({
+      id: client.id,
+      name: client.client_name,
+      code: client.client_code,
+      client_name: client.client_name,
+      client_code: client.client_code,
+      industry: client.industry,
+      description: client.description,
+      status: client.status
+    }))
+    res.json(transformedClients)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }

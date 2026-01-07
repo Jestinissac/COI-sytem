@@ -247,7 +247,7 @@
           </h3>
         </div>
 
-        <form @submit.prevent="saveRule" class="p-6 space-y-6">
+        <form @submit.prevent="saveRule" class="p-6 space-y-6" @change="onFormChange">
           <!-- Rule Name -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -281,22 +281,42 @@
 
           <!-- Condition Section -->
           <div class="border-t border-gray-200 pt-4">
-            <h4 class="text-sm font-semibold text-gray-900 mb-4">Condition (IF)</h4>
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="text-sm font-semibold text-gray-900">Condition (IF)</h4>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  v-model="useAdvancedConditions"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span class="text-sm text-gray-600">Advanced (AND/OR groups)</span>
+              </label>
+            </div>
             
-            <div class="grid grid-cols-3 gap-4">
+            <!-- Simple Mode: Single condition -->
+            <div v-if="!useAdvancedConditions" class="grid grid-cols-3 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Field</label>
                 <select
                   v-model="ruleForm.condition_field"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  :disabled="loadingFields"
                 >
                   <option value="">Select field...</option>
-                  <option value="service_type">Service Type</option>
-                  <option value="client_type">Client Type</option>
-                  <option value="pie_status">PIE Status</option>
-                  <option value="client_location">Client Location</option>
-                  <option value="relationship_with_client">Relationship</option>
-                  <option value="international_operations">International Operations</option>
+                  <!-- Dynamic fields grouped by category -->
+                  <template v-if="Object.keys(ruleFields).length > 0">
+                    <optgroup v-for="(category, catKey) in ruleFields" :key="catKey" :label="category.label">
+                      <option v-for="field in category.fields" :key="field.id" :value="field.id">
+                        {{ field.label }}
+                      </option>
+                    </optgroup>
+                  </template>
+                  <!-- Fallback flat list -->
+                  <template v-else-if="allFields.length > 0">
+                    <option v-for="field in allFields" :key="field.id" :value="field.id">
+                      {{ field.label }}
+                    </option>
+                  </template>
                 </select>
               </div>
 
@@ -308,24 +328,43 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                 >
                   <option value="">Select operator...</option>
-                  <option value="equals">Equals (=)</option>
-                  <option value="not_equals">Not Equals (≠)</option>
-                  <option value="contains">Contains</option>
-                  <option value="not_contains">Not Contains</option>
-                  <option value="starts_with">Starts With</option>
-                  <option value="ends_with">Ends With</option>
-                  <option value="greater_than">Greater Than (>)</option>
-                  <option value="less_than">Less Than (<)</option>
-                  <option value="greater_than_or_equal">Greater Than or Equal (≥)</option>
-                  <option value="less_than_or_equal">Less Than or Equal (≤)</option>
-                  <option value="in">In (comma-separated)</option>
-                  <option value="not_in">Not In (comma-separated)</option>
+                  <template v-if="ruleForm.condition_field && getOperatorsForField(ruleForm.condition_field).length > 0">
+                    <option 
+                      v-for="op in getOperatorsForField(ruleForm.condition_field)" 
+                      :key="op.id" 
+                      :value="op.id"
+                    >
+                      {{ op.label }}
+                    </option>
+                  </template>
+                  <template v-else>
+                    <option value="equals">Equals (=)</option>
+                    <option value="not_equals">Not Equals (≠)</option>
+                    <option value="contains">Contains</option>
+                    <option value="not_contains">Not Contains</option>
+                    <option value="in">In (comma-separated)</option>
+                    <option value="not_in">Not In (comma-separated)</option>
+                  </template>
                 </select>
               </div>
 
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Value</label>
+                <!-- Show dropdown if field has predefined options -->
+                <select
+                  v-if="fieldHasOptions(ruleForm.condition_field)"
+                  v-model="ruleForm.condition_value"
+                  :disabled="!ruleForm.condition_operator"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="">Select value...</option>
+                  <option v-for="opt in getFieldOptions(ruleForm.condition_field)" :key="opt" :value="opt">
+                    {{ opt }}
+                  </option>
+                </select>
+                <!-- Show text input for free-form fields -->
                 <input
+                  v-else
                   v-model="ruleForm.condition_value"
                   type="text"
                   :disabled="!ruleForm.condition_operator"
@@ -334,6 +373,15 @@
                 />
               </div>
             </div>
+
+            <!-- Advanced Mode: Multiple conditions with AND/OR -->
+            <ConditionBuilder
+              v-else
+              v-model="conditionGroups"
+              :field-categories="ruleFields"
+              :operators="fieldOperators"
+              :all-fields="allFields"
+            />
           </div>
 
           <!-- Action Section -->
@@ -351,9 +399,19 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select action...</option>
-                  <option value="block">Block</option>
-                  <option value="flag">Flag</option>
-                  <option value="require_approval">Require Approval</option>
+                  <template v-if="authStore.isPro">
+                    <!-- Pro Edition: Recommendation Actions -->
+                    <option value="recommend_reject">Recommend Reject</option>
+                    <option value="recommend_flag">Recommend Flag</option>
+                    <option value="recommend_review">Recommend Review</option>
+                    <option value="recommend_approve">Recommend Approve</option>
+                  </template>
+                  <template v-else>
+                    <!-- Standard Edition: Direct Actions -->
+                    <option value="block">Block</option>
+                    <option value="flag">Flag</option>
+                    <option value="require_approval">Require Approval</option>
+                  </template>
                   <option value="set_status">Set Status</option>
                   <option value="send_notification">Send Notification</option>
                 </select>
@@ -368,6 +426,189 @@
                   placeholder="Optional: e.g., status name, message..."
                 />
               </div>
+            </div>
+          </div>
+
+          <!-- Impact Analysis (shown when editing) -->
+          <div v-if="editingRule && (impactAnalysis || checkingImpact)" 
+               :class="{
+                 'bg-yellow-50 border-yellow-200': impactAnalysis && (impactAnalysis.riskLevel === 'high' || impactAnalysis.riskLevel === 'critical'),
+                 'bg-blue-50 border-blue-200': impactAnalysis && impactAnalysis.riskLevel === 'medium',
+                 'bg-green-50 border-green-200': impactAnalysis && impactAnalysis.riskLevel === 'low',
+                 'bg-gray-50 border-gray-200': !impactAnalysis || checkingImpact
+               }"
+               class="border rounded-lg p-4">
+            <div v-if="checkingImpact && !impactAnalysis" class="text-center py-4">
+              <p class="text-sm text-gray-600">Analyzing impact...</p>
+            </div>
+            <div v-else-if="impactAnalysis" class="flex items-start">
+              <svg v-if="impactAnalysis.riskLevel === 'high' || impactAnalysis.riskLevel === 'critical'" 
+                   class="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+              <svg v-else class="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <div class="flex-1">
+                <h4 :class="{
+                  'text-yellow-800': impactAnalysis.riskLevel === 'high' || impactAnalysis.riskLevel === 'critical',
+                  'text-blue-800': impactAnalysis.riskLevel === 'medium',
+                  'text-green-800': impactAnalysis.riskLevel === 'low'
+                }" class="text-sm font-semibold mb-2">
+                  Impact Analysis
+                  <span v-if="checkingImpact" class="ml-2 text-xs font-normal">(Analyzing...)</span>
+                </h4>
+                <div :class="{
+                  'text-yellow-700': impactAnalysis.riskLevel === 'high' || impactAnalysis.riskLevel === 'critical',
+                  'text-blue-700': impactAnalysis.riskLevel === 'medium',
+                  'text-green-700': impactAnalysis.riskLevel === 'low'
+                }" class="text-sm space-y-1">
+                  <p><strong>Risk Level:</strong> {{ impactAnalysis.riskLevel?.toUpperCase() }}</p>
+                  <p v-if="impactAnalysis.affectedRequests?.currentlyMatching">
+                    Currently matching: {{ impactAnalysis.affectedRequests.currentlyMatching }} request(s)
+                  </p>
+                  <p v-if="impactAnalysis.affectedRequests?.wouldStopMatching">
+                    Would stop matching: {{ impactAnalysis.affectedRequests.wouldStopMatching }} request(s)
+                  </p>
+                  <p v-if="impactAnalysis.affectedRequests?.wouldStartMatching">
+                    Would newly match: {{ impactAnalysis.affectedRequests.wouldStartMatching }} request(s)
+                  </p>
+                  <p v-if="impactAnalysis.pendingReviewsAffected">
+                    Pending reviews affected: {{ impactAnalysis.pendingReviewsAffected }}
+                  </p>
+                  <p v-if="impactAnalysis.historicalExecutions?.totalExecutions">
+                    Historical executions: {{ impactAnalysis.historicalExecutions.totalExecutions }}
+                  </p>
+                </div>
+                <ul v-if="impactAnalysis.warnings && impactAnalysis.warnings.length > 0" 
+                    :class="{
+                      'text-yellow-700': impactAnalysis.riskLevel === 'high' || impactAnalysis.riskLevel === 'critical',
+                      'text-blue-700': impactAnalysis.riskLevel === 'medium',
+                      'text-green-700': impactAnalysis.riskLevel === 'low'
+                    }"
+                    class="mt-2 text-sm list-disc list-inside">
+                  <li v-for="(warning, idx) in impactAnalysis.warnings" :key="idx">{{ warning }}</li>
+                </ul>
+                <p v-if="impactAnalysis.requiresApproval" 
+                   :class="{
+                     'text-yellow-800': impactAnalysis.riskLevel === 'high' || impactAnalysis.riskLevel === 'critical',
+                     'text-blue-800': impactAnalysis.riskLevel === 'medium'
+                   }"
+                   class="mt-2 text-sm font-medium">
+                  This change requires approval. Review the impact carefully before saving.
+                </p>
+                <p v-else-if="impactAnalysis.riskLevel === 'low'" class="mt-2 text-sm font-medium text-green-800">
+                  Low impact change. Safe to proceed.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Test Rule Panel -->
+          <div class="border-t border-gray-200 pt-4">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-sm font-semibold text-gray-900">Test Rule</h4>
+              <button
+                type="button"
+                @click="testRuleNow"
+                :disabled="testingRule || !ruleForm.rule_name"
+                class="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 flex items-center gap-1"
+              >
+                <svg v-if="testingRule" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg v-else class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Test Against Recent Requests
+              </button>
+            </div>
+            
+            <div v-if="testResults" class="bg-gray-50 rounded-lg p-3 text-sm">
+              <div class="flex items-center gap-4 mb-3">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                  <span class="text-gray-700">Matches: <strong>{{ testResults.summary.wouldMatch }}</strong></span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                  <span class="text-gray-700">No Match: <strong>{{ testResults.summary.wouldNotMatch }}</strong></span>
+                </div>
+                <span class="text-gray-500 text-xs">(of {{ testResults.testedAgainst }} recent requests)</span>
+              </div>
+              
+              <div v-if="testResults.matches.length > 0" class="mb-2">
+                <div class="text-xs font-medium text-green-700 mb-1">Would Match:</div>
+                <div class="flex flex-wrap gap-1">
+                  <span 
+                    v-for="match in testResults.matches.slice(0, 5)" 
+                    :key="match.id"
+                    class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded"
+                    :title="match.service"
+                  >
+                    {{ match.requestId }}
+                  </span>
+                  <span v-if="testResults.matches.length > 5" class="text-xs text-gray-500">
+                    +{{ testResults.matches.length - 5 }} more
+                  </span>
+                </div>
+              </div>
+              
+              <div v-if="testResults.nonMatches.length > 0 && testResults.matches.length < 5">
+                <div class="text-xs font-medium text-gray-600 mb-1">Would Not Match:</div>
+                <div class="flex flex-wrap gap-1">
+                  <span 
+                    v-for="noMatch in testResults.nonMatches.slice(0, 3)" 
+                    :key="noMatch.id"
+                    class="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded"
+                    :title="noMatch.service"
+                  >
+                    {{ noMatch.requestId }}
+                  </span>
+                  <span v-if="testResults.nonMatches.length > 3" class="text-xs text-gray-500">
+                    +{{ testResults.nonMatches.length - 3 }} more
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <p v-else class="text-xs text-gray-500">
+              Click "Test" to see which recent requests would match this rule.
+            </p>
+          </div>
+
+          <!-- Validation Errors/Warnings -->
+          <div v-if="ruleValidation && (ruleValidation.errors.length > 0 || ruleValidation.warnings.length > 0)" 
+               class="border rounded-lg p-4 space-y-3"
+               :class="ruleValidation.errors.length > 0 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'">
+            <div v-if="ruleValidation.errors.length > 0" class="text-red-700">
+              <h5 class="font-semibold text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Validation Errors
+              </h5>
+              <ul class="mt-2 text-sm list-disc list-inside space-y-1">
+                <li v-for="(err, idx) in ruleValidation.errors" :key="'err-'+idx">
+                  <span class="font-medium">{{ err.field }}:</span> {{ err.message }}
+                  <span v-if="err.severity === 'critical'" class="ml-1 px-1.5 py-0.5 bg-red-200 text-red-800 text-xs rounded">Critical</span>
+                </li>
+              </ul>
+            </div>
+            <div v-if="ruleValidation.warnings.length > 0" class="text-amber-700">
+              <h5 class="font-semibold text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                Warnings
+              </h5>
+              <ul class="mt-2 text-sm list-disc list-inside space-y-1">
+                <li v-for="(warn, idx) in ruleValidation.warnings" :key="'warn-'+idx">
+                  <span class="font-medium">{{ warn.field }}:</span> {{ warn.message }}
+                </li>
+              </ul>
             </div>
           </div>
 
@@ -456,6 +697,7 @@ import { ref, computed, onMounted } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
+import ConditionBuilder from './rules/ConditionBuilder.vue'
 
 const { success: showSuccess, error: showError } = useToast()
 const authStore = useAuthStore()
@@ -473,6 +715,82 @@ const rejectingRule = ref<any>(null)
 const rejectionReason = ref('')
 const expandedRules = ref(new Set<number>())
 const hasShownInitialError = ref(false)
+const impactAnalysis = ref<any>(null)
+const checkingImpact = ref(false)
+const showImpactWarning = ref(false)
+let impactCheckTimeout: any = null
+
+// Dynamic field configuration
+interface RuleField {
+  id: string
+  label: string
+  type: string
+  options?: string[]
+  source?: string
+  valueType?: string
+  description?: string
+}
+
+interface FieldCategory {
+  label: string
+  fields: RuleField[]
+}
+
+interface FieldOperator {
+  id: string
+  label: string
+}
+
+const ruleFields = ref<Record<string, FieldCategory>>({})
+const fieldOperators = ref<Record<string, FieldOperator[]>>({})
+const allFields = ref<RuleField[]>([])
+const loadingFields = ref(false)
+
+// Condition builder mode
+const useAdvancedConditions = ref(false)
+
+interface ConditionGroup {
+  operator: 'AND' | 'OR'
+  conditions: Array<{
+    field: string
+    conditionOperator: string
+    value: string
+    operator?: 'AND' | 'OR'
+  }>
+}
+
+const conditionGroups = ref<ConditionGroup[]>([
+  { operator: 'AND', conditions: [{ field: '', conditionOperator: '', value: '', operator: 'AND' }] }
+])
+
+// Rule validation
+interface ValidationError {
+  field: string
+  message: string
+  severity?: string
+}
+
+interface RuleValidation {
+  isValid: boolean
+  errors: ValidationError[]
+  warnings: ValidationError[]
+  hasCriticalErrors: boolean
+}
+
+const ruleValidation = ref<RuleValidation | null>(null)
+const validatingRule = ref(false)
+let validationTimeout: any = null
+
+// Test rule
+interface TestResults {
+  testedAgainst: number
+  matches: Array<{ requestId: string; id: number; service: string; status: string }>
+  nonMatches: Array<{ requestId: string; id: number; service: string; status: string }>
+  summary: { wouldMatch: number; wouldNotMatch: number }
+}
+
+const testResults = ref<TestResults | null>(null)
+const testingRule = ref(false)
 
 const ruleForm = ref({
   rule_name: '',
@@ -530,6 +848,10 @@ function getActionLabel(action: string) {
     'block': 'Block Request',
     'flag': 'Flag for Review',
     'require_approval': 'Require Approval',
+    'recommend_reject': 'Recommend Reject',
+    'recommend_flag': 'Recommend Flag',
+    'recommend_review': 'Recommend Review',
+    'recommend_approve': 'Recommend Approve',
     'set_status': 'Set Status',
     'send_notification': 'Send Notification'
   }
@@ -642,13 +964,56 @@ async function rejectRule() {
 }
 
 async function saveRule() {
+  // If impact analysis requires approval, confirm with user
+  if (impactAnalysis.value?.requiresApproval && !showImpactWarning.value) {
+    const confirmed = confirm(
+      `This rule change has high impact:\n\n` +
+      `- ${impactAnalysis.value.affectedRequests?.currentlyMatching || 0} requests currently match\n` +
+      `- ${impactAnalysis.value.pendingReviewsAffected || 0} pending reviews affected\n\n` +
+      `Are you sure you want to proceed?`
+    )
+    if (!confirmed) {
+      return
+    }
+  }
+  
   saving.value = true
   try {
+    // Build payload with condition_groups if using advanced mode
+    const payload: any = { ...ruleForm.value }
+    
+    if (useAdvancedConditions.value) {
+      // Store condition groups as JSON string
+      payload.condition_groups = JSON.stringify(conditionGroups.value)
+      // Clear single condition fields when using advanced mode
+      payload.condition_field = null
+      payload.condition_operator = null
+      payload.condition_value = null
+    } else {
+      // Clear condition_groups when using simple mode
+      payload.condition_groups = null
+    }
+    
     let response
     if (editingRule.value) {
-      response = await api.put(`/config/business-rules/${editingRule.value.id}`, ruleForm.value)
+      // Include forceUpdate if user confirmed high-impact change
+      const finalPayload = {
+        ...payload,
+        ...(impactAnalysis.value?.requiresApproval ? { forceUpdate: true, acknowledgeImpact: true } : {})
+      }
+      response = await api.put(`/config/business-rules/${editingRule.value.id}`, finalPayload)
+      
+      // Check if API returned requiresApproval response
+      if (response.data.requiresApproval && !finalPayload.forceUpdate) {
+        // Show impact and ask for confirmation
+        impactAnalysis.value = response.data.impactAnalysis
+        showImpactWarning.value = true
+        saving.value = false
+        showError('Please review the impact analysis and confirm the change')
+        return
+      }
     } else {
-      response = await api.post('/config/business-rules', ruleForm.value)
+      response = await api.post('/config/business-rules', payload)
     }
     
     const message = response.data.requiresApproval
@@ -659,7 +1024,14 @@ async function saveRule() {
     closeModal()
     await loadRules()
   } catch (error: any) {
-    showError(error.response?.data?.error || 'Failed to save rule')
+    // Handle impact analysis response
+    if (error.response?.data?.requiresApproval && error.response?.data?.impactAnalysis) {
+      impactAnalysis.value = error.response.data.impactAnalysis
+      showImpactWarning.value = true
+      showError('Please review the impact analysis and confirm the change')
+    } else {
+      showError(error.response?.data?.error || 'Failed to save rule')
+    }
   } finally {
     saving.value = false
   }
@@ -678,7 +1050,7 @@ async function toggleRule(rule: any) {
   }
 }
 
-function editRule(rule: any) {
+async function editRule(rule: any) {
   editingRule.value = rule
   ruleForm.value = {
     rule_name: rule.rule_name,
@@ -690,7 +1062,81 @@ function editRule(rule: any) {
     action_value: rule.action_value || '',
     is_active: rule.is_active === 1 || rule.is_active === true
   }
+  
+  // Load condition_groups if present
+  if (rule.condition_groups) {
+    try {
+      const groups = typeof rule.condition_groups === 'string' 
+        ? JSON.parse(rule.condition_groups) 
+        : rule.condition_groups
+      conditionGroups.value = groups
+      useAdvancedConditions.value = true
+    } catch (e) {
+      console.error('Error parsing condition_groups:', e)
+      useAdvancedConditions.value = false
+    }
+  } else {
+    useAdvancedConditions.value = false
+    // Reset condition groups to default
+    conditionGroups.value = [
+      { operator: 'AND', conditions: [{ field: '', conditionOperator: '', value: '', operator: 'AND' }] }
+    ]
+  }
+  
   showCreateModal.value = true
+  
+  // Check impact when editing (will be updated as user makes changes)
+  await checkImpact()
+}
+
+async function checkImpact() {
+  if (!editingRule.value) {
+    impactAnalysis.value = null
+    return
+  }
+  
+  // Debounce impact checking to avoid too many API calls
+  if (impactCheckTimeout) {
+    clearTimeout(impactCheckTimeout)
+  }
+  
+  impactCheckTimeout = setTimeout(async () => {
+    checkingImpact.value = true
+    try {
+      console.log('Checking impact for rule:', editingRule.value.id, 'with changes:', ruleForm.value)
+      const response = await api.post(`/config/business-rules/${editingRule.value.id}/impact`, ruleForm.value)
+      console.log('Impact analysis response:', response.data)
+      if (response.data && response.data.impactAnalysis) {
+        impactAnalysis.value = response.data.impactAnalysis
+        showImpactWarning.value = response.data.requiresApproval || false
+        console.log('Impact analysis set:', impactAnalysis.value)
+      } else {
+        console.warn('No impact analysis in response:', response.data)
+        // Show a default low-risk analysis
+        impactAnalysis.value = {
+          riskLevel: 'low',
+          affectedRequests: { currentlyMatching: 0 },
+          warnings: []
+        }
+      }
+    } catch (error: any) {
+      // Impact analysis failed, log error but continue
+      console.error('Impact analysis check failed:', error.response?.data || error.message)
+      console.error('Error details:', error)
+      // Show a default analysis instead of hiding
+      if (!impactAnalysis.value) {
+        impactAnalysis.value = {
+          riskLevel: 'low',
+          affectedRequests: { currentlyMatching: 0 },
+          warnings: ['Impact analysis unavailable - check console for details'],
+          error: error.response?.data?.error || error.message
+        }
+      }
+      showImpactWarning.value = false
+    } finally {
+      checkingImpact.value = false
+    }
+  }, 500) // Wait 500ms after user stops typing
 }
 
 async function deleteRule(rule: any) {
@@ -710,6 +1156,14 @@ async function deleteRule(rule: any) {
 function closeModal() {
   showCreateModal.value = false
   editingRule.value = null
+  impactAnalysis.value = null
+  showImpactWarning.value = false
+  useAdvancedConditions.value = false
+  ruleValidation.value = null
+  testResults.value = null
+  conditionGroups.value = [
+    { operator: 'AND', conditions: [{ field: '', conditionOperator: '', value: '', operator: 'AND' }] }
+  ]
   ruleForm.value = {
     rule_name: '',
     rule_type: '',
@@ -722,8 +1176,131 @@ function closeModal() {
   }
 }
 
+// Validate rule in real-time
+async function validateRuleDebounced() {
+  // Clear previous timeout
+  if (validationTimeout) {
+    clearTimeout(validationTimeout)
+  }
+  
+  // Debounce validation
+  validationTimeout = setTimeout(async () => {
+    await validateRuleNow()
+  }, 500)
+}
+
+async function validateRuleNow() {
+  // Only validate if we have minimum required fields
+  if (!ruleForm.value.rule_name && !ruleForm.value.rule_type && !ruleForm.value.action_type) {
+    ruleValidation.value = null
+    return
+  }
+  
+  validatingRule.value = true
+  try {
+    const payload: any = { ...ruleForm.value }
+    
+    if (useAdvancedConditions.value) {
+      payload.condition_groups = JSON.stringify(conditionGroups.value)
+    }
+    
+    if (editingRule.value) {
+      payload.id = editingRule.value.id
+    }
+    
+    const response = await api.post('/config/validate-rule', payload)
+    ruleValidation.value = response.data
+  } catch (error: any) {
+    console.error('Validation error:', error)
+    // Don't show error for validation failures
+  } finally {
+    validatingRule.value = false
+  }
+}
+
+// Handler for form changes - validates and checks impact
+function onFormChange() {
+  validateRuleDebounced()
+  checkImpact()
+}
+
+// Test rule against recent requests
+async function testRuleNow() {
+  if (!ruleForm.value.rule_name) return
+  
+  testingRule.value = true
+  testResults.value = null
+  
+  try {
+    const payload: any = { ...ruleForm.value }
+    
+    if (useAdvancedConditions.value) {
+      payload.condition_groups = JSON.stringify(conditionGroups.value)
+    }
+    
+    const response = await api.post('/config/test-rule?limit=20', payload)
+    testResults.value = response.data.results
+  } catch (error: any) {
+    console.error('Error testing rule:', error)
+    showError('Failed to test rule')
+  } finally {
+    testingRule.value = false
+  }
+}
+
+// Load available fields for rule building
+async function loadRuleFields() {
+  loadingFields.value = true
+  try {
+    const response = await api.get('/config/rule-fields')
+    ruleFields.value = response.data.categories || {}
+    fieldOperators.value = response.data.operators || {}
+    allFields.value = response.data.allFields || []
+    console.log('Loaded rule fields:', Object.keys(ruleFields.value).length, 'categories')
+  } catch (error: any) {
+    console.error('Error loading rule fields:', error)
+    // Fallback to hardcoded fields if API fails
+    allFields.value = [
+      { id: 'service_type', label: 'Service Type', type: 'select', options: ['Statutory Audit', 'External Audit', 'Tax Compliance', 'Tax Advisory', 'Management Consulting', 'Business Advisory', 'Internal Audit'] },
+      { id: 'client_type', label: 'Client Type', type: 'select', options: ['Existing', 'New', 'Potential'] },
+      { id: 'pie_status', label: 'PIE Status', type: 'select', options: ['Yes', 'No'] },
+      { id: 'client_location', label: 'Client Location', type: 'select', options: ['State of Kuwait', 'GCC', 'International'] },
+      { id: 'relationship_with_client', label: 'Relationship', type: 'select', options: ['Direct', 'Referral', 'Group Company'] },
+      { id: 'international_operations', label: 'International Operations', type: 'select', options: ['Yes', 'No'] }
+    ]
+  } finally {
+    loadingFields.value = false
+  }
+}
+
+// Get operators for a specific field type
+function getOperatorsForField(fieldId: string): FieldOperator[] {
+  const field = allFields.value.find(f => f.id === fieldId)
+  if (!field) return []
+  
+  const fieldType = field.type || 'text'
+  return fieldOperators.value[fieldType] || [
+    { id: 'equals', label: 'Equals' },
+    { id: 'not_equals', label: 'Not Equals' },
+    { id: 'contains', label: 'Contains' }
+  ]
+}
+
+// Get field options for selected field
+function getFieldOptions(fieldId: string): string[] {
+  const field = allFields.value.find(f => f.id === fieldId)
+  return field?.options || []
+}
+
+// Check if field has predefined options
+function fieldHasOptions(fieldId: string): boolean {
+  const field = allFields.value.find(f => f.id === fieldId)
+  return !!(field?.options && field.options.length > 0)
+}
+
 onMounted(() => {
   loadRules()
+  loadRuleFields()
 })
 </script>
 

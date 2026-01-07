@@ -234,6 +234,20 @@
                       <td class="px-6 py-4">
                         <div class="flex flex-wrap gap-1">
                           <span 
+                            v-if="request.requires_re_evaluation"
+                            class="px-2 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-700"
+                            title="Rules changed - requires re-evaluation"
+                          >
+                            Stale
+                          </span>
+                          <span 
+                            v-if="hasRecommendations(request)"
+                            class="px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-700"
+                            :title="getRecommendationsSummary(request)"
+                          >
+                            {{ getRecommendationsCount(request) }} Recommendation(s)
+                          </span>
+                          <span 
                             v-if="hasConflict(request)"
                             class="px-2 py-0.5 text-xs font-medium rounded bg-red-100 text-red-700"
                           >
@@ -246,7 +260,7 @@
                             Duplicate
                           </span>
                           <span 
-                            v-if="!hasConflict(request) && !hasDuplication(request)"
+                            v-if="!hasConflict(request) && !hasDuplication(request) && !hasRecommendations(request) && !request.requires_re_evaluation"
                             class="px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-700"
                           >
                             Clear
@@ -254,7 +268,7 @@
                         </div>
                       </td>
                       <td class="px-6 py-4">
-                        <span class="text-sm text-gray-500">{{ formatDate(request.created_at) }}</span>
+                        <span class="text-sm text-gray-500">{{ formatDate(request.created_at || '') }}</span>
                       </td>
                       <td class="px-6 py-4">
                         <button 
@@ -308,7 +322,7 @@
                         <p class="font-medium text-gray-900">{{ request.request_id }}</p>
                         <p class="text-sm text-gray-600">{{ request.client_name }} • {{ request.service_type }}</p>
                         <div class="mt-2 text-sm text-red-700">
-                          <strong>Conflict:</strong> Client already has active Audit engagement
+                          <strong>Conflict:</strong> {{ getConflictReason(request) }}
                         </div>
                       </div>
                       <button 
@@ -377,6 +391,64 @@
             </div>
           </div>
 
+          <!-- Stale Requests Tab -->
+          <div v-if="activeTab === 'stale'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900">Stale Requests</h2>
+                <p class="text-sm text-gray-500 mt-1">Requests that require re-evaluation due to rule changes</p>
+              </div>
+              
+              <div class="p-6">
+                <!-- Info Banner -->
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                  <div class="flex items-start gap-3">
+                    <svg class="w-5 h-5 text-amber-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <div>
+                      <h3 class="text-sm font-semibold text-amber-800">Rule Changes Detected</h3>
+                      <p class="text-sm text-amber-700 mt-1">
+                        These requests were submitted before recent rule changes. They must be re-evaluated 
+                        before approval to ensure compliance with the latest rule set.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="space-y-4">
+                  <div 
+                    v-for="request in staleRequests" 
+                    :key="request.id"
+                    class="border border-amber-200 rounded-lg p-4 bg-amber-50"
+                  >
+                    <div class="flex items-start justify-between">
+                      <div>
+                        <p class="font-medium text-gray-900">{{ request.request_id }}</p>
+                        <p class="text-sm text-gray-600">{{ request.client_name }} • {{ request.service_type }}</p>
+                        <div class="mt-2 text-sm text-amber-700">
+                          <strong>Reason:</strong> {{ request.stale_reason || 'Rules modified since submission' }}
+                        </div>
+                      </div>
+                      <button 
+                        @click="viewDetails(request)"
+                        class="px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded hover:bg-amber-700"
+                      >
+                        Review & Re-Evaluate
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="staleRequests.length === 0" class="text-center py-8 text-gray-500">
+                    <svg class="w-12 h-12 mx-auto text-green-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p>All requests are up to date with the current rules</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Rule Builder Tab -->
           <div v-if="activeTab === 'rules'" class="space-y-6">
             <RuleBuilder />
@@ -417,7 +489,7 @@
                         </span>
                       </td>
                       <td class="px-6 py-4">
-                        <span class="text-sm text-gray-500">{{ formatDate(item.compliance_review_date || item.updated_at) }}</span>
+                        <span class="text-sm text-gray-500">{{ formatDate(item.compliance_review_date || item.updated_at || '') }}</span>
                       </td>
                       <td class="px-6 py-4">
                         <button @click="viewDetails(item)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
@@ -438,17 +510,108 @@
         </div>
       </div>
     </div>
+
+    <!-- Review Modal -->
+    <div 
+      v-if="showReviewModal && selectedRequest" 
+      class="fixed inset-0 z-50 overflow-y-auto"
+    >
+      <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+        <!-- Backdrop -->
+        <div 
+          class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          @click="closeReviewModal"
+        ></div>
+
+        <!-- Modal Panel -->
+        <div class="relative inline-block w-full max-w-3xl bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8">
+          <!-- Header -->
+          <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900">
+                Review Request: {{ selectedRequest.request_id }}
+              </h3>
+              <p class="text-sm text-gray-500">
+                {{ selectedRequest.client_name }} • {{ selectedRequest.service_type }}
+              </p>
+            </div>
+            <button 
+              @click="closeReviewModal"
+              class="text-gray-400 hover:text-gray-600"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Content -->
+          <div class="px-6 py-4 max-h-96 overflow-y-auto">
+            <!-- Request Details Summary -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Requester</p>
+                <p class="text-sm text-gray-900">{{ selectedRequest.requester_name || 'N/A' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Department</p>
+                <p class="text-sm text-gray-900">{{ selectedRequest.department || 'N/A' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Service Description</p>
+                <p class="text-sm text-gray-900">{{ selectedRequest.service_description || 'N/A' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Submitted</p>
+                <p class="text-sm text-gray-900">{{ formatDate(selectedRequest.created_at || '') }}</p>
+              </div>
+            </div>
+
+            <!-- Compliance Action Panel -->
+            <ComplianceActionPanel 
+              :request="selectedRequest"
+              @approve="handleApprove"
+              @reject="handleReject"
+              @request-info="handleRequestInfo"
+              @updated="handleRequestUpdated"
+            />
+          </div>
+
+          <!-- Footer -->
+          <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+            <button 
+              @click="goToFullDetails(selectedRequest)"
+              class="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              View Full Details →
+            </button>
+            <button 
+              @click="closeReviewModal"
+              class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCOIRequestsStore } from '@/stores/coiRequests'
+import { useCOIRequestsStore, type COIRequest } from '@/stores/coiRequests'
 import RuleBuilder from '@/components/RuleBuilder.vue'
+import ComplianceActionPanel from '@/components/compliance/ComplianceActionPanel.vue'
+import api from '@/services/api'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()
+
+// Modal state for reviewing requests
+const showReviewModal = ref(false)
+const selectedRequest = ref<COIRequest | null>(null)
 
 const activeTab = ref('overview')
 const searchQuery = ref('')
@@ -506,11 +669,20 @@ const RuleBuilderIcon = {
   }
 }
 
+const StaleIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' })
+    ])
+  }
+}
+
 const pendingRequests = computed(() => requests.value.filter(r => r.status === 'Pending Compliance'))
 
 const conflictsCount = computed(() => {
-  // Count requests where the client has conflicting service types
-  return requests.value.filter(r => hasConflict(r)).length
+  // Count requests with conflicts that are in Pending Compliance status
+  // This matches what's shown in the Conflicts tab
+  return requests.value.filter(r => hasConflict(r) && r.status === 'Pending Compliance').length
 })
 
 const duplicationsCount = computed(() => {
@@ -518,6 +690,14 @@ const duplicationsCount = computed(() => {
 })
 
 const globalClearanceCount = computed(() => requests.value.filter(r => r.international_operations).length)
+
+const staleCount = computed(() => {
+  return requests.value.filter(r => r.requires_re_evaluation && r.status === 'Pending Compliance').length
+})
+
+const staleRequests = computed(() => {
+  return requests.value.filter(r => r.requires_re_evaluation && r.status === 'Pending Compliance')
+})
 
 const conflictRequests = computed(() => requests.value.filter(r => hasConflict(r) && r.status === 'Pending Compliance'))
 
@@ -566,6 +746,7 @@ const conflictMatrix = computed(() => {
 const tabs = computed(() => [
   { id: 'overview', label: 'Overview', icon: OverviewIcon, count: 0, alertColor: '' },
   { id: 'pending', label: 'Pending Review', icon: PendingIcon, count: pendingRequests.value.length, alertColor: 'bg-blue-100 text-blue-700' },
+  { id: 'stale', label: 'Stale Requests', icon: StaleIcon, count: staleCount.value, alertColor: 'bg-amber-100 text-amber-700' },
   { id: 'conflicts', label: 'Conflicts', icon: ConflictIcon, count: conflictsCount.value, alertColor: 'bg-red-100 text-red-700' },
   { id: 'duplications', label: 'Duplications', icon: DuplicateIcon, count: duplicationsCount.value, alertColor: 'bg-yellow-100 text-yellow-700' },
   { id: 'rules', label: 'Rule Builder', icon: RuleBuilderIcon, count: 0, alertColor: '' },
@@ -598,7 +779,28 @@ const filteredRequests = computed(() => {
 })
 
 function hasConflict(request: any): boolean {
-  // Check if client has conflicting service types
+  // First, check if duplication_matches contains conflicts (from backend evaluation)
+  if (request.duplication_matches) {
+    try {
+      const matches = typeof request.duplication_matches === 'string' 
+        ? JSON.parse(request.duplication_matches) 
+        : request.duplication_matches
+      
+      if (matches && matches.duplicates && Array.isArray(matches.duplicates)) {
+        // Check if any duplicate match has conflicts
+        const hasServiceConflict = matches.duplicates.some((match: any) => {
+          return match.conflicts && match.conflicts.length > 0
+        })
+        if (hasServiceConflict) {
+          return true
+        }
+      }
+    } catch (e) {
+      // Invalid JSON, continue to fallback check
+    }
+  }
+  
+  // Fallback: Check if client has conflicting service types in current requests
   const clientRequests = requests.value.filter(r => 
     r.client_name === request.client_name && 
     r.id !== request.id &&
@@ -608,14 +810,20 @@ function hasConflict(request: any): boolean {
   const currentService = (request.service_type || '').toLowerCase()
   const isAudit = currentService.includes('audit')
   const isAdvisory = currentService.includes('advisory') || currentService.includes('consulting')
+  const isTax = currentService.includes('tax')
   
   for (const other of clientRequests) {
     const otherService = (other.service_type || '').toLowerCase()
     const otherIsAudit = otherService.includes('audit')
     const otherIsAdvisory = otherService.includes('advisory') || otherService.includes('consulting')
+    const otherIsTax = otherService.includes('tax')
     
-    // Audit + Advisory = Conflict
+    // Audit + Advisory = Conflict (Blocked)
     if ((isAudit && otherIsAdvisory) || (isAdvisory && otherIsAudit)) {
+      return true
+    }
+    // Audit + Tax = Conflict (Review Required)
+    if ((isAudit && otherIsTax) || (isTax && otherIsAudit)) {
       return true
     }
   }
@@ -629,10 +837,73 @@ function hasDuplication(request: any): boolean {
     const matches = typeof request.duplication_matches === 'string' 
       ? JSON.parse(request.duplication_matches) 
       : request.duplication_matches
+    if (matches && matches.duplicates && Array.isArray(matches.duplicates)) {
+      return matches.duplicates.length > 0
+    }
     return matches && matches.length > 0
   } catch { 
     return false 
   }
+}
+
+function getConflictReason(request: any): string {
+  // Try to get conflict reason from stored duplication_matches
+  if (request.duplication_matches) {
+    try {
+      const matches = typeof request.duplication_matches === 'string' 
+        ? JSON.parse(request.duplication_matches) 
+        : request.duplication_matches
+      
+      if (matches && matches.duplicates && Array.isArray(matches.duplicates)) {
+        // Find first conflict
+        for (const match of matches.duplicates) {
+          if (match.conflicts && match.conflicts.length > 0) {
+            const conflict = match.conflicts[0]
+            return conflict.reason || conflict.message || 'Service type conflict detected'
+          }
+          if (match.reason) {
+            return match.reason
+          }
+        }
+      }
+    } catch (e) {
+      // Invalid JSON, continue to fallback
+    }
+  }
+  
+  // Fallback: Generate reason from service type analysis
+  const currentService = (request.service_type || '').toLowerCase()
+  const clientRequests = requests.value.filter(r => 
+    r.client_name === request.client_name && 
+    r.id !== request.id &&
+    !['Draft', 'Rejected'].includes(r.status)
+  )
+  
+  const isAudit = currentService.includes('audit')
+  const isAdvisory = currentService.includes('advisory') || currentService.includes('consulting')
+  const isTax = currentService.includes('tax')
+  
+  for (const other of clientRequests) {
+    const otherService = (other.service_type || '').toLowerCase()
+    const otherIsAudit = otherService.includes('audit')
+    const otherIsAdvisory = otherService.includes('advisory') || otherService.includes('consulting')
+    const otherIsTax = otherService.includes('tax')
+    
+    if (isAudit && otherIsAdvisory) {
+      return 'Audit + Advisory for same client = Blocked'
+    }
+    if (isAdvisory && otherIsAudit) {
+      return 'Advisory + Audit for same client = Blocked'
+    }
+    if (isAudit && otherIsTax) {
+      return 'Audit + Tax Compliance = Review Required'
+    }
+    if (isTax && otherIsAudit) {
+      return 'Tax Compliance + Audit = Review Required'
+    }
+  }
+  
+  return 'Service type conflict detected'
 }
 
 function getMatches(request: any): any[] {
@@ -644,6 +915,53 @@ function getMatches(request: any): any[] {
     return matches || []
   } catch { 
     return [] 
+  }
+}
+
+function hasRecommendations(request: any): boolean {
+  if (!request.rule_recommendations) return false
+  try {
+    const recommendations = typeof request.rule_recommendations === 'string'
+      ? JSON.parse(request.rule_recommendations)
+      : request.rule_recommendations
+    return Array.isArray(recommendations) && recommendations.length > 0
+  } catch {
+    return false
+  }
+}
+
+function getRecommendationsCount(request: any): number {
+  if (!hasRecommendations(request)) return 0
+  try {
+    const recommendations = typeof request.rule_recommendations === 'string'
+      ? JSON.parse(request.rule_recommendations)
+      : request.rule_recommendations
+    return Array.isArray(recommendations) ? recommendations.length : 0
+  } catch {
+    return 0
+  }
+}
+
+function getRecommendationsSummary(request: any): string {
+  if (!hasRecommendations(request)) return ''
+  try {
+    const recommendations = typeof request.rule_recommendations === 'string'
+      ? JSON.parse(request.rule_recommendations)
+      : request.rule_recommendations
+    if (!Array.isArray(recommendations)) return ''
+    
+    const critical = recommendations.filter((r: any) => r.severity === 'CRITICAL').length
+    const high = recommendations.filter((r: any) => r.severity === 'HIGH').length
+    const medium = recommendations.filter((r: any) => r.severity === 'MEDIUM').length
+    
+    const parts = []
+    if (critical > 0) parts.push(`${critical} Critical`)
+    if (high > 0) parts.push(`${high} High`)
+    if (medium > 0) parts.push(`${medium} Medium`)
+    
+    return parts.length > 0 ? parts.join(', ') : `${recommendations.length} recommendation(s)`
+  } catch {
+    return ''
   }
 }
 
@@ -672,7 +990,72 @@ function formatDate(dateString: string) {
 }
 
 function viewDetails(request: any) {
+  selectedRequest.value = request
+  showReviewModal.value = true
+}
+
+function closeReviewModal() {
+  showReviewModal.value = false
+  selectedRequest.value = null
+}
+
+function goToFullDetails(request: any) {
+  closeReviewModal()
   router.push(`/coi/request/${request.id}`)
+}
+
+async function handleApprove() {
+  if (!selectedRequest.value) return
+  try {
+    await api.post(`/coi/requests/${selectedRequest.value.id}/approve`, {
+      status: 'Approved',
+      comments: 'Approved by Compliance'
+    })
+    await coiStore.fetchRequests()
+    closeReviewModal()
+  } catch (error: any) {
+    console.error('Error approving request:', error)
+    alert(error.response?.data?.error || 'Failed to approve request')
+  }
+}
+
+async function handleReject() {
+  if (!selectedRequest.value) return
+  const reason = prompt('Please provide a reason for rejection:')
+  if (!reason) return
+  
+  try {
+    await api.post(`/coi/requests/${selectedRequest.value.id}/reject`, { reason })
+    await coiStore.fetchRequests()
+    closeReviewModal()
+  } catch (error: any) {
+    console.error('Error rejecting request:', error)
+    alert(error.response?.data?.error || 'Failed to reject request')
+  }
+}
+
+async function handleRequestInfo() {
+  if (!selectedRequest.value) return
+  const question = prompt('What additional information do you need?')
+  if (!question) return
+  
+  try {
+    await api.post(`/coi/requests/${selectedRequest.value.id}/request-info`, { question })
+    await coiStore.fetchRequests()
+    closeReviewModal()
+  } catch (error: any) {
+    console.error('Error requesting info:', error)
+    alert(error.response?.data?.error || 'Failed to request information')
+  }
+}
+
+function handleRequestUpdated(updatedRequest: COIRequest) {
+  // Update the request in the store/local state
+  if (selectedRequest.value) {
+    selectedRequest.value = updatedRequest
+  }
+  // Refresh the list
+  coiStore.fetchRequests()
 }
 
 onMounted(() => {

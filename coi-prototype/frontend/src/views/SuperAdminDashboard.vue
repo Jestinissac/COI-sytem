@@ -3,16 +3,22 @@
     <!-- Page Header -->
     <div class="flex items-center justify-between">
       <h1 class="text-xl font-semibold text-gray-900">System Administration</h1>
-      <router-link
-        to="/coi/form-builder"
-        class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-        </svg>
-        Form Builder
-      </router-link>
+      <div class="flex items-center gap-3">
+        <router-link
+          v-if="authStore.isPro"
+          to="/coi/form-builder"
+          class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+          Form Builder
+        </router-link>
+      </div>
     </div>
+
+    <!-- Edition Switcher -->
+    <EditionSwitcher />
 
     <!-- KPI Cards -->
     <div class="grid grid-cols-4 gap-4">
@@ -408,10 +414,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
+import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import EditionSwitcher from '@/components/edition/EditionSwitcher.vue'
 
 const coiStore = useCOIRequestsStore()
+const authStore = useAuthStore()
 const { success, error: showError } = useToast()
 
 const activeTab = ref('users')
@@ -477,6 +486,7 @@ watch(activeTab, (newTab) => {
 })
 
 onMounted(async () => {
+  await authStore.loadEdition()
   await coiStore.fetchRequests()
   await fetchUsers()
 })
@@ -614,15 +624,6 @@ function formatTimestamp(timestamp: string) {
   if (!timestamp) return 'N/A'
   return new Date(timestamp).toLocaleString('en-US', {
     year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
-}
-</script>
-
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

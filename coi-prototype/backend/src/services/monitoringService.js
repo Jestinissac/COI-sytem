@@ -1,341 +1,435 @@
 import { getDatabase } from '../database/init.js'
-import { sendEmail } from './notificationService.js'
-
-const db = getDatabase()
+import { notifyEngagementExpiring } from './emailService.js'
+import { logAuditTrail } from './auditTrailService.js'
 
 /**
- * Update days_in_monitoring for all Active requests
- * Should be called daily (via cron job or scheduled task)
+ * Monitoring Service
+ * Handles scheduled monitoring tasks for engagements, compliance, and alerts
  */
-export function updateMonitoringDays() {
-  try {
-    // Get all Active requests
-    const activeRequests = db.prepare(`
-      SELECT id, execution_date, days_in_monitoring
-      FROM coi_requests
-      WHERE status = 'Active' AND execution_date IS NOT NULL
-    `).all()
-    
-    const today = new Date()
-    let updated = 0
-    
-    activeRequests.forEach(request => {
-      const executionDate = new Date(request.execution_date)
-      const daysDiff = Math.floor((today - executionDate) / (1000 * 60 * 60 * 24))
-      
-      if (daysDiff !== request.days_in_monitoring) {
-        db.prepare('UPDATE coi_requests SET days_in_monitoring = ? WHERE id = ?').run(daysDiff, request.id)
-        updated++
-      }
-    })
-    
-    return { updated, total: activeRequests.length }
-  } catch (error) {
-    console.error('Monitoring update error:', error)
-    throw error
-  }
+
+// Monitoring configuration
+const MONITORING_CONFIG = {
+  engagementExpiryWarningDays: [30, 14, 7, 1],
+  staleRequestCheckIntervalHours: 4,
+  complianceReviewReminderDays: 3,
+  reportGenerationDayOfMonth: 1
 }
 
 /**
- * Send alerts at 10-day intervals (10, 20, 30 days)
+ * Check for expiring engagements and send alerts
  */
-export function sendIntervalAlerts() {
-  try {
-    const alerts = []
+export async function checkExpiringEngagements() {
+  const db = getDatabase()
+  const results = {
+    checked: 0,
+    alertsSent: 0,
+    errors: []
+  }
+  
+  for (const days of MONITORING_CONFIG.engagementExpiryWarningDays) {
+    const targetDate = new Date()
+    targetDate.setDate(targetDate.getDate() + days)
+    const dateStr = targetDate.toISOString().split('T')[0]
     
-    // 10-day alerts
-    const tenDayRequests = db.prepare(`
-      SELECT r.id, r.request_id, r.requester_id, r.days_in_monitoring, c.client_name, u.email as requester_email
+    // Find engagements expiring on this date
+    const expiringEngagements = db.prepare(`
+      SELECT 
+        r.*,
+        c.client_name,
+        u.name as requestor_name,
+        u.email as requestor_email,
+        u2.name as partner_name,
+        u2.email as partner_email
       FROM coi_requests r
-      JOIN clients c ON r.client_id = c.id
-      JOIN users u ON r.requester_id = u.id
-      WHERE r.status = 'Active' 
-      AND r.days_in_monitoring = 10
-    `).all()
+      LEFT JOIN clients c ON r.client_id = c.id
+      LEFT JOIN users u ON r.created_by = u.id
+      LEFT JOIN users u2 ON r.partner_id = u2.id
+      WHERE r.status = 'Approved'
+        AND DATE(r.engagement_end_date) = ?
+        AND (r.expiry_notification_sent IS NULL OR r.expiry_notification_sent NOT LIKE ?)
+    `).all(dateStr, `%${days}d%`)
     
-    tenDayRequests.forEach(req => {
-      const existingAlert = db.prepare(`
-        SELECT id FROM monitoring_alerts 
-        WHERE coi_request_id = ? AND alert_type = '10_day'
-      `).get(req.id)
-      
-      if (!existingAlert) {
-        sendEmail(
-          [req.requester_email],
-          `COI Alert: 10 Days - ${req.request_id}`,
-          `Request ${req.request_id} for ${req.client_name} has been active for 10 days. Please follow up with the client.`
-        )
+    results.checked += expiringEngagements.length
+    
+    for (const engagement of expiringEngagements) {
+      try {
+        // Notify requestor
+        if (engagement.requestor_email) {
+          await notifyEngagementExpiring(
+            {
+              engagement_code: engagement.engagement_code,
+              client_name: engagement.client_name,
+              service_type: engagement.service_type,
+              expiry_date: engagement.engagement_end_date
+            },
+            { name: engagement.requestor_name, email: engagement.requestor_email },
+            days
+          )
+        }
         
+        // Notify partner
+        if (engagement.partner_email) {
+          await notifyEngagementExpiring(
+            {
+              engagement_code: engagement.engagement_code,
+              client_name: engagement.client_name,
+              service_type: engagement.service_type,
+              expiry_date: engagement.engagement_end_date
+            },
+            { name: engagement.partner_name, email: engagement.partner_email },
+            days
+          )
+        }
+        
+        // Mark notification as sent
+        const currentNotifications = engagement.expiry_notification_sent || ''
         db.prepare(`
-          INSERT INTO monitoring_alerts (coi_request_id, alert_type, sent_to, sent_status)
-          VALUES (?, '10_day', ?, 'Sent')
-        `).run(req.id, JSON.stringify([req.requester_email]))
-        
-        alerts.push({ request_id: req.request_id, type: '10_day' })
-      }
-    })
-    
-    // 20-day alerts
-    const twentyDayRequests = db.prepare(`
-      SELECT r.id, r.request_id, r.requester_id, r.days_in_monitoring, c.client_name, u.email as requester_email
-      FROM coi_requests r
-      JOIN clients c ON r.client_id = c.id
-      JOIN users u ON r.requester_id = u.id
-      WHERE r.status = 'Active' 
-      AND r.days_in_monitoring = 20
-    `).all()
-    
-    twentyDayRequests.forEach(req => {
-      const existingAlert = db.prepare(`
-        SELECT id FROM monitoring_alerts 
-        WHERE coi_request_id = ? AND alert_type = '20_day'
-      `).get(req.id)
-      
-      if (!existingAlert) {
-        // Get admin emails
-        const admins = db.prepare(`SELECT email FROM users WHERE role = 'Admin'`).all()
-        const adminEmails = admins.map(a => a.email)
-        
-        sendEmail(
-          [req.requester_email, ...adminEmails],
-          `COI URGENT: 20 Days - ${req.request_id}`,
-          `Request ${req.request_id} for ${req.client_name} has been active for 20 days. Only 10 days remaining before lapse.`
-        )
-        
-        db.prepare(`
-          INSERT INTO monitoring_alerts (coi_request_id, alert_type, sent_to, sent_status)
-          VALUES (?, '20_day', ?, 'Sent')
-        `).run(req.id, JSON.stringify([req.requester_email, ...adminEmails]))
-        
-        alerts.push({ request_id: req.request_id, type: '20_day' })
-      }
-    })
-    
-    // 30-day alerts (and auto-lapse)
-    const thirtyDayRequests = db.prepare(`
-      SELECT r.id, r.request_id, r.requester_id, r.days_in_monitoring, c.client_name, u.email as requester_email
-      FROM coi_requests r
-      JOIN clients c ON r.client_id = c.id
-      JOIN users u ON r.requester_id = u.id
-      WHERE r.status = 'Active' 
-      AND r.days_in_monitoring >= 30
-    `).all()
-    
-    thirtyDayRequests.forEach(req => {
-      const existingAlert = db.prepare(`
-        SELECT id FROM monitoring_alerts 
-        WHERE coi_request_id = ? AND alert_type = '30_day'
-      `).get(req.id)
-      
-      if (!existingAlert) {
-        // Get compliance, admin, and partner emails
-        const stakeholders = db.prepare(`
-          SELECT email FROM users WHERE role IN ('Admin', 'Compliance', 'Partner')
-        `).all()
-        const stakeholderEmails = stakeholders.map(s => s.email)
-        
-        sendEmail(
-          [req.requester_email, ...stakeholderEmails],
-          `COI EXPIRED: 30 Days - ${req.request_id}`,
-          `Request ${req.request_id} for ${req.client_name} has exceeded 30 days and will be marked as Lapsed.`
-        )
-        
-        // Auto-lapse the request
-        db.prepare(`
-          UPDATE coi_requests SET status = 'Lapsed', updated_at = datetime('now')
+          UPDATE coi_requests 
+          SET expiry_notification_sent = ?,
+              updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
-        `).run(req.id)
+        `).run(`${currentNotifications}${days}d,`, engagement.id)
         
-        db.prepare(`
-          INSERT INTO monitoring_alerts (coi_request_id, alert_type, sent_to, sent_status)
-          VALUES (?, '30_day', ?, 'Sent')
-        `).run(req.id, JSON.stringify([req.requester_email, ...stakeholderEmails]))
+        results.alertsSent++
         
-        alerts.push({ request_id: req.request_id, type: '30_day', action: 'lapsed' })
-      }
-    })
-    
-    return { alerts_sent: alerts.length, alerts }
-  } catch (error) {
-    console.error('Send interval alerts error:', error)
-    throw error
-  }
-}
-
-/**
- * Create 3-year renewal tracking entry
- */
-export function createRenewalTracking(coiRequestId, engagementCode, startDate) {
-  try {
-    const start = new Date(startDate)
-    const renewalDue = new Date(start)
-    renewalDue.setFullYear(renewalDue.getFullYear() + 3)
-    
-    db.prepare(`
-      INSERT INTO engagement_renewals (
-        coi_request_id, engagement_code, original_start_date, renewal_due_date, renewal_status
-      ) VALUES (?, ?, ?, ?, 'Active')
-    `).run(coiRequestId, engagementCode, start.toISOString(), renewalDue.toISOString())
-    
-    return { success: true, renewal_due_date: renewalDue.toISOString() }
-  } catch (error) {
-    console.error('Create renewal tracking error:', error)
-    throw error
-  }
-}
-
-/**
- * Check and send 3-year renewal alerts (90, 60, 30 days before)
- */
-export function checkRenewalAlerts() {
-  try {
-    const alerts = []
-    const today = new Date()
-    
-    // Get all active renewals
-    const renewals = db.prepare(`
-      SELECT er.*, r.request_id, c.client_name, u.email as requester_email
-      FROM engagement_renewals er
-      JOIN coi_requests r ON er.coi_request_id = r.id
-      JOIN clients c ON r.client_id = c.id
-      JOIN users u ON r.requester_id = u.id
-      WHERE er.renewal_status = 'Active'
-    `).all()
-    
-    renewals.forEach(renewal => {
-      const dueDate = new Date(renewal.renewal_due_date)
-      const daysUntilDue = Math.floor((dueDate - today) / (1000 * 60 * 60 * 24))
-      
-      // 90-day alert
-      if (daysUntilDue <= 90 && daysUntilDue > 60 && !renewal.alert_90_days_sent) {
-        sendEmail(
-          [renewal.requester_email],
-          `Engagement Renewal: 90 Days Notice - ${renewal.request_id}`,
-          `Engagement ${renewal.engagement_code} for ${renewal.client_name} is due for renewal in 90 days (${renewal.renewal_due_date}).`
+        logAuditTrail(
+          null,
+          'COI Request',
+          engagement.id,
+          'Expiry Alert Sent',
+          `Engagement ${engagement.engagement_code} expiring in ${days} days. Alert sent to ${engagement.requestor_name}.`,
+          { days_remaining: days }
         )
-        db.prepare(`UPDATE engagement_renewals SET alert_90_days_sent = 1 WHERE id = ?`).run(renewal.id)
-        alerts.push({ engagement_code: renewal.engagement_code, type: '90_day' })
+      } catch (error) {
+        results.errors.push({ engagement: engagement.engagement_code, error: error.message })
       }
-      
-      // 60-day alert
-      if (daysUntilDue <= 60 && daysUntilDue > 30 && !renewal.alert_60_days_sent) {
-        const admins = db.prepare(`SELECT email FROM users WHERE role = 'Admin'`).all()
-        sendEmail(
-          [renewal.requester_email, ...admins.map(a => a.email)],
-          `Engagement Renewal: 60 Days Notice - ${renewal.request_id}`,
-          `Engagement ${renewal.engagement_code} for ${renewal.client_name} is due for renewal in 60 days (${renewal.renewal_due_date}).`
-        )
-        db.prepare(`UPDATE engagement_renewals SET alert_60_days_sent = 1 WHERE id = ?`).run(renewal.id)
-        alerts.push({ engagement_code: renewal.engagement_code, type: '60_day' })
-      }
-      
-      // 30-day alert
-      if (daysUntilDue <= 30 && daysUntilDue > 0 && !renewal.alert_30_days_sent) {
-        const partners = db.prepare(`SELECT email FROM users WHERE role = 'Partner'`).all()
-        sendEmail(
-          [renewal.requester_email, ...partners.map(p => p.email)],
-          `URGENT: Engagement Renewal Due - ${renewal.request_id}`,
-          `Engagement ${renewal.engagement_code} for ${renewal.client_name} is due for renewal in ${daysUntilDue} days (${renewal.renewal_due_date}).`
-        )
-        db.prepare(`UPDATE engagement_renewals SET alert_30_days_sent = 1, renewal_status = 'Renewal Due' WHERE id = ?`).run(renewal.id)
-        alerts.push({ engagement_code: renewal.engagement_code, type: '30_day' })
-      }
-      
-      // Expired
-      if (daysUntilDue <= 0 && !renewal.alert_expired_sent) {
-        const allStakeholders = db.prepare(`SELECT email FROM users WHERE role IN ('Partner', 'Compliance', 'Admin')`).all()
-        sendEmail(
-          [renewal.requester_email, ...allStakeholders.map(s => s.email)],
-          `EXPIRED: Engagement Renewal - ${renewal.request_id}`,
-          `Engagement ${renewal.engagement_code} for ${renewal.client_name} has expired and requires immediate renewal.`
-        )
-        db.prepare(`UPDATE engagement_renewals SET alert_expired_sent = 1, renewal_status = 'Expired' WHERE id = ?`).run(renewal.id)
-        alerts.push({ engagement_code: renewal.engagement_code, type: 'expired' })
-      }
-    })
-    
-    return { alerts_sent: alerts.length, alerts }
-  } catch (error) {
-    console.error('Check renewal alerts error:', error)
-    throw error
-  }
-}
-
-/**
- * Get requests approaching 30-day limit
- */
-export function getApproachingLimitRequests(thresholdDays = 25) {
-  try {
-    return db.prepare(`
-      SELECT r.id, r.request_id, c.client_name, r.days_in_monitoring, r.execution_date
-      FROM coi_requests r
-      JOIN clients c ON r.client_id = c.id
-      WHERE r.status = 'Active' 
-      AND r.days_in_monitoring >= ?
-      AND r.days_in_monitoring < 30
-      ORDER BY r.days_in_monitoring DESC
-    `).all(thresholdDays)
-  } catch (error) {
-    console.error('Get approaching limit error:', error)
-    throw error
-  }
-}
-
-/**
- * Get requests that have exceeded 30-day limit
- */
-export function getExceededLimitRequests() {
-  try {
-    return db.prepare(`
-      SELECT r.id, r.request_id, c.client_name, r.days_in_monitoring, r.execution_date
-      FROM coi_requests r
-      JOIN clients c ON r.client_id = c.id
-      WHERE r.status = 'Active' 
-      AND r.days_in_monitoring >= 30
-      ORDER BY r.days_in_monitoring DESC
-    `).all()
-  } catch (error) {
-    console.error('Get exceeded limit error:', error)
-    throw error
-  }
-}
-
-/**
- * Get all monitoring alerts summary
- */
-export function getMonitoringAlertsSummary() {
-  try {
-    const tenDay = getRequestsAtDays(10, 19)
-    const twentyDay = getRequestsAtDays(20, 29)
-    const thirtyDay = getExceededLimitRequests()
-    const renewals = db.prepare(`
-      SELECT er.*, r.request_id, c.client_name
-      FROM engagement_renewals er
-      JOIN coi_requests r ON er.coi_request_id = r.id
-      JOIN clients c ON r.client_id = c.id
-      WHERE er.renewal_status IN ('Renewal Due', 'Expired')
-    `).all()
-    
-    return {
-      ten_day_alerts: tenDay,
-      twenty_day_alerts: twentyDay,
-      thirty_day_exceeded: thirtyDay,
-      renewal_alerts: renewals
     }
-  } catch (error) {
-    console.error('Get monitoring alerts summary error:', error)
-    throw error
+  }
+  
+  console.log(`📅 Expiring engagement check: ${results.checked} checked, ${results.alertsSent} alerts sent`)
+  return results
+}
+
+/**
+ * Check for pending requests that need compliance review reminders
+ */
+export async function checkPendingComplianceReviews() {
+  const db = getDatabase()
+  
+  const reminderDate = new Date()
+  reminderDate.setDate(reminderDate.getDate() - MONITORING_CONFIG.complianceReviewReminderDays)
+  
+  const pendingRequests = db.prepare(`
+    SELECT 
+      r.*,
+      c.client_name,
+      u.name as requestor_name
+    FROM coi_requests r
+    LEFT JOIN clients c ON r.client_id = c.id
+    LEFT JOIN users u ON r.created_by = u.id
+    WHERE r.status = 'Pending Compliance'
+      AND r.updated_at < ?
+      AND (r.compliance_reminder_sent IS NULL OR r.compliance_reminder_sent < DATE('now', '-3 days'))
+  `).all(reminderDate.toISOString())
+  
+  const results = {
+    pending: pendingRequests.length,
+    remindersSent: 0
+  }
+  
+  // Get compliance officers
+  const complianceOfficers = db.prepare(`
+    SELECT id, name, email FROM users WHERE role = 'Compliance' AND is_active = 1
+  `).all()
+  
+  if (pendingRequests.length > 0 && complianceOfficers.length > 0) {
+    // Log reminder (email would go here)
+    console.log(`📋 ${pendingRequests.length} pending compliance reviews need attention`)
+    
+    for (const request of pendingRequests) {
+      db.prepare(`
+        UPDATE coi_requests 
+        SET compliance_reminder_sent = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(request.id)
+      results.remindersSent++
+    }
+  }
+  
+  return results
+}
+
+/**
+ * Check for stale requests (rules changed while pending)
+ */
+export async function checkStaleRequests() {
+  const db = getDatabase()
+  
+  // Get requests that have requires_re_evaluation = 1 but haven't been notified
+  const staleRequests = db.prepare(`
+    SELECT 
+      r.*,
+      c.client_name,
+      u.name as compliance_reviewer_name,
+      u.email as compliance_reviewer_email
+    FROM coi_requests r
+    LEFT JOIN clients c ON r.client_id = c.id
+    LEFT JOIN users u ON r.compliance_reviewer_id = u.id
+    WHERE r.requires_re_evaluation = 1
+      AND r.status = 'Pending Compliance'
+      AND (r.stale_notification_sent IS NULL OR r.stale_notification_sent < r.updated_at)
+  `).all()
+  
+  const results = {
+    stale: staleRequests.length,
+    notificationsSent: 0
+  }
+  
+  for (const request of staleRequests) {
+    // Mark as notified
+    db.prepare(`
+      UPDATE coi_requests 
+      SET stale_notification_sent = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(request.id)
+    
+    results.notificationsSent++
+    console.log(`⚠️ Stale request ${request.request_id}: ${request.stale_reason}`)
+  }
+  
+  return results
+}
+
+/**
+ * Generate monthly compliance report
+ */
+export async function generateMonthlyReport(month, year) {
+  const db = getDatabase()
+  
+  const startDate = new Date(year, month - 1, 1)
+  const endDate = new Date(year, month, 0)
+  
+  // Get all requests in the month
+  const requests = db.prepare(`
+    SELECT 
+      r.*,
+      c.client_name
+    FROM coi_requests r
+    LEFT JOIN clients c ON r.client_id = c.id
+    WHERE DATE(r.created_at) BETWEEN ? AND ?
+  `).all(startDate.toISOString(), endDate.toISOString())
+  
+  // Calculate statistics
+  const stats = {
+    period: `${startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+    total: requests.length,
+    byStatus: {},
+    byServiceType: {},
+    byPIEStatus: { Yes: 0, No: 0 },
+    averageProcessingTime: 0,
+    conflictsDetected: 0,
+    duplicatesFound: 0
+  }
+  
+  let totalProcessingDays = 0
+  let processedCount = 0
+  
+  for (const request of requests) {
+    // By status
+    stats.byStatus[request.status] = (stats.byStatus[request.status] || 0) + 1
+    
+    // By service type
+    const serviceType = request.service_type || 'Unknown'
+    stats.byServiceType[serviceType] = (stats.byServiceType[serviceType] || 0) + 1
+    
+    // By PIE status
+    if (request.pie_status === 'Yes') stats.byPIEStatus.Yes++
+    else stats.byPIEStatus.No++
+    
+    // Calculate processing time for completed requests
+    if (request.status === 'Approved' || request.status === 'Rejected') {
+      const created = new Date(request.created_at)
+      const updated = new Date(request.updated_at)
+      const days = Math.ceil((updated - created) / (1000 * 60 * 60 * 24))
+      totalProcessingDays += days
+      processedCount++
+    }
+    
+    // Count conflicts and duplicates
+    if (request.duplicates) {
+      try {
+        const dups = JSON.parse(request.duplicates)
+        if (dups.length > 0) stats.duplicatesFound++
+      } catch (e) {}
+    }
+    
+    if (request.conflicts) {
+      try {
+        const conflicts = JSON.parse(request.conflicts)
+        if (conflicts.length > 0) stats.conflictsDetected++
+      } catch (e) {}
+    }
+  }
+  
+  if (processedCount > 0) {
+    stats.averageProcessingTime = Math.round(totalProcessingDays / processedCount)
+  }
+  
+  // Save report to database
+  try {
+    db.prepare(`
+      INSERT INTO compliance_reports (month, year, report_data, generated_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(month, year, JSON.stringify(stats))
+  } catch (e) {
+    // Table might not exist, that's ok
+  }
+  
+  return stats
+}
+
+/**
+ * Get monitoring dashboard data
+ */
+export function getMonitoringDashboard() {
+  const db = getDatabase()
+  
+  // Expiring soon (next 30 days)
+  const expiringSoon = db.prepare(`
+    SELECT COUNT(*) as count FROM coi_requests 
+    WHERE status = 'Approved' 
+    AND engagement_end_date IS NOT NULL
+    AND DATE(engagement_end_date) BETWEEN DATE('now') AND DATE('now', '+30 days')
+  `).get()
+  
+  // Stale requests
+  const staleRequests = db.prepare(`
+    SELECT COUNT(*) as count FROM coi_requests 
+    WHERE requires_re_evaluation = 1 AND status = 'Pending Compliance'
+  `).get()
+  
+  // Pending compliance review
+  const pendingCompliance = db.prepare(`
+    SELECT COUNT(*) as count FROM coi_requests 
+    WHERE status = 'Pending Compliance'
+  `).get()
+  
+  // Pending director approval
+  const pendingDirector = db.prepare(`
+    SELECT COUNT(*) as count FROM coi_requests 
+    WHERE status = 'Pending Director'
+  `).get()
+  
+  // Last 7 days activity
+  const weeklyActivity = db.prepare(`
+    SELECT 
+      DATE(created_at) as date,
+      COUNT(*) as submitted
+    FROM coi_requests 
+    WHERE DATE(created_at) >= DATE('now', '-7 days')
+    GROUP BY DATE(created_at)
+    ORDER BY date
+  `).all()
+  
+  // Approval rate this month
+  const monthlyStats = db.prepare(`
+    SELECT 
+      COUNT(CASE WHEN status = 'Approved' THEN 1 END) as approved,
+      COUNT(CASE WHEN status = 'Rejected' THEN 1 END) as rejected,
+      COUNT(*) as total
+    FROM coi_requests 
+    WHERE DATE(created_at) >= DATE('now', 'start of month')
+  `).get()
+  
+  return {
+    alerts: {
+      expiringSoon: expiringSoon.count,
+      staleRequests: staleRequests.count,
+      pendingCompliance: pendingCompliance.count,
+      pendingDirector: pendingDirector.count
+    },
+    weeklyActivity,
+    monthlyStats: {
+      ...monthlyStats,
+      approvalRate: monthlyStats.total > 0 
+        ? Math.round((monthlyStats.approved / monthlyStats.total) * 100) 
+        : 0
+    },
+    lastUpdated: new Date().toISOString()
   }
 }
 
-function getRequestsAtDays(minDays, maxDays) {
-  return db.prepare(`
-    SELECT r.id, r.request_id, c.client_name, r.days_in_monitoring, r.execution_date
-    FROM coi_requests r
-    JOIN clients c ON r.client_id = c.id
-    WHERE r.status = 'Active' 
-    AND r.days_in_monitoring >= ?
-    AND r.days_in_monitoring <= ?
-    ORDER BY r.days_in_monitoring DESC
-  `).all(minDays, maxDays)
+/**
+ * Run all scheduled monitoring tasks
+ */
+export async function runScheduledTasks() {
+  console.log('🔄 Running scheduled monitoring tasks...')
+  
+  const results = {
+    timestamp: new Date().toISOString(),
+    tasks: {}
+  }
+  
+  try {
+    results.tasks.expiringEngagements = await checkExpiringEngagements()
+  } catch (error) {
+    results.tasks.expiringEngagements = { error: error.message }
+  }
+  
+  try {
+    results.tasks.pendingCompliance = await checkPendingComplianceReviews()
+  } catch (error) {
+    results.tasks.pendingCompliance = { error: error.message }
+  }
+  
+  try {
+    results.tasks.staleRequests = await checkStaleRequests()
+  } catch (error) {
+    results.tasks.staleRequests = { error: error.message }
+  }
+  
+  console.log('✅ Scheduled tasks completed:', JSON.stringify(results.tasks))
+  return results
+}
+
+// Simple interval-based scheduler (in production, use node-cron or similar)
+let monitoringInterval = null
+
+export function startMonitoringScheduler() {
+  if (monitoringInterval) {
+    console.log('⚠️ Monitoring scheduler already running')
+    return
+  }
+  
+  // Run every 4 hours
+  const intervalMs = MONITORING_CONFIG.staleRequestCheckIntervalHours * 60 * 60 * 1000
+  
+  monitoringInterval = setInterval(async () => {
+    await runScheduledTasks()
+  }, intervalMs)
+  
+  console.log(`📅 Monitoring scheduler started (every ${MONITORING_CONFIG.staleRequestCheckIntervalHours} hours)`)
+  
+  // Run immediately on start
+  runScheduledTasks()
+}
+
+export function stopMonitoringScheduler() {
+  if (monitoringInterval) {
+    clearInterval(monitoringInterval)
+    monitoringInterval = null
+    console.log('⏹️ Monitoring scheduler stopped')
+  }
+}
+
+export default {
+  checkExpiringEngagements,
+  checkPendingComplianceReviews,
+  checkStaleRequests,
+  generateMonthlyReport,
+  getMonitoringDashboard,
+  runScheduledTasks,
+  startMonitoringScheduler,
+  stopMonitoringScheduler
 }

@@ -2,6 +2,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import api from '@/services/api'
 
+export interface ComplianceCheck {
+  rule: string
+  status: 'passed' | 'failed' | 'warning'
+  is_outdated: boolean
+  rule_id?: number
+  checked_at?: string
+}
+
 export interface COIRequest {
   id: number
   request_id: string
@@ -16,6 +24,17 @@ export interface COIRequest {
   client_code?: string
   requester_name?: string
   duplication_matches?: any[]
+  international_operations?: boolean
+  created_at?: string
+  updated_at?: string
+  compliance_review_status?: string
+  compliance_review_date?: string
+  // Stale request handling
+  requires_re_evaluation?: boolean
+  stale_reason?: string
+  compliance_checks?: ComplianceCheck[]
+  last_rule_check_at?: string
+  [key: string]: any // Allow additional properties from API
 }
 
 export const useCOIRequestsStore = defineStore('coiRequests', () => {

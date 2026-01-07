@@ -107,8 +107,21 @@ async function handleLogin() {
   loading.value = true
   error.value = ''
   
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Login.vue:106',message:'Login form submission',data:{email:email.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+  // #endregion
+  
   try {
-    await authStore.login(email.value, password.value)
+    const result = await authStore.login(email.value, password.value)
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Login.vue:111',message:'Login result',data:{success:result.success,error:result.error,userRole:authStore.user?.role},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
+    // #endregion
+    
+    if (!result.success) {
+      error.value = result.error || 'Invalid credentials'
+      return
+    }
     
     // Route based on role
     const role = authStore.user?.role
@@ -121,7 +134,13 @@ async function handleLogin() {
       'Admin': '/coi/admin',
       'Super Admin': '/coi/super-admin'
     }
-    router.push(routes[role || ''] || '/coi/requester')
+    const targetRoute = routes[role || ''] || '/coi/requester'
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Login.vue:124',message:'Routing decision',data:{role,targetRoute,routeExists:!!routes[role||'']},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
+    // #endregion
+    
+    router.push(targetRoute)
   } catch (e: any) {
     error.value = e.message || 'Invalid credentials'
   } finally {

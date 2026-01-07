@@ -1,5 +1,5 @@
 import { getDatabase } from '../database/init.js'
-import { analyzeFieldChange, updateImpactCache } from '../services/impactAnalysisService.js'
+import { analyzeFieldChange, updateImpactCache, analyzeRuleChange } from '../services/impactAnalysisService.js'
 import { validateWithFallback } from '../services/rulesEngineService.js'
 import { 
   getSystemEdition, 
@@ -10,6 +10,71 @@ import {
 } from '../services/configService.js'
 
 const db = getDatabase()
+
+/**
+ * Flag affected pending requests as stale when a rule is modified
+ * @param {number} ruleId - The ID of the modified rule
+ * @param {string} ruleName - The name of the modified rule
+ * @returns {number} - Count of requests flagged
+ */
+function flagAffectedRequests(ruleId, ruleName) {
+  try {
+    // Find all pending requests that might be affected by this rule change
+    // Check rule_execution_log if it exists, otherwise flag all pending requests
+    let affectedRequestIds = []
+    
+    try {
+      // Check if rule_execution_log table exists and has entries for this rule
+      const executionLogs = db.prepare(`
+        SELECT DISTINCT request_id FROM rule_execution_log 
+        WHERE rule_id = ?
+      `).all(ruleId)
+      
+      if (executionLogs.length > 0) {
+        affectedRequestIds = executionLogs.map(log => log.request_id)
+      }
+    } catch (e) {
+      // rule_execution_log might not exist, continue
+    }
+    
+    // Build the update query
+    const staleReason = `Rule #${ruleId} (${ruleName}) modified on ${new Date().toISOString().split('T')[0]}`
+    
+    let updateCount = 0
+    
+    if (affectedRequestIds.length > 0) {
+      // Flag only requests that were evaluated by this rule
+      const placeholders = affectedRequestIds.map(() => '?').join(',')
+      const result = db.prepare(`
+        UPDATE coi_requests 
+        SET requires_re_evaluation = 1, 
+            stale_reason = ?
+        WHERE id IN (${placeholders})
+        AND status IN ('Pending Compliance', 'Pending Director Approval', 'Pending Partner')
+      `).run(staleReason, ...affectedRequestIds)
+      updateCount = result.changes
+    } else {
+      // No execution log, flag all pending requests as a safety measure
+      const result = db.prepare(`
+        UPDATE coi_requests 
+        SET requires_re_evaluation = 1, 
+            stale_reason = ?
+        WHERE status IN ('Pending Compliance', 'Pending Director Approval', 'Pending Partner')
+        AND requires_re_evaluation = 0
+      `).run(staleReason)
+      updateCount = result.changes
+    }
+    
+    if (updateCount > 0) {
+      console.log(`Flagged ${updateCount} pending request(s) as stale due to rule change`)
+    }
+    
+    return updateCount
+  } catch (error) {
+    console.error('Error flagging affected requests:', error)
+    return 0
+  }
+}
 
 // Form Fields Configuration
 export async function getFormFields(req, res) {
@@ -401,6 +466,144 @@ export async function getBusinessRules(req, res) {
   }
 }
 
+/**
+ * Validate a rule for logical errors and best practices
+ * Returns validation errors and warnings
+ */
+export function validateRule(rule) {
+  const errors = []
+  const warnings = []
+  
+  // Required fields check
+  if (!rule.rule_name || !rule.rule_name.trim()) {
+    errors.push({ field: 'rule_name', message: 'Rule name is required' })
+  }
+  
+  if (!rule.rule_type) {
+    errors.push({ field: 'rule_type', message: 'Rule type is required' })
+  }
+  
+  if (!rule.action_type) {
+    errors.push({ field: 'action_type', message: 'Action type is required' })
+  }
+  
+  // Conflict rule validation
+  if (rule.rule_type === 'conflict') {
+    // Conflict rules should not have approve actions
+    if (['approve', 'recommend_approve', 'set_status'].includes(rule.action_type)) {
+      errors.push({
+        field: 'action_type',
+        message: `Conflict rules should not use "${rule.action_type}" action. Use block, flag, or reject instead.`,
+        severity: 'critical'
+      })
+    }
+    
+    // Conflict rules should have conditions
+    if (!rule.condition_field && !rule.condition_groups) {
+      warnings.push({
+        field: 'condition',
+        message: 'Conflict rules typically require conditions to define what constitutes a conflict.'
+      })
+    }
+  }
+  
+  // Red line rule validation
+  if (rule.rule_type === 'red_line' || (rule.rule_name && rule.rule_name.toLowerCase().includes('red line'))) {
+    // Red line rules MUST block
+    if (rule.action_type !== 'block' && !['recommend_reject', 'reject'].includes(rule.action_type)) {
+      errors.push({
+        field: 'action_type',
+        message: 'Red line rules must use "block" or "reject" action. These are non-negotiable compliance requirements.',
+        severity: 'critical'
+      })
+    }
+  }
+  
+  // Validation rule checks
+  if (rule.rule_type === 'validation') {
+    if (!rule.condition_field && !rule.condition_groups) {
+      warnings.push({
+        field: 'condition',
+        message: 'Validation rules should have conditions to specify what to validate.'
+      })
+    }
+  }
+  
+  // Check for condition group validity
+  if (rule.condition_groups) {
+    let conditionGroups
+    try {
+      conditionGroups = typeof rule.condition_groups === 'string' 
+        ? JSON.parse(rule.condition_groups) 
+        : rule.condition_groups
+      
+      // Check each group
+      let hasValidCondition = false
+      for (const group of conditionGroups) {
+        for (const cond of group.conditions || []) {
+          if (cond.field && cond.conditionOperator && cond.value) {
+            hasValidCondition = true
+          } else if (cond.field || cond.conditionOperator || cond.value) {
+            warnings.push({
+              field: 'condition_groups',
+              message: 'Some conditions are incomplete. Ensure all conditions have field, operator, and value.'
+            })
+          }
+        }
+      }
+      
+      if (!hasValidCondition && conditionGroups.length > 0) {
+        warnings.push({
+          field: 'condition_groups',
+          message: 'No valid conditions defined. Rule will apply to all requests.'
+        })
+      }
+    } catch (e) {
+      errors.push({
+        field: 'condition_groups',
+        message: 'Invalid condition groups format'
+      })
+    }
+  }
+  
+  // Check for duplicate rules
+  try {
+    const existingRule = db.prepare(`
+      SELECT id, rule_name FROM business_rules_config 
+      WHERE rule_name = ? AND (? IS NULL OR id != ?)
+    `).get(rule.rule_name, rule.id || null, rule.id || null)
+    
+    if (existingRule) {
+      warnings.push({
+        field: 'rule_name',
+        message: `A rule with the name "${rule.rule_name}" already exists.`
+      })
+    }
+  } catch (e) {
+    // Ignore duplicate check errors
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    hasCriticalErrors: errors.some(e => e.severity === 'critical')
+  }
+}
+
+/**
+ * API endpoint to validate a rule
+ */
+export async function validateRuleEndpoint(req, res) {
+  try {
+    const rule = req.body
+    const validation = validateRule(rule)
+    res.json(validation)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
 export async function saveBusinessRule(req, res) {
   try {
     const userId = req.userId
@@ -408,6 +611,24 @@ export async function saveBusinessRule(req, res) {
     const userRole = user?.role || ''
     
     const rule = req.body
+    
+    // Validate rule first
+    const validation = validateRule(rule)
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: 'Rule validation failed',
+        validation
+      })
+    }
+    
+    // Warn about critical issues but allow if user confirms
+    if (validation.hasCriticalErrors && !rule.forceCreate) {
+      return res.status(400).json({
+        error: 'Rule has critical validation errors',
+        validation,
+        requiresConfirmation: true
+      })
+    }
     
     // Super Admin can create approved rules directly
     // Compliance/Admin rules require approval
@@ -417,15 +638,16 @@ export async function saveBusinessRule(req, res) {
     const result = db.prepare(`
       INSERT INTO business_rules_config (
         rule_name, rule_type, condition_field, condition_operator,
-        condition_value, action_type, action_value, is_active,
+        condition_value, condition_groups, action_type, action_value, is_active,
         approval_status, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       rule.rule_name,
       rule.rule_type,
       rule.condition_field || null,
       rule.condition_operator || null,
       rule.condition_value || null,
+      rule.condition_groups || null,
       rule.action_type,
       rule.action_value || null,
       requiresApproval ? 0 : (rule.is_active !== undefined ? (rule.is_active ? 1 : 0) : 1), // Only active if approved
@@ -442,7 +664,8 @@ export async function saveBusinessRule(req, res) {
       message,
       ruleId: result.lastInsertRowid,
       requiresApproval,
-      approvalStatus
+      approvalStatus,
+      validation // Include any warnings
     })
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -462,13 +685,40 @@ export async function updateBusinessRule(req, res) {
       return res.status(404).json({ error: 'Rule not found' })
     }
     
+    // Validate rule updates
+    const mergedRule = { ...rule, ...updates, id }
+    const validation = validateRule(mergedRule)
+    
+    // Block if critical validation errors and not forced
+    if (validation.hasCriticalErrors && !updates.forceUpdate) {
+      return res.status(400).json({
+        error: 'Rule has critical validation errors',
+        validation,
+        requiresConfirmation: true
+      })
+    }
+    
+    // Perform impact analysis before updating
+    const impactAnalysis = analyzeRuleChange(id, updates)
+    
+    // If impact analysis requires approval and user hasn't explicitly confirmed, return impact
+    if (impactAnalysis.requiresApproval && !req.body.forceUpdate && !req.body.acknowledgeImpact) {
+      return res.status(200).json({
+        requiresApproval: true,
+        impactAnalysis: impactAnalysis.impact,
+        validation,
+        message: 'Rule change requires approval due to high impact. Review the impact analysis and confirm with forceUpdate: true',
+        warnings: impactAnalysis.impact?.warnings || []
+      })
+    }
+    
     // If Super Admin is updating, can update directly
     // If Compliance/Admin is updating an approved rule, it needs re-approval
     const isSuperAdmin = userRole === 'Super Admin'
     const wasApproved = rule.approval_status === 'Approved'
     const needsReapproval = !isSuperAdmin && wasApproved && (
       updates.rule_name || updates.rule_type || updates.condition_field || 
-      updates.condition_operator || updates.condition_value || 
+      updates.condition_operator || updates.condition_value || updates.condition_groups ||
       updates.action_type || updates.action_value
     )
     
@@ -484,6 +734,7 @@ export async function updateBusinessRule(req, res) {
         condition_field = COALESCE(?, condition_field),
         condition_operator = COALESCE(?, condition_operator),
         condition_value = COALESCE(?, condition_value),
+        condition_groups = COALESCE(?, condition_groups),
         action_type = COALESCE(?, action_type),
         action_value = COALESCE(?, action_value),
         is_active = ?,
@@ -496,6 +747,7 @@ export async function updateBusinessRule(req, res) {
       updates.condition_field !== undefined ? (updates.condition_field || null) : undefined,
       updates.condition_operator !== undefined ? (updates.condition_operator || null) : undefined,
       updates.condition_value !== undefined ? (updates.condition_value || null) : undefined,
+      updates.condition_groups !== undefined ? updates.condition_groups : undefined,
       updates.action_type,
       updates.action_value !== undefined ? (updates.action_value || null) : undefined,
       isActive,
@@ -503,11 +755,51 @@ export async function updateBusinessRule(req, res) {
       id
     )
     
+    // Flag affected pending requests as stale
+    const affectedRequestsCount = flagAffectedRequests(id, rule.rule_name)
+    
     const message = needsReapproval 
       ? 'Rule updated and requires re-approval' 
       : 'Rule updated'
     
-    res.json({ success: true, message, requiresApproval: needsReapproval })
+    res.json({ 
+      success: true, 
+      message, 
+      requiresApproval: needsReapproval,
+      impactAnalysis: impactAnalysis.impact,
+      validation,
+      affectedRequestsFlagged: affectedRequestsCount
+    })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
+export async function getRuleChangeImpact(req, res) {
+  try {
+    const { id } = req.params
+    const proposedChanges = req.body
+    
+    // Convert id to number
+    const ruleId = parseInt(id, 10)
+    if (isNaN(ruleId)) {
+      return res.status(400).json({ error: 'Invalid rule ID' })
+    }
+    
+    const impactAnalysis = analyzeRuleChange(ruleId, proposedChanges)
+    
+    if (!impactAnalysis.allowed) {
+      return res.status(400).json({
+        error: impactAnalysis.error || 'Impact analysis failed',
+        requiresManualApproval: impactAnalysis.requiresManualApproval
+      })
+    }
+    
+    res.json({
+      success: true,
+      impactAnalysis: impactAnalysis.impact,
+      requiresApproval: impactAnalysis.requiresApproval
+    })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -736,11 +1028,15 @@ export async function deleteFormTemplate(req, res) {
 export async function loadFormTemplate(req, res) {
   try {
     const { id } = req.params
+    console.log('Loading template with ID:', id)
     
     const template = db.prepare('SELECT * FROM form_templates WHERE id = ?').get(id)
     if (!template) {
+      console.log('Template not found for ID:', id)
       return res.status(404).json({ error: 'Template not found' })
     }
+    
+    console.log('Found template:', template.template_name)
     
     const fields = db.prepare(`
       SELECT * FROM form_template_fields 
@@ -748,8 +1044,15 @@ export async function loadFormTemplate(req, res) {
       ORDER BY section_id, display_order
     `).all(id)
     
+    console.log('Template has', fields.length, 'fields')
+    
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'Template has no fields' })
+    }
+    
     // Copy template fields to active form configuration
     db.prepare('DELETE FROM form_fields_config').run()
+    console.log('Cleared existing form_fields_config')
     
     const stmt = db.prepare(`
       INSERT INTO form_fields_config (
@@ -781,14 +1084,44 @@ export async function loadFormTemplate(req, res) {
     })
     
     transaction(fields)
+    console.log('Copied', fields.length, 'fields to form_fields_config')
+    
+    // Fetch the loaded fields with IDs from form_fields_config
+    const loadedFields = db.prepare(`
+      SELECT * FROM form_fields_config 
+      ORDER BY section_id, display_order
+    `).all()
+    
+    // Ensure each field has required properties with proper formatting
+    const formattedFields = loadedFields.map(field => ({
+      id: field.id,
+      field_id: field.field_id,
+      section_id: field.section_id,
+      field_type: field.field_type,
+      field_label: field.field_label,
+      field_placeholder: field.field_placeholder || null,
+      is_required: Boolean(field.is_required),
+      is_readonly: Boolean(field.is_readonly),
+      default_value: field.default_value || null,
+      options: field.options || null,
+      validation_rules: field.validation_rules || null,
+      conditions: field.conditions || null,
+      display_order: field.display_order || 0,
+      source_system: field.source_system || 'manual',
+      source_field: field.source_field || null
+    }))
+    
+    console.log('Formatted', formattedFields.length, 'fields for response')
     
     res.json({ 
       success: true, 
       message: 'Template loaded',
       template,
-      fields 
+      fields: formattedFields,
+      fieldCount: formattedFields.length
     })
   } catch (error) {
+    console.error('Error loading template:', error)
     res.status(500).json({ error: error.message })
   }
 }
@@ -853,6 +1186,327 @@ export async function getEnabledFeatures(req, res) {
     })
   } catch (error) {
     res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Get all available fields for rule building
+ * Combines form_fields_config, coi_requests schema, and related tables
+ */
+export async function getRuleFields(req, res) {
+  try {
+    // Define all available fields organized by category
+    const ruleFields = {
+      // Request Information Fields
+      requestInfo: {
+        label: 'Request Information',
+        fields: [
+          { id: 'department', label: 'Department', type: 'select', options: ['Audit', 'Tax', 'Advisory', 'Accounting', 'Other'] },
+          { id: 'designation', label: 'Designation', type: 'select', options: ['Director', 'Partner', 'Manager', 'Senior Manager'] },
+          { id: 'entity', label: 'Entity', type: 'text' },
+          { id: 'line_of_service', label: 'Line of Service', type: 'text' },
+          { id: 'requested_document', label: 'Requested Document', type: 'select', options: ['Proposal', 'Engagement Letter'] },
+          { id: 'language', label: 'Language', type: 'select', options: ['English', 'Arabic'] },
+          { id: 'stage', label: 'Stage', type: 'select', options: ['Proposal', 'Engagement'] }
+        ]
+      },
+      
+      // Client Information Fields
+      clientInfo: {
+        label: 'Client Information',
+        fields: [
+          { id: 'client_type', label: 'Client Type', type: 'select', options: ['Existing', 'New', 'Potential'] },
+          { id: 'client_status', label: 'Client Status', type: 'select', options: ['Active', 'Inactive', 'Potential'] },
+          { id: 'client_location', label: 'Client Location', type: 'select', options: ['State of Kuwait', 'GCC', 'International'] },
+          { id: 'relationship_with_client', label: 'Relationship with Client', type: 'select', options: ['Direct', 'Referral', 'Group Company'] },
+          { id: 'regulated_body', label: 'Regulated Body', type: 'select', options: ['CMA', 'CBK', 'Ministry of Commerce', 'None'] },
+          { id: 'parent_company', label: 'Parent Company', type: 'text' },
+          { id: 'client_industry', label: 'Client Industry', type: 'select', options: ['Banking', 'Insurance', 'Manufacturing', 'Retail', 'Oil & Gas', 'Real Estate', 'Healthcare', 'Technology', 'Other'], source: 'clients.industry' }
+        ]
+      },
+      
+      // Service Information Fields
+      serviceInfo: {
+        label: 'Service Information',
+        fields: [
+          { id: 'service_type', label: 'Service Type', type: 'select', options: ['Statutory Audit', 'External Audit', 'Tax Compliance', 'Tax Advisory', 'Management Consulting', 'Business Advisory', 'Internal Audit', 'Due Diligence', 'Valuation', 'IT Advisory'] },
+          { id: 'service_category', label: 'Service Category', type: 'select', options: ['Assurance', 'Non-Assurance', 'Tax', 'Advisory'] },
+          { id: 'service_description', label: 'Service Description', type: 'text' }
+        ]
+      },
+      
+      // Compliance Fields
+      complianceFields: {
+        label: 'Compliance & Ownership',
+        fields: [
+          { id: 'pie_status', label: 'PIE Status', type: 'select', options: ['Yes', 'No'] },
+          { id: 'international_operations', label: 'International Operations', type: 'select', options: ['Yes', 'No'] },
+          { id: 'global_clearance_status', label: 'Global Clearance Status', type: 'select', options: ['Not Required', 'Pending', 'Approved', 'Rejected'] }
+        ]
+      },
+      
+      // Workflow Status Fields (for advanced rules)
+      workflowStatus: {
+        label: 'Workflow Status',
+        fields: [
+          { id: 'status', label: 'Request Status', type: 'select', options: ['Draft', 'Pending Director Approval', 'Pending Compliance', 'Pending Partner', 'Pending Finance', 'Approved', 'Rejected', 'Lapsed', 'Active'] },
+          { id: 'director_approval_status', label: 'Director Approval', type: 'select', options: ['Pending', 'Approved', 'Approved with Restrictions', 'Need More Info', 'Rejected'] },
+          { id: 'compliance_review_status', label: 'Compliance Review', type: 'select', options: ['Pending', 'Approved', 'Approved with Restrictions', 'Need More Info', 'Rejected'] },
+          { id: 'partner_approval_status', label: 'Partner Approval', type: 'select', options: ['Pending', 'Approved', 'Approved with Restrictions', 'Need More Info', 'Rejected'] }
+        ]
+      },
+      
+      // Computed/Derived Fields (for advanced logic)
+      computedFields: {
+        label: 'Computed Fields',
+        fields: [
+          { id: 'has_active_audit', label: 'Has Active Audit Engagement', type: 'computed', valueType: 'boolean', description: 'True if client has any active statutory/external audit' },
+          { id: 'days_since_submission', label: 'Days Since Submission', type: 'computed', valueType: 'number', description: 'Number of days since request was submitted' },
+          { id: 'is_group_company', label: 'Is Group Company', type: 'computed', valueType: 'boolean', description: 'True if client has a parent company' }
+        ]
+      }
+    }
+    
+    // Also fetch any custom fields from form_fields_config that aren't in the standard list
+    try {
+      const customFields = db.prepare(`
+        SELECT field_id, field_label, field_type, options
+        FROM form_fields_config
+        WHERE field_id NOT IN (
+          'requestor_name', 'designation', 'entity', 'line_of_service',
+          'requested_document', 'language', 'client_id', 'client_type',
+          'parent_company', 'service_type', 'service_description',
+          'pie_status', 'international_operations'
+        )
+      `).all()
+      
+      if (customFields.length > 0) {
+        ruleFields.customFields = {
+          label: 'Custom Form Fields',
+          fields: customFields.map(f => ({
+            id: f.field_id,
+            label: f.field_label,
+            type: f.field_type,
+            options: f.options ? JSON.parse(f.options) : null
+          }))
+        }
+      }
+    } catch (e) {
+      // form_fields_config table might not exist
+    }
+    
+    // Define available operators for each field type
+    const operators = {
+      select: [
+        { id: 'equals', label: 'Equals' },
+        { id: 'not_equals', label: 'Not Equals' },
+        { id: 'in', label: 'Is One Of' },
+        { id: 'not_in', label: 'Is Not One Of' }
+      ],
+      text: [
+        { id: 'equals', label: 'Equals' },
+        { id: 'not_equals', label: 'Not Equals' },
+        { id: 'contains', label: 'Contains' },
+        { id: 'not_contains', label: 'Does Not Contain' },
+        { id: 'starts_with', label: 'Starts With' },
+        { id: 'ends_with', label: 'Ends With' },
+        { id: 'is_empty', label: 'Is Empty' },
+        { id: 'is_not_empty', label: 'Is Not Empty' }
+      ],
+      computed: [
+        { id: 'equals', label: 'Equals' },
+        { id: 'not_equals', label: 'Not Equals' },
+        { id: 'greater_than', label: 'Greater Than' },
+        { id: 'less_than', label: 'Less Than' },
+        { id: 'is_true', label: 'Is True' },
+        { id: 'is_false', label: 'Is False' }
+      ]
+    }
+    
+    res.json({
+      categories: ruleFields,
+      operators,
+      // Flat list of all fields for easy lookup
+      allFields: Object.values(ruleFields).flatMap(cat => cat.fields)
+    })
+  } catch (error) {
+    console.error('Error getting rule fields:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Test a rule against real requests in the database
+ * Returns which requests would match/not match
+ */
+export async function testRule(req, res) {
+  try {
+    const rule = req.body
+    const limit = parseInt(req.query.limit) || 10
+    
+    // Get recent requests to test against
+    const recentRequests = db.prepare(`
+      SELECT id, request_id, client_id, service_type, client_type, pie_status,
+             client_location, relationship_with_client, international_operations,
+             department, status
+      FROM coi_requests 
+      ORDER BY created_at DESC 
+      LIMIT ?
+    `).all(limit)
+    
+    const results = {
+      testedAgainst: recentRequests.length,
+      matches: [],
+      nonMatches: [],
+      summary: {
+        wouldMatch: 0,
+        wouldNotMatch: 0
+      }
+    }
+    
+    for (const request of recentRequests) {
+      const matches = evaluateSingleCondition(rule, request)
+      
+      if (matches) {
+        results.matches.push({
+          requestId: request.request_id,
+          id: request.id,
+          client: request.client_id,
+          service: request.service_type,
+          status: request.status
+        })
+        results.summary.wouldMatch++
+      } else {
+        results.nonMatches.push({
+          requestId: request.request_id,
+          id: request.id,
+          client: request.client_id,
+          service: request.service_type,
+          status: request.status
+        })
+        results.summary.wouldNotMatch++
+      }
+    }
+    
+    res.json({
+      success: true,
+      rule: {
+        name: rule.rule_name,
+        type: rule.rule_type,
+        condition: rule.condition_groups 
+          ? 'Advanced (multiple conditions)' 
+          : `${rule.condition_field} ${rule.condition_operator} "${rule.condition_value}"`
+      },
+      results
+    })
+  } catch (error) {
+    console.error('Error testing rule:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Evaluate a single condition against a request
+ */
+function evaluateSingleCondition(rule, request) {
+  // If no condition, matches everything
+  if (!rule.condition_field && !rule.condition_groups) {
+    return true
+  }
+  
+  // Handle condition groups (AND/OR logic)
+  if (rule.condition_groups) {
+    let groups
+    try {
+      groups = typeof rule.condition_groups === 'string' 
+        ? JSON.parse(rule.condition_groups) 
+        : rule.condition_groups
+    } catch (e) {
+      return false
+    }
+    
+    // Evaluate each group
+    let result = false
+    for (let gIdx = 0; gIdx < groups.length; gIdx++) {
+      const group = groups[gIdx]
+      let groupResult = null
+      
+      for (let cIdx = 0; cIdx < group.conditions.length; cIdx++) {
+        const cond = group.conditions[cIdx]
+        const condResult = evaluateCondition(
+          request[cond.field],
+          cond.conditionOperator,
+          cond.value
+        )
+        
+        if (groupResult === null) {
+          groupResult = condResult
+        } else {
+          const op = cond.operator || 'AND'
+          groupResult = op === 'AND' ? (groupResult && condResult) : (groupResult || condResult)
+        }
+      }
+      
+      if (gIdx === 0) {
+        result = groupResult || false
+      } else {
+        const groupOp = group.operator || 'OR'
+        result = groupOp === 'AND' ? (result && groupResult) : (result || groupResult)
+      }
+    }
+    
+    return result
+  }
+  
+  // Simple single condition
+  const fieldValue = request[rule.condition_field]
+  return evaluateCondition(fieldValue, rule.condition_operator, rule.condition_value)
+}
+
+/**
+ * Evaluate a condition
+ */
+function evaluateCondition(fieldValue, operator, conditionValue) {
+  if (fieldValue === undefined || fieldValue === null) {
+    fieldValue = ''
+  }
+  
+  const strFieldValue = String(fieldValue).toLowerCase()
+  const strCondValue = String(conditionValue).toLowerCase()
+  
+  switch (operator) {
+    case 'equals':
+      return strFieldValue === strCondValue
+    case 'not_equals':
+      return strFieldValue !== strCondValue
+    case 'contains':
+      return strFieldValue.includes(strCondValue)
+    case 'not_contains':
+      return !strFieldValue.includes(strCondValue)
+    case 'starts_with':
+      return strFieldValue.startsWith(strCondValue)
+    case 'ends_with':
+      return strFieldValue.endsWith(strCondValue)
+    case 'in':
+      const inValues = strCondValue.split(',').map(v => v.trim().toLowerCase())
+      return inValues.includes(strFieldValue)
+    case 'not_in':
+      const notInValues = strCondValue.split(',').map(v => v.trim().toLowerCase())
+      return !notInValues.includes(strFieldValue)
+    case 'is_empty':
+      return !fieldValue || fieldValue === ''
+    case 'is_not_empty':
+      return fieldValue && fieldValue !== ''
+    case 'is_true':
+      return fieldValue === true || fieldValue === 1 || strFieldValue === 'true' || strFieldValue === 'yes'
+    case 'is_false':
+      return fieldValue === false || fieldValue === 0 || strFieldValue === 'false' || strFieldValue === 'no'
+    case 'greater_than':
+      return parseFloat(fieldValue) > parseFloat(conditionValue)
+    case 'less_than':
+      return parseFloat(fieldValue) < parseFloat(conditionValue)
+    default:
+      return false
   }
 }
 

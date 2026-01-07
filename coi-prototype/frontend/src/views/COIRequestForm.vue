@@ -762,7 +762,7 @@ function onClientSelect() {
 // Fetch clients
 async function fetchClients() {
   try {
-    const response = await api.get('/integration/prms/clients')
+    const response = await api.get('/integration/clients')
     clients.value = response.data
   } catch (err) {
     console.error('Failed to fetch clients:', err)

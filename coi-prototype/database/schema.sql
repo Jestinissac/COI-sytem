@@ -118,6 +118,12 @@ CREATE TABLE coi_requests (
     custom_fields TEXT, -- JSON storage for dynamic/custom fields
     form_version INTEGER DEFAULT 1, -- Track which form version was used
     
+    -- Stale Request Handling (for rule change impact)
+    requires_re_evaluation BOOLEAN DEFAULT 0, -- Flag set when rules change
+    stale_reason TEXT, -- Reason for requiring re-evaluation
+    compliance_checks TEXT, -- JSON: [{rule, status, is_outdated}]
+    last_rule_check_at DATETIME, -- When rules were last evaluated
+    
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     

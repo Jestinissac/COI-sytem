@@ -51,6 +51,25 @@ export function initDatabase() {
     }
   }
 
+  // Add stale request handling columns to coi_requests
+  const staleColumns = [
+    { name: 'requires_re_evaluation', def: 'BOOLEAN DEFAULT 0' },
+    { name: 'stale_reason', def: 'TEXT' },
+    { name: 'compliance_checks', def: 'TEXT' },
+    { name: 'last_rule_check_at', def: 'DATETIME' }
+  ]
+  
+  for (const col of staleColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        // Column already exists, that's fine
+      }
+    }
+  }
+
   // Initialize system_config table if it doesn't exist
   try {
     db.exec(`
@@ -80,17 +99,91 @@ export function initDatabase() {
     }
   }
 
+  // Ensure form_fields_config table exists
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS form_fields_config (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        section_id VARCHAR(50) NOT NULL,
+        field_id VARCHAR(100) UNIQUE NOT NULL,
+        field_type VARCHAR(50) NOT NULL,
+        field_label VARCHAR(255) NOT NULL,
+        field_placeholder VARCHAR(255),
+        is_required BOOLEAN DEFAULT 0,
+        is_readonly BOOLEAN DEFAULT 0,
+        default_value TEXT,
+        options TEXT,
+        validation_rules TEXT,
+        conditions TEXT,
+        display_order INTEGER DEFAULT 0,
+        source_system VARCHAR(50),
+        source_field VARCHAR(100),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Form fields config table creation:', error.message)
+    }
+  }
+
+  // Ensure form_templates and form_template_fields tables exist
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS form_templates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_name VARCHAR(255) UNIQUE NOT NULL,
+        template_description TEXT,
+        is_default BOOLEAN DEFAULT 0,
+        created_by INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users(id)
+      )
+    `)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS form_template_fields (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER NOT NULL,
+        section_id VARCHAR(50) NOT NULL,
+        field_id VARCHAR(100) NOT NULL,
+        field_type VARCHAR(50) NOT NULL,
+        field_label VARCHAR(255) NOT NULL,
+        field_placeholder VARCHAR(255),
+        is_required BOOLEAN DEFAULT 0,
+        is_readonly BOOLEAN DEFAULT 0,
+        default_value TEXT,
+        options TEXT,
+        validation_rules TEXT,
+        conditions TEXT,
+        display_order INTEGER DEFAULT 0,
+        source_system VARCHAR(50),
+        source_field VARCHAR(100),
+        FOREIGN KEY (template_id) REFERENCES form_templates(id) ON DELETE CASCADE,
+        UNIQUE(template_id, field_id)
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_template_name ON form_templates(template_name)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_template_fields_template ON form_template_fields(template_id)')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Form templates table creation:', error.message)
+    }
+  }
+
   // Seed initial form fields if table is empty (run seed script)
   try {
     const fieldCount = db.prepare('SELECT COUNT(*) as count FROM form_fields_config').get().count
     if (fieldCount === 0) {
       // Seed will run automatically when script is imported
-      import('../scripts/seedFormFields.js').catch(err => {
+      import('../scripts/seedFormFields.js').then(() => {
+        console.log('Form fields seeded')
+      }).catch(err => {
         console.log('Form fields seed:', err.message)
       })
     }
   } catch (error) {
-    // Table might not exist yet, that's okay
     if (!error.message.includes('no such table')) {
       console.log('Form fields seed check:', error.message)
     }
@@ -106,6 +199,7 @@ export function initDatabase() {
         condition_field VARCHAR(100),
         condition_operator VARCHAR(50),
         condition_value TEXT,
+        condition_groups TEXT,
         action_type VARCHAR(50),
         action_value TEXT,
         is_active BOOLEAN DEFAULT 1,
@@ -125,6 +219,16 @@ export function initDatabase() {
   } catch (error) {
     if (!error.message.includes('already exists')) {
       console.log('Business rules config table creation:', error.message)
+    }
+  }
+  
+  // Add condition_groups column if it doesn't exist (for AND/OR logic)
+  try {
+    db.exec('ALTER TABLE business_rules_config ADD COLUMN condition_groups TEXT')
+    console.log('✅ Added condition_groups column to business_rules_config')
+  } catch (error) {
+    if (!error.message.includes('duplicate column')) {
+      // Column already exists, that's fine
     }
   }
 
@@ -311,6 +415,72 @@ export function initDatabase() {
   } catch (error) {
     if (!error.message.includes('already exists')) {
       console.error('Trigger creation error:', error.message)
+    }
+  }
+
+  // Create uploaded_files table for ISQM and supporting documents
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS uploaded_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_name VARCHAR(255) NOT NULL,
+        stored_name VARCHAR(255) NOT NULL,
+        file_path TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        mime_type VARCHAR(100),
+        category VARCHAR(50) NOT NULL,
+        document_type VARCHAR(100),
+        request_id INTEGER,
+        uploaded_by INTEGER,
+        metadata TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (request_id) REFERENCES coi_requests(id),
+        FOREIGN KEY (uploaded_by) REFERENCES users(id)
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_files_request ON uploaded_files(request_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_files_category ON uploaded_files(category)')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Uploaded files table creation:', error.message)
+    }
+  }
+
+  // Create compliance_reports table for monthly reports
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS compliance_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        month INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        report_data TEXT NOT NULL,
+        generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        generated_by INTEGER,
+        FOREIGN KEY (generated_by) REFERENCES users(id),
+        UNIQUE(month, year)
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_reports_period ON compliance_reports(year, month)')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Compliance reports table creation:', error.message)
+    }
+  }
+
+  // Add monitoring columns to coi_requests if not present
+  const monitoringColumns = [
+    { name: 'engagement_end_date', def: 'DATE' },
+    { name: 'expiry_notification_sent', def: 'TEXT' },
+    { name: 'compliance_reminder_sent', def: 'DATETIME' },
+    { name: 'stale_notification_sent', def: 'DATETIME' }
+  ]
+  
+  for (const col of monitoringColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+    } catch (error) {
+      // Column exists, ignore
     }
   }
   

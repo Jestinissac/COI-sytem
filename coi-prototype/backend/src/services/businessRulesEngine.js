@@ -1,14 +1,18 @@
 import { getDatabase } from '../database/init.js'
+import { getSystemEdition, isProEdition } from './configService.js'
 
 const db = getDatabase()
 
 /**
  * Business Rules Engine
  * Evaluates rules from business_rules_config table against request data
- * Returns recommendations (not enforced actions) - Compliance makes final decisions
+ * Standard: Returns actions (block/flag) - enforced
+ * Pro: Returns recommendations - Compliance makes final decisions
  */
 export function evaluateRules(requestData) {
   try {
+    const isPro = isProEdition()
+    
     // Load all active approved rules
     const rules = db.prepare(`
       SELECT * FROM business_rules_config
@@ -17,23 +21,37 @@ export function evaluateRules(requestData) {
       ORDER BY created_at DESC
     `).all()
 
-    const recommendations = []
+    const results = []
     const executionLogs = []
 
     for (const rule of rules) {
       const evaluation = evaluateRule(rule, requestData)
       
       if (evaluation.matched) {
-        recommendations.push({
-          ruleId: rule.id,
-          ruleName: rule.rule_name,
-          ruleType: rule.rule_type,
-          recommendedAction: rule.action_type,
-          reason: getReason(rule, requestData),
-          confidence: 'MEDIUM', // Standard version - can be enhanced in Pro
-          canOverride: true, // Standard version - all can be overridden
-          guidance: `Rule: ${rule.rule_name}`
-        })
+        if (isPro) {
+          // Pro edition: Return recommendations
+          results.push({
+            ruleId: rule.id,
+            ruleName: rule.rule_name,
+            ruleType: rule.rule_type,
+            recommendedAction: mapActionToRecommendation(rule.action_type),
+            reason: getReason(rule, requestData),
+            confidence: getConfidenceLevel(rule),
+            canOverride: canOverrideAction(rule.action_type),
+            overrideGuidance: getOverrideGuidance(rule),
+            requiresComplianceReview: true,
+            guidance: `Rule: ${rule.rule_name}`
+          })
+        } else {
+          // Standard edition: Return actions
+          results.push({
+            ruleId: rule.id,
+            ruleName: rule.rule_name,
+            ruleType: rule.rule_type,
+            action: rule.action_type,
+            reason: getReason(rule, requestData)
+          })
+        }
 
         // Log execution
         executionLogs.push({
@@ -58,20 +76,66 @@ export function evaluateRules(requestData) {
       logRuleExecutions(executionLogs, requestData.id)
     }
 
-    return {
-      recommendations,
-      totalRulesEvaluated: rules.length,
-      matchedRules: recommendations.length
+    if (isPro) {
+      return {
+        recommendations: results,
+        totalRulesEvaluated: rules.length,
+        matchedRules: results.length
+      }
+    } else {
+      return {
+        actions: results,
+        totalRulesEvaluated: rules.length,
+        matchedRules: results.length
+      }
     }
   } catch (error) {
     console.error('Error evaluating rules:', error)
+    const isPro = isProEdition()
     return {
-      recommendations: [],
+      [isPro ? 'recommendations' : 'actions']: [],
       totalRulesEvaluated: 0,
       matchedRules: 0,
       error: error.message
     }
   }
+}
+
+function mapActionToRecommendation(actionType) {
+  const mapping = {
+    'block': 'REJECT',
+    'flag': 'FLAG',
+    'require_approval': 'REVIEW',
+    'set_status': 'REVIEW',
+    'send_notification': 'REVIEW'
+  }
+  return mapping[actionType] || 'REVIEW'
+}
+
+function getConfidenceLevel(rule) {
+  // In Pro, can be enhanced with ML or historical data
+  // For now, use rule type as indicator
+  if (rule.rule_type === 'conflict') {
+    return 'HIGH'
+  } else if (rule.rule_type === 'validation') {
+    return 'MEDIUM'
+  }
+  return 'MEDIUM'
+}
+
+function canOverrideAction(actionType) {
+  // Block actions typically cannot be overridden easily
+  if (actionType === 'block') {
+    return false
+  }
+  return true
+}
+
+function getOverrideGuidance(rule) {
+  if (rule.action_type === 'block') {
+    return 'Override requires Partner approval and documented justification'
+  }
+  return 'Override requires Compliance review and justification'
 }
 
 function evaluateRule(rule, requestData) {

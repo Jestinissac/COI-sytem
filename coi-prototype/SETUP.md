@@ -138,6 +138,54 @@ Navigate to http://localhost:5173
 - Match scoring (75-89% flag, 90%+ block)
 - Display in Compliance dashboard
 
+## Edition Management
+
+### Checking Current Edition
+
+The system supports two editions:
+- **Standard Edition**: Basic features, fixed form structure, action-based rules
+- **Pro Edition**: Advanced features, dynamic form builder, recommendation-based rules, change management
+
+**To check current edition:**
+1. Login as Super Admin (`admin@company.com`)
+2. Navigate to Super Admin Dashboard
+3. View the "System Edition" card at the top
+
+### Switching Editions
+
+**To switch from Standard to Pro (or vice versa):**
+1. Login as Super Admin
+2. Go to Super Admin Dashboard
+3. Find the "System Edition" section
+4. Toggle the switch to desired edition
+5. Confirm the change in the modal
+6. Features will update immediately
+
+**Note:** 
+- Only Super Admin can switch editions
+- Existing requests are not affected by edition changes
+- Pro features become hidden/disabled when switching to Standard
+- Standard features remain available in Pro edition
+
+### Edition-Specific Features
+
+**Standard Edition Features:**
+- Basic rules engine (block/flag actions)
+- Fixed form structure
+- Basic duplication detection
+- Engagement code generation
+- Role-based dashboards
+
+**Pro Edition Additional Features:**
+- Advanced rules engine (recommendations with confidence)
+- Dynamic form builder
+- Change management system
+- Impact analysis
+- Field dependency tracking
+- Rules engine health monitoring
+
+For detailed comparison, see [EDITION_COMPARISON.md](EDITION_COMPARISON.md)
+
 ## Next Steps
 
 1. Test all user journeys
@@ -145,6 +193,7 @@ Navigate to http://localhost:5173
 3. Test duplication detection with seeded data
 4. Test approval workflows end-to-end
 5. Verify engagement code generation
+6. Test edition switching functionality
 
 ## Troubleshooting
 

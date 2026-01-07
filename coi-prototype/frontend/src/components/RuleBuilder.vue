@@ -69,13 +69,14 @@
           <div
             v-for="rule in filteredRules"
             :key="rule.id"
-            class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
+            class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors cursor-pointer"
             :class="rule.is_active ? 'bg-white' : 'bg-gray-50'"
+            @click="toggleRuleDetails(rule.id)"
           >
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <div class="flex items-center gap-3 mb-2">
-                  <h4 class="font-semibold text-gray-900">{{ rule.rule_name }}</h4>
+                  <h4 class="font-semibold text-gray-900">{{ rule.rule_name || 'Unnamed Rule' }}</h4>
                   <span
                     class="px-2 py-0.5 text-xs font-medium rounded"
                     :class="getRuleTypeClass(rule.rule_type)"
@@ -117,35 +118,86 @@
                       <span class="mx-1">{{ getOperatorLabel(rule.condition_operator) }}</span>
                       <span class="text-green-600">{{ rule.condition_value }}</span>
                     </span>
-                    <span v-else class="mx-1 text-gray-400">(no condition)</span>
+                    <span v-else class="mx-1 text-gray-400">(no condition - applies to all)</span>
                     <span class="font-medium mx-1">THEN</span>
                     <span class="text-purple-600">{{ getActionLabel(rule.action_type) }}</span>
                     <span v-if="rule.action_value" class="text-gray-600">: {{ rule.action_value }}</span>
                   </div>
                 </div>
 
+                <!-- Expanded Details -->
+                <div v-if="expandedRules.has(Number(rule.id))" class="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                  <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span class="font-medium text-gray-700">Rule ID:</span>
+                      <span class="ml-2 text-gray-600">#{{ rule.id }}</span>
+                    </div>
+                    <div>
+                      <span class="font-medium text-gray-700">Status:</span>
+                      <span class="ml-2" :class="rule.is_active ? 'text-green-600' : 'text-gray-600'">
+                        {{ rule.is_active ? 'Active' : 'Inactive' }}
+                      </span>
+                    </div>
+                    <div>
+                      <span class="font-medium text-gray-700">Approval Status:</span>
+                      <span class="ml-2" :class="getApprovalStatusClass(rule.approval_status)">
+                        {{ rule.approval_status || 'N/A' }}
+                      </span>
+                    </div>
+                    <div v-if="rule.condition_operator">
+                      <span class="font-medium text-gray-700">Operator:</span>
+                      <span class="ml-2 text-gray-600">{{ rule.condition_operator }}</span>
+                    </div>
+                  </div>
+                  
+                  <div v-if="rule.description || rule.notes" class="mt-2">
+                    <span class="font-medium text-gray-700">Description:</span>
+                    <p class="mt-1 text-sm text-gray-600">{{ rule.description || rule.notes || 'No description provided' }}</p>
+                  </div>
+                </div>
+
                 <div class="text-xs text-gray-500 space-y-1">
-                  <div>Created by {{ rule.created_by_name || 'Unknown' }} on {{ formatDate(rule.created_at) }}</div>
-                  <div v-if="rule.approved_by_name">
-                    Approved by {{ rule.approved_by_name }} on {{ formatDate(rule.approved_at) }}
+                  <div>Created by {{ rule.created_by_name || rule.created_by || 'Unknown' }} on {{ formatDate(rule.created_at) }}</div>
+                  <div v-if="rule.approved_by_name || rule.approved_by">
+                    Approved by {{ rule.approved_by_name || rule.approved_by }} on {{ formatDate(rule.approved_at) }}
                   </div>
                   <div v-if="rule.rejection_reason" class="text-red-600">
                     Rejected: {{ rule.rejection_reason }}
                   </div>
+                  <div v-if="rule.updated_at && rule.updated_at !== rule.created_at">
+                    Last updated: {{ formatDate(rule.updated_at) }}
+                  </div>
                 </div>
               </div>
 
-              <div class="flex items-center gap-2 ml-4">
+              <div class="flex items-center gap-2 ml-4" @click.stop>
+                <!-- Expand/Collapse Button -->
+                <button
+                  @click="toggleRuleDetails(rule.id)"
+                  class="px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded"
+                  :title="expandedRules.has(Number(rule.id)) ? 'Collapse details' : 'Expand details'"
+                >
+                  <svg 
+                    class="w-4 h-4 transition-transform"
+                    :class="expandedRules.has(Number(rule.id)) ? 'rotate-180' : ''"
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+                
                 <!-- Super Admin Actions -->
                 <template v-if="isSuperAdmin && rule.approval_status === 'Pending'">
                   <button
-                    @click="approveRule(rule)"
+                    @click.stop="approveRule(rule)"
                     class="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700"
                   >
                     Approve
                   </button>
                   <button
-                    @click="showRejectModal(rule)"
+                    @click.stop="openRejectModal(rule)"
                     class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700"
                   >
                     Reject
@@ -155,7 +207,7 @@
                 <!-- Regular Actions -->
                 <button
                   v-if="rule.approval_status === 'Approved'"
-                  @click="toggleRule(rule)"
+                  @click.stop="toggleRule(rule)"
                   class="px-3 py-1.5 text-xs font-medium rounded"
                   :class="rule.is_active 
                     ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' 
@@ -164,13 +216,13 @@
                   {{ rule.is_active ? 'Disable' : 'Enable' }}
                 </button>
                 <button
-                  @click="editRule(rule)"
+                  @click.stop="editRule(rule)"
                   class="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
                 >
                   Edit
                 </button>
                 <button
-                  @click="deleteRule(rule)"
+                  @click.stop="deleteRule(rule)"
                   class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700"
                 >
                   Delete
@@ -405,7 +457,7 @@ import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 
-const { success, showError } = useToast()
+const { success: showSuccess, error: showError } = useToast()
 const authStore = useAuthStore()
 
 const loading = ref(false)
@@ -419,6 +471,8 @@ const isSuperAdmin = ref(false)
 const showRejectModal = ref(false)
 const rejectingRule = ref<any>(null)
 const rejectionReason = ref('')
+const expandedRules = ref(new Set<number>())
+const hasShownInitialError = ref(false)
 
 const ruleForm = ref({
   rule_name: '',
@@ -487,6 +541,24 @@ function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function toggleRuleDetails(ruleId: number | string) {
+  const id = Number(ruleId)
+  if (expandedRules.value.has(id)) {
+    expandedRules.value.delete(id)
+  } else {
+    expandedRules.value.add(id)
+  }
+}
+
+function getApprovalStatusClass(status: string) {
+  const classes: Record<string, string> = {
+    'Approved': 'text-green-600',
+    'Pending': 'text-yellow-600',
+    'Rejected': 'text-red-600'
+  }
+  return classes[status] || 'text-gray-600'
+}
+
 async function loadRules() {
   loading.value = true
   try {
@@ -497,9 +569,37 @@ async function loadRules() {
     const response = await api.get('/config/business-rules', {
       params: { includePending: isSuperAdmin.value ? 'true' : 'false' }
     })
+    
+    console.log('Rules API Response:', response.data)
+    console.log('Rules count:', response.data?.rules?.length || 0)
+    console.log('User role:', authStore.user?.role)
+    console.log('Is Super Admin:', isSuperAdmin.value)
+    
     rules.value = response.data.rules || []
+    hasShownInitialError.value = false // Reset on success
+    
+    if (rules.value.length === 0) {
+      console.warn('No rules found. This might be expected if no rules have been created yet.')
+    }
   } catch (error: any) {
-    showError(error.response?.data?.error || 'Failed to load rules')
+    console.error('Error loading rules:', error)
+    console.error('Error response:', error.response?.data)
+    
+    // Handle 404 gracefully - just show empty state
+    if (error.response?.status === 404) {
+      rules.value = []
+      if (!hasShownInitialError.value) {
+        console.warn('Business rules endpoint not found. Showing empty state.')
+        hasShownInitialError.value = true
+      }
+    } else {
+      // Only show error for non-404 errors, and only once on initial load
+      if (!hasShownInitialError.value) {
+        showError(error.response?.data?.error || 'Failed to load rules')
+        hasShownInitialError.value = true
+      }
+      rules.value = []
+    }
   } finally {
     loading.value = false
   }
@@ -508,14 +608,14 @@ async function loadRules() {
 async function approveRule(rule: any) {
   try {
     await api.post(`/config/business-rules/${rule.id}/approve`, {})
-    success('Rule approved and activated')
+    showSuccess('Rule approved and activated')
     await loadRules()
   } catch (error: any) {
     showError(error.response?.data?.error || 'Failed to approve rule')
   }
 }
 
-function showRejectModal(rule: any) {
+function openRejectModal(rule: any) {
   rejectingRule.value = rule
   rejectionReason.value = ''
   showRejectModal.value = true
@@ -531,7 +631,7 @@ async function rejectRule() {
     await api.post(`/config/business-rules/${rejectingRule.value.id}/reject`, {
       reason: rejectionReason.value
     })
-    success('Rule rejected')
+    showSuccess('Rule rejected')
     showRejectModal.value = false
     rejectingRule.value = null
     rejectionReason.value = ''
@@ -555,7 +655,7 @@ async function saveRule() {
       ? 'Rule saved and pending Super Admin approval'
       : 'Rule saved successfully'
     
-    success(message)
+    showSuccess(message)
     closeModal()
     await loadRules()
   } catch (error: any) {
@@ -571,7 +671,7 @@ async function toggleRule(rule: any) {
       ...rule,
       is_active: !rule.is_active
     })
-    success(`Rule ${rule.is_active ? 'disabled' : 'enabled'}`)
+    showSuccess(`Rule ${rule.is_active ? 'disabled' : 'enabled'}`)
     await loadRules()
   } catch (error: any) {
     showError(error.response?.data?.error || 'Failed to update rule')
@@ -600,7 +700,7 @@ async function deleteRule(rule: any) {
 
   try {
     await api.delete(`/config/business-rules/${rule.id}`)
-    success('Rule deleted successfully')
+    showSuccess('Rule deleted successfully')
     await loadRules()
   } catch (error: any) {
     showError(error.response?.data?.error || 'Failed to delete rule')

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design Option 3 - Sidebar Navigation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <!-- Header -->
+  <nav class="bg-[#1e3a8a] shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+          <span class="text-[#1e3a8a] font-bold text-sm">E</span>
+        </div>
+        <span class="text-white font-semibold text-lg">ENVISION</span>
+        <span class="text-blue-200 text-sm">COI System</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span class="text-white text-sm">John Smith</span>
+        <button class="px-3 py-1.5 bg-blue-700 text-white text-sm rounded hover:bg-blue-600">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Sub Nav -->
+  <nav class="bg-white shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex space-x-6">
+        <a href="#" class="px-3 py-3 text-sm text-gray-600 hover:text-gray-900">Dashboard</a>
+        <a href="#" class="px-3 py-3 text-sm text-blue-600 border-b-2 border-blue-600 font-medium">New Request</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="flex gap-6">
+      <!-- Left Sidebar Navigation -->
+      <div class="w-64 flex-shrink-0">
+        <div class="bg-white rounded-lg shadow-sm sticky top-6">
+          <div class="px-4 py-3 border-b">
+            <h2 class="font-semibold text-gray-900">New COI Request</h2>
+            <p class="text-xs text-gray-500 mt-1">COI-2026-023</p>
+          </div>
+          
+          <nav class="p-2">
+            <a href="#requestor" class="flex items-center px-3 py-2.5 text-sm rounded-lg bg-blue-50 text-blue-700 font-medium">
+              <span class="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs mr-3">1</span>
+              Requestor Info
+              <svg class="w-4 h-4 ml-auto text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+            </a>
+            <a href="#document" class="flex items-center px-3 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 mt-1">
+              <span class="w-5 h-5 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs mr-3">2</span>
+              Document Type
+            </a>
+            <a href="#client" class="flex items-center px-3 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 mt-1">
+              <span class="w-5 h-5 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs mr-3">3</span>
+              Client Details
+            </a>
+            <a href="#service" class="flex items-center px-3 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 mt-1">
+              <span class="w-5 h-5 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs mr-3">4</span>
+              Service Info
+            </a>
+            <a href="#ownership" class="flex items-center px-3 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 mt-1">
+              <span class="w-5 h-5 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs mr-3">5</span>
+              Ownership
+            </a>
+            <a href="#signatories" class="flex items-center px-3 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 mt-1">
+              <span class="w-5 h-5 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs mr-3">6</span>
+              Signatories
+            </a>
+            <a href="#international" class="flex items-center px-3 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 mt-1">
+              <span class="w-5 h-5 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs mr-3">7</span>
+              International
+            </a>
+          </nav>
+
+          <div class="p-4 border-t">
+            <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
+              <span>Progress</span>
+              <span>1 of 7 sections</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-1.5">
+              <div class="bg-blue-600 h-1.5 rounded-full" style="width: 14%"></div>
+            </div>
+          </div>
+
+          <div class="p-4 border-t space-y-2">
+            <button class="w-full px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+              Save Draft
+            </button>
+            <button class="w-full px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              Submit Request
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="flex-1">
+        <!-- Section: Requestor Info -->
+        <div id="requestor" class="bg-white rounded-lg shadow-sm mb-6">
+          <div class="px-6 py-4 border-b flex items-center justify-between">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium mr-3">1</div>
+              <div>
+                <h2 class="font-medium text-gray-900">Requestor Information</h2>
+                <p class="text-xs text-gray-500">Auto-populated from your profile</p>
+              </div>
+            </div>
+            <span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">Complete</span>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-2 gap-x-8 gap-y-4">
+              <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-500">Requestor Name</span>
+                <span class="text-sm text-gray-900 font-medium">John Smith</span>
+              </div>
+              <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-500">Department</span>
+                <span class="text-sm text-gray-900 font-medium">Audit</span>
+              </div>
+              <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-500">Designation</span>
+                <span class="text-sm text-gray-900 font-medium">Director</span>
+              </div>
+              <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-500">Entity</span>
+                <span class="text-sm text-gray-900 font-medium">BDO Al Nisf & Partners</span>
+              </div>
+              <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-500">Line of Service</span>
+                <span class="text-sm text-gray-900 font-medium">Assurance</span>
+              </div>
+              <div class="flex justify-between py-2 border-b border-gray-100">
+                <span class="text-sm text-gray-500">Email</span>
+                <span class="text-sm text-gray-900 font-medium">john.smith@company.com</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Document Type -->
+        <div id="document" class="bg-white rounded-lg shadow-sm mb-6">
+          <div class="px-6 py-4 border-b flex items-center justify-between">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium mr-3">2</div>
+              <div>
+                <h2 class="font-medium text-gray-900">Document Type</h2>
+                <p class="text-xs text-gray-500">Select the type of document</p>
+              </div>
+            </div>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-2 gap-4">
+              <label class="relative flex items-center p-4 border-2 border-blue-500 rounded-lg cursor-pointer bg-blue-50">
+                <input type="radio" name="docType" checked class="sr-only">
+                <div class="flex items-center">
+                  <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <span class="font-medium text-gray-900 text-sm">Proposal</span>
+                    <p class="text-xs text-gray-500">For new client engagements</p>
+                  </div>
+                </div>
+                <svg class="w-5 h-5 text-blue-600 absolute top-3 right-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+              </label>
+              <label class="relative flex items-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-gray-300">
+                <input type="radio" name="docType" class="sr-only">
+                <div class="flex items-center">
+                  <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <span class="font-medium text-gray-900 text-sm">Engagement Letter</span>
+                    <p class="text-xs text-gray-500">For confirmed engagements</p>
+                  </div>
+                </div>
+              </label>
+            </div>
+            <div class="mt-4">
+              <label class="block text-sm text-gray-600 mb-1">Language</label>
+              <select class="w-48 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500">
+                <option>English</option>
+                <option>Arabic</option>
+                <option>Bilingual</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Client Details -->
+        <div id="client" class="bg-white rounded-lg shadow-sm mb-6">
+          <div class="px-6 py-4 border-b flex items-center justify-between">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium mr-3">3</div>
+              <div>
+                <h2 class="font-medium text-gray-900">Client Details</h2>
+                <p class="text-xs text-gray-500">Select or request a new client</p>
+              </div>
+            </div>
+          </div>
+          <div class="p-6 space-y-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Select Client <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <input type="text" placeholder="Search clients by name or code..." class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <svg class="w-5 h-5 text-gray-400 absolute right-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+              </div>
+              <div class="flex items-center mt-2">
+                <span class="text-xs text-gray-500">Client not in list?</span>
+                <button class="ml-2 text-xs text-blue-600 hover:underline font-medium">+ Request New Client</button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Client Code</label>
+                <input type="text" placeholder="-" readonly class="w-full px-3 py-2 text-sm border border-gray-200 rounded bg-gray-50">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Client Type</label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option>Select...</option>
+                  <option>W.L.L.</option>
+                  <option>K.S.C.</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Regulated By</label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option>Select...</option>
+                  <option>CBK</option>
+                  <option>CMA</option>
+                  <option>None</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Location</label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option>State of Kuwait</option>
+                  <option>UAE</option>
+                  <option>Saudi Arabia</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Relationship</label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option>Existing Client</option>
+                  <option>New Client</option>
+                  <option>Referral</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-2">PIE Status</label>
+              <div class="flex space-x-4">
+                <label class="flex items-center px-4 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-gray-300">
+                  <input type="radio" name="pie" class="text-blue-600">
+                  <span class="ml-2 text-sm text-gray-700">Yes - PIE</span>
+                </label>
+                <label class="flex items-center px-4 py-2 border-2 border-blue-500 rounded-lg cursor-pointer bg-blue-50">
+                  <input type="radio" name="pie" checked class="text-blue-600">
+                  <span class="ml-2 text-sm text-gray-700">No</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Parent Company (if any)</label>
+              <input type="text" placeholder="Enter parent company name..." class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+

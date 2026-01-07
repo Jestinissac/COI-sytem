@@ -1,0 +1,46 @@
+This comprehensive documentation details the integrated governance and operational framework for the Conflict of Interest (COI) system and the Project Resource Management System (PRMS), incorporating all source materials and meeting notes 1-3.
+1. Core System Architecture and Objective
+The primary objective of this solution is to ensure that no proposal or engagement letter is issued or signed without a documented, approved, and systematic COI review 4-6. The architecture establishes a mandatory sequential relationship where the COI system serves as the upstream gatekeeper, and its successful completion is a prerequisite that authorises project creation in the PRMS 7-9.
+COI System (Governance): A separate application dedicated to pre-engagement vetting, automated conflict detection, and multi-layered authorisation 4, 10, 11.
+PRMS (Operations): The existing system containing Client Master Data used for post-engagement management, including resource allocation, timesheet tracking, and billing 4, 5, 12, 13.
+2. End-to-End Business Process Flow
+Phase 1: Initiation and Data Vetting (Pre-Proposal)
+Manual Initiation: The process begins after a quote is drafted manually using external tools; the COI system does not build the quote but captures the finalised scope and price 1, 10, 14, 15.
+Request Initiation: A Director or authorised team member initiates the request, selecting the client from a dropdown list pulled from the PRMS records 16-19.
+Mandatory Data Entry: The system enforces strict data capture, including the service description, full ownership structure, and Public Interest Entity (PIE) status 17, 20-22.
+Conditional Requirements: The "Ultimate Parent Company" field is mandatory only for International, PIE, or Potential clients 17, 23-25.
+Automated Validation: The system uses fuzzy matching and duplication filters to check for existing active proposals or engagements for the entity, its parent, or its subsidiaries 11, 17, 26, 27.
+Submission Blocking: If a duplicate is found, the system blocks the submission unless a formal justification is provided for compliance review 11, 17, 26, 28, 29.
+Phase 2: Sequential Authorisation
+Compliance Review: The Compliance Department evaluates the request, with the ability to Approve, Reject, or request More Information 30-33.
+Global Clearance: If "International Operations" are identified, an additional tab is activated, and Global independence clearance is mandatory 20, 34-36.
+Partner Approval: After Compliance clearance, the Assigned Partner provides final business authorisation via a one-click dashboard 30, 31, 37, 38.
+Financial Coding: Approved requests move to the Finance Team to assess credit risk and automatically generate a unique Engagement/Finance Code (e.g., ENG-2025-TAX-00142) 31, 37, 39, 40.
+Phase 3: Proposal Execution and Monitoring
+Execution: The Admin Team prepares and sends the proposal, recording the execution date to start a 30-day monitoring window 39, 41-43.
+Alert Management: Reminders are sent to the requester, Admin, and Partner every 10 days 32, 41, 43, 44.
+Validity and Lapses: If no client confirmation is received within 30 days, the request automatically lapses and is closed; a new COI is required for further action 36, 41, 44, 45.
+Extension Requests: Any request for extension beyond 30 days requires documented justification for review Meeting Notes.
+Phase 4: Pre-Engagement and PRMS Handoff
+Engagement Activation: Upon client approval, the Admin updates the status to Active and prepares the formal Engagement Letter 44, 46-48.
+Mandatory ISQM Forms: The Client Screening Questionnaire and New Client Acceptance checklist must be filled and attached during this phase 34, 46, 49.
+PRMS Initialisation: The Engagement Code is sent to the PRMS via API to permit project creation 7, 46, 50.
+Validation Block: PRMS validates the code against the COI authorisation table; project creation is blocked if an invalid or missing code is entered 29, 46, 50, 51.
+Phase 5: Post-Engagement Management (PRMS)
+Project Identification: Project IDs are auto-generated using BDO logic, referencing the Service Year 3, 52, 53.
+Resource Management: Tasks and Teams are created independently and later mapped to the project in a dedicated area 52, 54, 55.
+Operational Controls: Timesheet entry is blocked after the project's targeted end date unless a revision is approved 52, 55-57.
+Renewal Monitoring: Every active engagement activates an automatic 3-year renewal alert, with 90 days' notice sent to the Admin and Partner 44, 46, 47, 58, 59.
+3. Data Segregation and Role-Based Access Control (RBAC)
+To maintain integrity, the system enforces strict data segregation between different auditors serving the same client 60.
+Requesters (Auditors/Directors): Access is restricted to a "My Requests" view; they see only their submitted files and client details fetched from the PRMS Client Master 50, 61.
+Compliance Team: Provides a full COI review workspace but is strictly blocked from viewing commercials or pricing information 50, 61.
+Finance Team: Responsible for managing the Engagement Code module, credit risk assessment, and financial parameter entry 37, 58, 61.
+Assigned Partners: Provided with a One-Click Dashboard to track all active/past proposals, COI decisions, and upcoming 3-year renewals 58, 61, 62.
+Super Admins: Possess unrestricted access to all historical data, commercials, and cross-team submissions 61.
+4. Key System Features and Data Integration
+API Connectivity: The COI system reads from the PRMS Client Master to ensure no duplication of client data and no free-text names 14, 16, 29, 50, 63.
+Reporting: Comprehensive reports are available by client, team, and stage, including tracking for proposal-to-engagement conversion ratios 13, 26, 209, Meeting Notes.
+Audit Trail: Every action from initiation to final execution is logged in a centralised audit trail 45, 64-66.
+Fuzzy Matching: Implemented to detect similar entity names during the initiation phase 11, 67, 68.
+Analogy for System Integration:The system operates like a Commercial Flight Clearance. The COI system represents Security and Passport Control; you must provide exhaustive documentation (ownership, PIE status) and clear the background check (conflict vetting) before you are granted a Boarding Pass (Engagement Code). The PRMS is the Aircraft; the crew (teams) and flight plan (tasks) can be prepared, but the gate agent (the system) will block your entry until your Boarding Pass is scanned and verified as valid for that specific journey.

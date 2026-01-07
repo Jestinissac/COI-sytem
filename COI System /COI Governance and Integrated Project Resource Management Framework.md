@@ -1,0 +1,55 @@
+The integrated solution establishes a mandatory governance framework where the **Conflict of Interest (COI) system** acts as the upstream gateway that must authorize all activity before the **Project Resource Management System (PRMS)** can initiate operational tasks 1-5. Based on the latest understanding, the system does not handle the manual creation of quotes or commercial pricing; instead, it captures the finalized scope to trigger the compliance workflow 4, 6-9.
+
+### 1\. System Architecture and Objective
+
+The core objective is to ensure that **no proposal or engagement letter is issued or signed** without a full, documented, and approved COI review 1, 10-13.
+
+* **COI System:** A separate governance application dedicated to pre-engagement vetting, automated conflict detection, and sequential authorization 3, 12-14.  
+* **PRMS:** Functions as the **Client Master Data** source and handles post-engagement management, including resource allocation, timesheet tracking, and billing 2, 3, 7, 15-17.
+
+### 2\. End-to-End Business Process Flow
+
+#### Phase 1: Request Initiation and Data Vetting (Pre-Proposal)
+
+The process begins after a quote is prepared manually (e.g., via external documents) and before a formal proposal is issued to a client 4, 7, 9\.
+
+* **Initiation:** A Director or authorized team member initiates a COI request for either a new proposal or an engagement 13, 18-20.  
+* **Client Selection:** The client is selected from a dropdown list pulled directly from the PRMS records; if the client is new, a request must be made to the PRMS admin to add them first to ensure **no duplication of client data** 16, 19-21.  
+* **Mandatory Data Input:** The requester enters the exact description and scope of the intended service 9, 13, 22-25.  
+* **Ownership Structure:** Critical data fields are enforced, including **parent company name**, **full ownership structure**, **Public Interest Entity (PIE) status**, and a list of all related/affiliated entities under common control 12-14, 26-31.  
+* *Note:* The "Ultimate Parent Company" field is a mandatory requirement for **International**, **PIE**, or **Potential** clients 32, 33\.  
+* **Automated Validation:** The system performs **Automated Duplication Checks** using **fuzzy matching** to detect existing active proposals or engagements for the entity, its parent, or its subsidiaries 12-14, 25, 31, 34-38.  
+* **Blocking Mechanism:** If a duplication is detected, the system **blocks the submission** unless the user provides a formal justification for compliance review 12-14, 25, 31, 34, 36, 38\.  
+* **Global Clearance:** If "International Operations" are selected, an additional tab is activated and **Global independence clearance is mandatory** 13, 14, 26, 28, 30, 39-41.
+
+#### Phase 2: Sequential Review and Authorization
+
+Once submitted, the request moves through a strictly defined approval hierarchy 12, 25, 42, 43\.
+
+* **Compliance Review:** The Compliance Department reviews the request and chooses from: Approved, Approved with restrictions, Need more information, or Reject 13, 25, 35, 37, 42-46.  
+* **Partner Approval:** Following compliance clearance, the request is transferred to the **Assigned Partner** for final approval 13, 25, 42-47.  
+* **Financial Coding:** Approved requests are routed to the Finance Team to enter financial parameters (e.g., credit terms, currency) and assess risk 25, 42, 45, 46, 48\.  
+* **Code Generation:** The system **automatically generates** a unique and permanent **Engagement/Finance Code** (e.g., ENG-2025-TAX-00142), which is required for project initiation in PRMS 10, 11, 13, 25, 42-44, 48, 49\.
+
+#### Phase 3: Proposal Execution and Monitoring
+
+* **Execution:** Upon receiving COI clearance, the Admin Team prepares and sends the proposal document (including the new Finance Code) to the client 13, 25, 42, 43, 48, 50, 51\.  
+* **30-Day Monitoring Window:** The system records the execution date to activate a **30-day monitoring window** 13, 41, 48, 50-52.  
+* **Automated Alerts:** Reminders are sent to the requester, Admin, and Partner every 10 days from the date of approval 35, 37, 41\.  
+* **Lapse Policy:** If no client confirmation is received within 30 days, the request **automatically lapses and is closed**; any later response requires a **new COI request** 13, 35, 37, 41, 43, 52-56.
+
+#### Phase 4: Engagement and Operational Handoff
+
+* **Engagement Phase:** When the client approves the proposal, the status is updated to **Active**, and the Admin prepares the formal Engagement Letter 53, 57, 58\.  
+* **Mandatory Forms:** During this phase, **ISQM forms** (e.g., Client Screening Questionnaire, New Client Acceptance checklist) must be filled and attached 13, 39, 40, 42\.  
+* **Renewal Alerts:** Execution of the engagement letter activates an **automatic alert for renewal after 3 years**, with prior notices sent 90 days in advance 11, 13, 49, 52, 53, 57-59.  
+* **PRMS Project Creation:** The finalized Engagement Code formally **precedes and authorizes** project definition within PRMS 1, 2, 5, 25, 42, 53, 60\.  
+* **Validation:** PRMS validates the code against the COI authorization table; **project creation is blocked** if an invalid code is entered 61-63.
+
+#### Phase 5: Post-Engagement Management (PRMS)
+
+* **Project Identification:** Project IDs are **auto-generated using BDO logic** and reference the Service Year 25, 42, 61, 63-67.  
+* **Independent Resource Mapping:** Tasks and Teams are **created independently** and subsequently mapped to their respective projects in a dedicated area 25, 42, 66, 68\.  
+* **Operational Controls:** Timesheet entries are mapped to specific tasks, and the system **blocks entry after the project's targeted end date** unless a revision is approved 25, 42, 66, 69-72.  
+* **Financial Oversight:** The system tracks out-of-pocket expenses (OPE), maintains a billing schedule supporting **split billing**, and manages a payment tracking workflow ($Print Invoice \\rightarrow Mark Issued \\rightarrow Mark Received$) 66, 71, 73-77.
+

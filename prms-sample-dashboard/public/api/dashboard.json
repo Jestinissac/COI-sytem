@@ -1,0 +1,51 @@
+{
+  "metrics": {
+    "activeProjects": 42,
+    "teamUtilization": 76,
+    "monthlyRevenue": 420000,
+    "clientSatisfaction": 4.4
+  },
+  "revenueTrend": {
+    "labels": ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+    "datasets": [
+      {
+        "label": "Monthly Revenue",
+        "data": [355000, 370000, 382000, 389000, 392000, 385000, 374000, 362000, 348000, 336000, 328000, 322000],
+        "borderColor": "#3B82F6",
+        "backgroundColor": "rgba(59,130,246,0.25)",
+        "tension": 0.35,
+        "fill": true
+      }
+    ]
+  },
+  "projectStatus": {
+    "labels": ["Planning", "Active", "Review", "Complete", "On-Hold"],
+    "datasets": [
+      {
+        "data": [6, 18, 7, 9, 2],
+        "backgroundColor": ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EF4444"]
+      }
+    ]
+  },
+  "auditServicesRevenue": {
+    "labels": ["FS Audit", "IFRS", "Internal Audit", "Reg Compliance", "Advisory"],
+    "datasets": [
+      {
+        "label": "Revenue",
+        "data": [320000, 120000, 180000, 90000, 60000],
+        "backgroundColor": "#3B82F6"
+      }
+    ]
+  },
+  "taxServices": {
+    "labels": ["Corporate Tax", "VAT & Customs", "FATCA/CRS", "International Tax", "Transfer Pricing"],
+    "datasets": [
+      {
+        "data": [220000, 180000, 75000, 95000, 65000],
+        "backgroundColor": ["#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#EF4444"]
+      }
+    ]
+  }
+}
+
+

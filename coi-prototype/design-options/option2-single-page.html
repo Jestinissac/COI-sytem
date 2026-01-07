@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design Option 2 - Single Page Sections</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <!-- Header -->
+  <nav class="bg-[#1e3a8a] shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+          <span class="text-[#1e3a8a] font-bold text-sm">E</span>
+        </div>
+        <span class="text-white font-semibold text-lg">ENVISION</span>
+        <span class="text-blue-200 text-sm">COI System</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span class="text-white text-sm">John Smith</span>
+        <button class="px-3 py-1.5 bg-blue-700 text-white text-sm rounded hover:bg-blue-600">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Sub Nav -->
+  <nav class="bg-white shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex space-x-6">
+        <a href="#" class="px-3 py-3 text-sm text-gray-600 hover:text-gray-900">Dashboard</a>
+        <a href="#" class="px-3 py-3 text-sm text-blue-600 border-b-2 border-blue-600 font-medium">New Request</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-xl font-semibold text-gray-900">Create New COI Request</h1>
+        <p class="text-sm text-gray-500 mt-1">All fields marked with * are required</p>
+      </div>
+      <div class="flex space-x-3">
+        <button class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+          Save Draft
+        </button>
+        <button class="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+          Submit Request
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-6">
+      <!-- Main Form - 2 columns -->
+      <div class="col-span-2 space-y-6">
+        
+        <!-- Section 1: Requestor Information -->
+        <div class="bg-white rounded-lg shadow-sm">
+          <div class="px-5 py-3 border-b flex items-center">
+            <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium mr-3">1</div>
+            <h2 class="font-medium text-gray-900">Requestor Information</h2>
+          </div>
+          <div class="p-5 grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Requestor Name</label>
+              <input type="text" value="John Smith" readonly class="w-full px-3 py-2 text-sm border border-gray-200 rounded bg-gray-50 text-gray-600">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Department</label>
+              <input type="text" value="Audit" readonly class="w-full px-3 py-2 text-sm border border-gray-200 rounded bg-gray-50 text-gray-600">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Designation</label>
+              <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                <option>Director</option>
+                <option>Senior Manager</option>
+                <option>Manager</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Entity</label>
+              <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                <option>BDO Al Nisf & Partners</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Client Information -->
+        <div class="bg-white rounded-lg shadow-sm">
+          <div class="px-5 py-3 border-b flex items-center">
+            <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium mr-3">2</div>
+            <h2 class="font-medium text-gray-900">Client Information</h2>
+          </div>
+          <div class="p-5 space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Client Name <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option value="">Search or select client...</option>
+                  <option>ABC Corporation W.L.L.</option>
+                  <option>XYZ Holdings Ltd</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Client Code</label>
+                <input type="text" value="CLI-001" readonly class="w-full px-3 py-2 text-sm border border-gray-200 rounded bg-gray-50">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Client Type</label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option>W.L.L.</option>
+                  <option>K.S.C.</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Location</label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option>State of Kuwait</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Relationship</label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option>Existing Client</option>
+                  <option>New Client</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">PIE Status</label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option>No</option>
+                  <option>Yes - Public Interest Entity</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Service Information -->
+        <div class="bg-white rounded-lg shadow-sm">
+          <div class="px-5 py-3 border-b flex items-center">
+            <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium mr-3">3</div>
+            <h2 class="font-medium text-gray-900">Service Information</h2>
+          </div>
+          <div class="p-5 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Service Type <span class="text-red-500">*</span></label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option value="">Select service type...</option>
+                  <option>Statutory Audit</option>
+                  <option>Tax Advisory</option>
+                  <option>Management Consulting</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Document Type</label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                  <option>Proposal</option>
+                  <option>Engagement Letter</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Service Description <span class="text-red-500">*</span></label>
+              <textarea rows="3" placeholder="Describe the services to be provided..." class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Service Period Start</label>
+                <input type="date" class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Service Period End</label>
+                <input type="date" class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: International Operations -->
+        <div class="bg-white rounded-lg shadow-sm">
+          <div class="px-5 py-3 border-b flex items-center">
+            <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium mr-3">4</div>
+            <h2 class="font-medium text-gray-900">International Operations</h2>
+          </div>
+          <div class="p-5 space-y-4">
+            <div>
+              <label class="flex items-center">
+                <input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500">
+                <span class="ml-2 text-sm text-gray-700">Client has international operations</span>
+              </label>
+            </div>
+            <div class="bg-gray-50 p-4 rounded text-sm text-gray-600">
+              If checked, you will need to submit to Global COI Portal after approval
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar - 1 column -->
+      <div class="space-y-6">
+        <!-- Summary Card -->
+        <div class="bg-white rounded-lg shadow-sm sticky top-4">
+          <div class="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
+            <h3 class="font-medium text-gray-900 text-sm">Request Summary</h3>
+          </div>
+          <div class="p-4 space-y-3 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-500">Request ID</span>
+              <span class="text-gray-900 font-mono">COI-2026-023</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Status</span>
+              <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">Draft</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Requestor</span>
+              <span class="text-gray-900">John Smith</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Department</span>
+              <span class="text-gray-900">Audit</span>
+            </div>
+            <hr>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Client</span>
+              <span class="text-gray-400">Not selected</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Service</span>
+              <span class="text-gray-400">Not selected</span>
+            </div>
+          </div>
+          <div class="p-4 border-t">
+            <div class="text-xs text-gray-500 mb-2">Form Completion</div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div class="bg-blue-600 h-2 rounded-full" style="width: 35%"></div>
+            </div>
+            <div class="text-xs text-gray-500 mt-1 text-right">35%</div>
+          </div>
+        </div>
+
+        <!-- Help Card -->
+        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4">
+          <h4 class="font-medium text-blue-900 text-sm mb-2">Need Help?</h4>
+          <p class="text-xs text-blue-700 mb-3">Contact the COI team for assistance with your request.</p>
+          <a href="#" class="text-xs text-blue-600 hover:underline">View COI Guidelines →</a>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+

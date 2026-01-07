@@ -1,0 +1,715 @@
+<template>
+  <div class="min-h-screen bg-gray-100">
+    <!-- Top Header -->
+    <div class="bg-white border-b border-gray-200">
+      <div class="max-w-7xl mx-auto px-6 py-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-xl font-semibold text-gray-900">Admin Dashboard</h1>
+            <p class="text-sm text-gray-500 mt-1">Execution tracking, monitoring, and system management</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <router-link
+              to="/coi/form-builder"
+              class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              Form Builder
+            </router-link>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-6 py-6">
+      <div class="flex gap-6">
+        <!-- Left Sidebar Navigation -->
+        <div class="w-56 flex-shrink-0">
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6">
+            <nav class="py-2">
+              <a
+                v-for="tab in tabs"
+                :key="tab.id"
+                href="#"
+                @click.prevent="activeTab = tab.id"
+                class="flex items-center px-4 py-3 text-sm transition-colors border-l-2"
+                :class="activeTab === tab.id 
+                  ? 'bg-blue-50 border-blue-600 text-blue-700 font-medium' 
+                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
+              >
+                <component :is="tab.icon" class="w-5 h-5 mr-3" />
+                {{ tab.label }}
+                <span 
+                  v-if="tab.count > 0" 
+                  class="ml-auto px-2 py-0.5 text-xs font-medium rounded-full"
+                  :class="tab.alertColor"
+                >
+                  {{ tab.count }}
+                </span>
+              </a>
+            </nav>
+          </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-1">
+          <!-- Overview Tab -->
+          <div v-if="activeTab === 'overview'" class="space-y-6">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-4 gap-4">
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm text-gray-500">Total Requests</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ totalRequests }}</p>
+                  </div>
+                  <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm text-gray-500">Active Engagements</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ activeEngagements }}</p>
+                  </div>
+                  <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm text-gray-500">Monitoring Alerts</p>
+                    <p class="text-2xl font-bold text-red-600 mt-1">{{ alertCount }}</p>
+                  </div>
+                  <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm text-gray-500">Renewals Due</p>
+                    <p class="text-2xl font-bold text-purple-600 mt-1">{{ renewalsDue }}</p>
+                  </div>
+                  <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Summary -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900">System Overview</h2>
+              </div>
+              <div class="p-6 grid grid-cols-3 gap-4">
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div class="flex items-center mb-2">
+                    <span class="w-2 h-2 rounded-full bg-yellow-500 mr-2"></span>
+                    <span class="text-sm font-medium text-yellow-800">10-Day Alerts</span>
+                  </div>
+                  <p class="text-2xl font-bold text-yellow-900">{{ tenDayAlerts.length }}</p>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div class="flex items-center mb-2">
+                    <span class="w-2 h-2 rounded-full bg-orange-500 mr-2"></span>
+                    <span class="text-sm font-medium text-orange-800">20-Day Alerts</span>
+                  </div>
+                  <p class="text-2xl font-bold text-orange-900">{{ twentyDayAlerts.length }}</p>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div class="flex items-center mb-2">
+                    <span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                    <span class="text-sm font-medium text-red-800">30-Day Exceeded</span>
+                  </div>
+                  <p class="text-2xl font-bold text-red-900">{{ thirtyDayAlerts.length }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Execution Queue Tab -->
+          <div v-if="activeTab === 'execution'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900">Proposal Execution Workflow</h2>
+                <p class="text-sm text-gray-500 mt-1">Track proposals from approval to engagement</p>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eng. Code</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr v-for="item in executionQueue" :key="item.id" class="hover:bg-gray-50">
+                      <td class="px-6 py-4">
+                        <span class="text-sm font-medium text-blue-600">{{ item.request_id }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ item.client_name }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm font-mono text-gray-600">{{ item.engagement_code || 'Pending' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span :class="getStageClass(item)" class="px-2 py-1 text-xs font-medium rounded">
+                          {{ getStageLabel(item) }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ item.days_in_monitoring || 0 }}</span>
+                      </td>
+                      <td class="px-6 py-4 space-x-2">
+                        <button v-if="!item.proposal_sent_date" @click="sendProposal(item)" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Send Proposal</button>
+                        <button v-else-if="!item.client_response_type" @click="recordResponse(item)" class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200">Record Response</button>
+                        <button v-else-if="item.client_response_type === 'Accepted'" @click="sendEngagementLetter(item)" class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200">Send EL</button>
+                        <button @click="viewDetails(item)" class="text-blue-600 hover:text-blue-800 text-xs">View</button>
+                      </td>
+                    </tr>
+                    <tr v-if="executionQueue.length === 0">
+                      <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        No items in execution queue
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monitoring Tab -->
+          <div v-if="activeTab === 'monitoring'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h2 class="font-semibold text-gray-900">10/20/30 Day Monitoring</h2>
+                  <p class="text-sm text-gray-500 mt-1">Engagement tracking and expiry alerts</p>
+                </div>
+                <button @click="runMonitoringCheck" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                  Send Alerts
+                </button>
+              </div>
+
+              <div class="p-6 space-y-6">
+                <!-- 10-Day Alerts -->
+                <div>
+                  <h3 class="text-sm font-semibold text-yellow-800 mb-3 flex items-center">
+                    <span class="w-2 h-2 rounded-full bg-yellow-500 mr-2"></span>
+                    10-Day Alerts ({{ tenDayAlerts.length }})
+                  </h3>
+                  <div v-if="tenDayAlerts.length" class="bg-yellow-50 border border-yellow-200 rounded-lg divide-y divide-yellow-200">
+                    <div v-for="alert in tenDayAlerts" :key="alert.id" class="flex justify-between items-center p-3">
+                      <div>
+                        <span class="text-sm font-medium text-gray-900">{{ alert.request_id }}</span>
+                        <span class="text-sm text-gray-500 ml-2">{{ alert.client_name }}</span>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">{{ alert.days_in_monitoring }} days</span>
+                        <button @click="viewDetails(alert)" class="text-blue-600 hover:text-blue-800 text-sm">View</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="text-sm text-gray-400 py-2">No 10-day alerts</div>
+                </div>
+
+                <!-- 20-Day Alerts -->
+                <div>
+                  <h3 class="text-sm font-semibold text-orange-800 mb-3 flex items-center">
+                    <span class="w-2 h-2 rounded-full bg-orange-500 mr-2"></span>
+                    20-Day Alerts ({{ twentyDayAlerts.length }})
+                  </h3>
+                  <div v-if="twentyDayAlerts.length" class="bg-orange-50 border border-orange-200 rounded-lg divide-y divide-orange-200">
+                    <div v-for="alert in twentyDayAlerts" :key="alert.id" class="flex justify-between items-center p-3">
+                      <div>
+                        <span class="text-sm font-medium text-gray-900">{{ alert.request_id }}</span>
+                        <span class="text-sm text-gray-500 ml-2">{{ alert.client_name }}</span>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">{{ alert.days_in_monitoring }} days - URGENT</span>
+                        <button @click="viewDetails(alert)" class="text-blue-600 hover:text-blue-800 text-sm">View</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="text-sm text-gray-400 py-2">No 20-day alerts</div>
+                </div>
+
+                <!-- 30-Day Exceeded -->
+                <div>
+                  <h3 class="text-sm font-semibold text-red-800 mb-3 flex items-center">
+                    <span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                    30-Day Exceeded ({{ thirtyDayAlerts.length }})
+                  </h3>
+                  <div v-if="thirtyDayAlerts.length" class="bg-red-50 border border-red-200 rounded-lg divide-y divide-red-200">
+                    <div v-for="alert in thirtyDayAlerts" :key="alert.id" class="flex justify-between items-center p-3">
+                      <div>
+                        <span class="text-sm font-medium text-gray-900">{{ alert.request_id }}</span>
+                        <span class="text-sm text-gray-500 ml-2">{{ alert.client_name }}</span>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">{{ alert.days_in_monitoring }} days - LAPSED</span>
+                        <button @click="viewDetails(alert)" class="text-blue-600 hover:text-blue-800 text-sm">View</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="text-sm text-gray-400 py-2">No 30-day exceeded alerts</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Renewals Tab -->
+          <div v-if="activeTab === 'renewals'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900">3-Year Renewal Tracking</h2>
+                <p class="text-sm text-gray-500 mt-1">Engagements due for renewal review</p>
+              </div>
+
+              <div class="p-6">
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                  <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p class="text-sm font-medium text-red-800">30-Day Warning</p>
+                    <p class="text-2xl font-bold text-red-900 mt-1">{{ renewal30Day.length }}</p>
+                  </div>
+                  <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <p class="text-sm font-medium text-orange-800">60-Day Warning</p>
+                    <p class="text-2xl font-bold text-orange-900 mt-1">{{ renewal60Day.length }}</p>
+                  </div>
+                  <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p class="text-sm font-medium text-yellow-800">90-Day Warning</p>
+                    <p class="text-2xl font-bold text-yellow-900 mt-1">{{ renewal90Day.length }}</p>
+                  </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                  <table class="w-full">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Request ID</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Renewal Due</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                      <tr v-for="item in allRenewals" :key="item.id" class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ item.request_id }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">{{ item.client_name }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">{{ formatDate(item.created_at) }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">{{ formatDate(item.next_renewal_date) }}</td>
+                        <td class="px-4 py-3">
+                          <span :class="getRenewalStatusClass(item)" class="px-2 py-1 text-xs font-medium rounded">
+                            {{ item.renewal_alert_status || 'None' }}
+                          </span>
+                        </td>
+                      </tr>
+                      <tr v-if="allRenewals.length === 0">
+                        <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                          No renewals due
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ISQM Tab -->
+          <div v-if="activeTab === 'isqm'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h2 class="font-semibold text-gray-900">ISQM Forms Management</h2>
+                  <p class="text-sm text-gray-500 mt-1">Client Screening and New Client Acceptance</p>
+                </div>
+                <button class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                  + Upload Form
+                </button>
+              </div>
+
+              <div class="p-6">
+                <div class="grid grid-cols-2 gap-6">
+                  <div class="border border-gray-200 rounded-lg p-6">
+                    <div class="flex items-center mb-4">
+                      <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 class="font-medium text-gray-900">Client Screening Questionnaire</h3>
+                        <p class="text-sm text-gray-500">Pre-engagement risk assessment</p>
+                      </div>
+                    </div>
+                    <div class="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                      <svg class="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                      </svg>
+                      <p class="text-sm text-gray-500">Upload PDF template</p>
+                    </div>
+                  </div>
+
+                  <div class="border border-gray-200 rounded-lg p-6">
+                    <div class="flex items-center mb-4">
+                      <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mr-3">
+                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 class="font-medium text-gray-900">New Client Acceptance Checklist</h3>
+                        <p class="text-sm text-gray-500">Acceptance documentation</p>
+                      </div>
+                    </div>
+                    <div class="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                      <svg class="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                      </svg>
+                      <p class="text-sm text-gray-500">Upload PDF template</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Global COI Tab -->
+          <div v-if="activeTab === 'global'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h2 class="font-semibold text-gray-900">Global COI Portal</h2>
+                  <p class="text-sm text-gray-500 mt-1">International engagement management and export</p>
+                </div>
+                <button @click="exportToExcel" class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                  </svg>
+                  Export to Excel
+                </button>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Request ID</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Countries</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Global Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr v-for="item in globalEngagements" :key="item.id" class="hover:bg-gray-50">
+                      <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ item.request_id }}</td>
+                      <td class="px-6 py-4 text-sm text-gray-600">{{ item.client_name }}</td>
+                      <td class="px-6 py-4 text-sm text-gray-600">{{ item.service_type }}</td>
+                      <td class="px-6 py-4 text-sm text-gray-600">{{ item.foreign_subsidiaries || 'N/A' }}</td>
+                      <td class="px-6 py-4">
+                        <span :class="getGlobalStatusClass(item.global_clearance_status)" class="px-2 py-1 text-xs font-medium rounded">
+                          {{ item.global_clearance_status }}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr v-if="globalEngagements.length === 0">
+                      <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        No international engagements
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Response Modal -->
+    <div v-if="showResponseModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Record Client Response</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Response Type</label>
+            <select v-model="responseType" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+              <option value="">Select response...</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Declined">Declined</option>
+              <option value="Pending">Still Pending</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <textarea v-model="responseNotes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"></textarea>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button @click="showResponseModal = false" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+            Cancel
+          </button>
+          <button @click="submitResponse" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700">
+            Save Response
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, h } from 'vue'
+import { useRouter } from 'vue-router'
+import { useCOIRequestsStore } from '@/stores/coiRequests'
+import api from '@/services/api'
+
+const router = useRouter()
+const coiStore = useCOIRequestsStore()
+
+const activeTab = ref('overview')
+const showResponseModal = ref(false)
+const selectedRequest = ref<any>(null)
+const responseType = ref('')
+const responseNotes = ref('')
+
+const requests = computed(() => coiStore.requests)
+
+// Icon components
+const OverviewIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' })
+    ])
+  }
+}
+
+const ExecutionIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' })
+    ])
+  }
+}
+
+const MonitoringIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' })
+    ])
+  }
+}
+
+const RenewalIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' })
+    ])
+  }
+}
+
+const ISQMIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' })
+    ])
+  }
+}
+
+const GlobalIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064' })
+    ])
+  }
+}
+
+// Stats
+const totalRequests = computed(() => requests.value.length)
+const activeEngagements = computed(() => requests.value.filter(r => r.status === 'Active').length)
+const pendingProposals = computed(() => requests.value.filter(r => r.stage === 'Proposal' && r.status === 'Approved').length)
+const alertCount = computed(() => tenDayAlerts.value.length + twentyDayAlerts.value.length + thirtyDayAlerts.value.length)
+const renewalsDue = computed(() => allRenewals.value.length)
+
+// Monitoring alerts
+const tenDayAlerts = computed(() => requests.value.filter(r => 
+  r.days_in_monitoring >= 10 && r.days_in_monitoring < 20 && r.status === 'Approved'
+))
+const twentyDayAlerts = computed(() => requests.value.filter(r => 
+  r.days_in_monitoring >= 20 && r.days_in_monitoring < 30 && r.status === 'Approved'
+))
+const thirtyDayAlerts = computed(() => requests.value.filter(r => 
+  r.days_in_monitoring >= 30 && r.status === 'Approved'
+))
+
+// Execution queue
+const executionQueue = computed(() => requests.value.filter(r => 
+  ['Approved', 'Active'].includes(r.status) && r.engagement_code
+))
+
+// Renewals
+const renewal30Day = computed(() => requests.value.filter(r => r.renewal_alert_status === '30-Day'))
+const renewal60Day = computed(() => requests.value.filter(r => r.renewal_alert_status === '60-Day'))
+const renewal90Day = computed(() => requests.value.filter(r => r.renewal_alert_status === '90-Day'))
+const allRenewals = computed(() => [...renewal30Day.value, ...renewal60Day.value, ...renewal90Day.value])
+
+// Global engagements
+const globalEngagements = computed(() => requests.value.filter(r => r.international_operations))
+
+const tabs = computed(() => [
+  { id: 'overview', label: 'Overview', icon: OverviewIcon, count: 0, alertColor: '' },
+  { id: 'execution', label: 'Execution Queue', icon: ExecutionIcon, count: executionQueue.value.length, alertColor: 'bg-blue-100 text-blue-700' },
+  { id: 'monitoring', label: 'Monitoring', icon: MonitoringIcon, count: alertCount.value, alertColor: alertCount.value > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600' },
+  { id: 'renewals', label: '3-Year Renewals', icon: RenewalIcon, count: renewalsDue.value, alertColor: 'bg-purple-100 text-purple-700' },
+  { id: 'isqm', label: 'ISQM Forms', icon: ISQMIcon, count: 0, alertColor: '' },
+  { id: 'global', label: 'Global COI', icon: GlobalIcon, count: globalEngagements.value.length, alertColor: 'bg-gray-100 text-gray-600' }
+])
+
+function getStageClass(item: any) {
+  if (!item.proposal_sent_date) return 'bg-gray-100 text-gray-700'
+  if (!item.client_response_type) return 'bg-yellow-100 text-yellow-700'
+  if (item.client_response_type === 'Accepted') return 'bg-green-100 text-green-700'
+  return 'bg-red-100 text-red-700'
+}
+
+function getStageLabel(item: any) {
+  if (!item.proposal_sent_date) return 'Proposal Pending'
+  if (!item.client_response_type) return 'Awaiting Response'
+  if (item.client_response_type === 'Accepted') return 'Accepted'
+  return item.client_response_type
+}
+
+function getRenewalStatusClass(item: any) {
+  const status = item.renewal_alert_status || 'None'
+  const classes: Record<string, string> = {
+    '30-Day': 'bg-red-100 text-red-700',
+    '60-Day': 'bg-orange-100 text-orange-700',
+    '90-Day': 'bg-yellow-100 text-yellow-700',
+    'None': 'bg-gray-100 text-gray-700'
+  }
+  return classes[status] || 'bg-gray-100 text-gray-700'
+}
+
+function getGlobalStatusClass(status: string) {
+  const classes: Record<string, string> = {
+    'Approved': 'bg-green-100 text-green-700',
+    'Pending': 'bg-yellow-100 text-yellow-700',
+    'Not Required': 'bg-gray-100 text-gray-700',
+    'Rejected': 'bg-red-100 text-red-700'
+  }
+  return classes[status] || 'bg-gray-100 text-gray-700'
+}
+
+function formatDate(dateString: string) {
+  if (!dateString) return 'N/A'
+  return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function viewDetails(item: any) {
+  router.push(`/coi/request/${item.id}`)
+}
+
+async function sendProposal(item: any) {
+  try {
+    await api.post(`/coi/requests/${item.id}/execute`, { action: 'send_proposal' })
+    coiStore.fetchRequests()
+  } catch (error) {
+    console.error('Failed to send proposal:', error)
+  }
+}
+
+function recordResponse(item: any) {
+  selectedRequest.value = item
+  showResponseModal.value = true
+}
+
+async function submitResponse() {
+  if (!selectedRequest.value || !responseType.value) return
+  try {
+    await api.post(`/coi/requests/${selectedRequest.value.id}/execute`, {
+      action: 'record_response',
+      response_type: responseType.value,
+      notes: responseNotes.value
+    })
+    showResponseModal.value = false
+    selectedRequest.value = null
+    responseType.value = ''
+    responseNotes.value = ''
+    coiStore.fetchRequests()
+  } catch (error) {
+    console.error('Failed to record response:', error)
+  }
+}
+
+async function sendEngagementLetter(item: any) {
+  try {
+    await api.post(`/coi/requests/${item.id}/execute`, { action: 'send_engagement_letter' })
+    coiStore.fetchRequests()
+  } catch (error) {
+    console.error('Failed to send engagement letter:', error)
+  }
+}
+
+async function runMonitoringCheck() {
+  try {
+    await api.post('/coi/monitoring/update')
+    coiStore.fetchRequests()
+  } catch (error) {
+    console.error('Failed to run monitoring check:', error)
+  }
+}
+
+function exportToExcel() {
+  // Trigger Excel export
+  const data = globalEngagements.value.map(item => ({
+    'Request ID': item.request_id,
+    'Client': item.client_name,
+    'Service': item.service_type,
+    'Countries': item.foreign_subsidiaries,
+    'Status': item.global_clearance_status
+  }))
+  console.log('Exporting to Excel:', data)
+  // Implementation would generate actual Excel file
+}
+
+onMounted(() => {
+  coiStore.fetchRequests()
+})
+</script>
+
+    'Status': item.global_clearance_status
+  }))
+  console.log('Exporting to Excel:', data)
+  // Implementation would generate actual Excel file
+}
+
+onMounted(() => {
+  coiStore.fetchRequests()
+})
+</script>

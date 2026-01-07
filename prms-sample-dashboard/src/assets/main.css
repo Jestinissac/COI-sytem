@@ -1,0 +1,12 @@
+/* Tailwind v4: CSS-first setup */
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+/* Ensure class scanning includes index.html and all Vue/TS files */
+@source "../../index.html";
+@source "../**/*.{vue,js,ts,jsx,tsx}";
+
+/* App shell spacing */
+html, body, #app { height: 100%; }
+/* Use plain CSS to avoid @apply issues on Tailwind v4 */
+body { background-color: #f9fafb; color: #111827; }

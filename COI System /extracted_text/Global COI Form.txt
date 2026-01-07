@@ -1,0 +1,314 @@
+
+--- Sheet: Global COI Form ---
+
+    Unnamed: 0                               Unnamed: 1 Unnamed: 2  Unnamed: 3 Unnamed: 4  Unnamed: 5  BDO Kuwait
+0          NaN  Global Conflict of Interest Review Form        NaN         NaN        NaN         NaN         NaN
+1          NaN                      Client Information:        NaN         NaN        NaN         NaN         NaN
+2          NaN                             Client Name:        NaN         NaN        NaN         NaN         NaN
+3          NaN                 Ultimate Parent company:        NaN         NaN        NaN         NaN         NaN
+4          NaN                                Location:        NaN         NaN        NaN         NaN         NaN
+5          NaN                             Client Type:   Existing         0.0  Potential         0.0         NaN
+6          NaN                  Directors and Officers:        NaN         NaN        NaN         NaN         NaN
+7          NaN                           Client is PIE:        Yes         0.0         No         0.0         NaN
+8          NaN              Client is Listed Entity at:        NaN         NaN        NaN         NaN         NaN
+9          NaN                       Services' Details:        NaN         NaN        NaN         NaN         NaN
+10         NaN                    Nature of Engagement:        NaN         NaN        NaN         NaN         NaN
+11         NaN                         Industry Sector:        NaN         NaN        NaN         NaN         NaN
+12         NaN                                 Website:        NaN         NaN        NaN         NaN         NaN
+13         NaN   The Engagement Involves Another Party:        Yes         0.0         No         0.0         NaN
+
+--- Sheet: Services List ---
+
+     Unnamed: 0                                                    Unnamed: 1                                                                                                         Unnamed: 2
+0           NaN                                                      Category                                                                                                       Service Type
+1           NaN                               Advisory - Analytics & Insights                           Data Analytics (Enterprise Data Warehouse, Data Engineering, Reporting & Visualizations)
+2           NaN                                                           NaN                                                                            Other (Advisory - Analytics & Insights)
+3           NaN                                                           NaN                                                          Predictive and/or Data Analytics, AI and Machine Learning
+4           NaN  Advisory - Corporate Finance, Transactions and Restructuring                                                                                  Capital Markets & Raising Finance
+5           NaN                                                           NaN                                                                                                 Company Insolvency
+6           NaN                                                           NaN                                                                                                  Corporate Finance
+7           NaN                                                           NaN                                                                                            Corporate Restructuring
+8           NaN                                                           NaN                                                                                                      Debt Advisory
+9           NaN                                                           NaN                                                                                                 Debt Restructuring
+10          NaN                                                           NaN                                                                                              Individual Insolvency
+11          NaN                                                           NaN                                               Other (Advisory - Corporate Finance, Transactions and Restructuring)
+12          NaN                                                           NaN                                                                      Post-merger integrations and/or restructuring
+13          NaN                                                           NaN                                                        Private finance initiatives and public private partnerships
+14          NaN                                                           NaN                                                                      Raising finance (excluding treasury services)
+15          NaN                                                           NaN                                                                      Raising finance (including treasury services)
+16          NaN                                                           NaN                                                                                                       Transactions
+17          NaN                                                           NaN                                                                           Working Capital and Operational Advisory
+18          NaN                                     Advisory - Cyber security                                                                                         CIO/CISO Advisory Services
+19          NaN                                                           NaN                                                                                           Cloud Migration Services
+20          NaN                                                           NaN                                                                                     Cybersecurity Audits ISO 27001
+21          NaN                                                           NaN                                                                  Cybersecurity education, training and simulations
+22          NaN                                                           NaN                                                          Cybersecurity Policies, Plans, and Procedures development
+23          NaN                                                           NaN                                                                                  Cybersecurity review and advisory
+24          NaN                                                           NaN                                                                          Cybersecurity Risk Management Assessments
+25          NaN                                                           NaN                                                                                   Cybersecurity Table-top Services
+26          NaN                                                           NaN                                                                             Data Privacy services and data mapping
+27          NaN                                                           NaN                                                                                    EU-GDPR data privacy compliance
+28          NaN                                                           NaN                                                                                         Incident Response Services
+29          NaN                                                           NaN                                                                        Information Governance, Risk and Compliance
+30          NaN                                                           NaN                                                                                          IT Vendor Risk Management
+31          NaN                                                           NaN                                                                                       Managed IT/Security Services
+32          NaN                                                           NaN                                                                           Managed Security Operations Centre (SOC)
+33          NaN                                                           NaN                                                                                  Other (Advisory - Cyber security)
+34          NaN                                                           NaN                                                         Payment Card industry (PCI) Security Readiness Assessments
+35          NaN                                                           NaN                                                                                                PCI Security Audits
+36          NaN                                                           NaN                                                                                                Penetration Testing
+37          NaN                                                           NaN                                                                             Security Incident Event Manager (SIEM)
+38          NaN                                                           NaN                                                                                           Virtual Desktop Services
+39          NaN                                                           NaN                                                                                          Vulnerability assessments
+40          NaN                                      Advisory - Due Diligence                                                                                                      Due Diligence
+41          NaN                                                           NaN                                                                                   Other (Advisory - Due Diligence)
+42          NaN                                                           NaN                                                    Transaction Advisory Services (TAS) (excluding cash management)
+43          NaN                                                           NaN                                                    Transaction Advisory Services (TAS) (including cash management)
+44          NaN                            Advisory - Enablement & Adoption                                                                                                    Change Management
+45          NaN                                                           NaN                                                                           Other (Advisory - Enablement & Adoption)
+46          NaN                                                           NaN                                                                                               Programme Governance
+47          NaN                                       Advisory - ESG Services                                                                                                     ESG Consulting
+48          NaN                                                           NaN                                                                                                  ESG Due Diligence
+49          NaN                                                           NaN                                                                                                      ESG Reporting
+50          NaN                                                           NaN                                                                                                      ESG Solutions
+51          NaN                                                           NaN                                                                                               Other (ESG Services)
+52          NaN                           Advisory - Forensics Investigations                                                                                              Anti-Money Laundering
+53          NaN                                                           NaN                                                                                                      Asset Tracing
+54          NaN                                                           NaN                                    Contentious Bankruptcy (fraudulent/preferential conveyances, solvency analysis)
+55          NaN                                                           NaN                                                                                                         Corruption
+56          NaN                                                           NaN                                                                                         Crimes against the Company
+57          NaN                                                           NaN                                                                                 Cyber Crimes and Security Breaches
+58          NaN                                                           NaN                                                                              Data Privacy Breaches and Assessments
+59          NaN                                                           NaN                                                                         Financial Reporting and Public Disclosures
+60          NaN                                                           NaN                                                          Forensic Technology Services (eDiscovery, Data Analytics)
+61          NaN                                                           NaN                                                                                 Fraud and Corruption Due Diligence
+62          NaN                                                           NaN                                                                              Fraud and Corruption Risk Assessments
+63          NaN                                                           NaN                                                   Investigative Due Diligence/Background Checks/Integrity Services
+64          NaN                                                           NaN                                                          Monitorships and Forensic Accounting Support for Monitors
+65          NaN                                                           NaN                                                                        Other (Advisory - Forensics Investigations)
+66          NaN                                                           NaN                                                                      Whistleblower Services (Hotlines & Reporting)
+67          NaN              Advisory - Litigation Support/Dispute Resolution                                     Accountants' and Auditors' Negligence (Professional Standard of Care Opinions)
+68          NaN                                                           NaN                               Arbitrator, government-appointed Umpire or Referee in commercial disputes (*Neutral)
+69          NaN                                                           NaN                                                                                          Construction Delay Claims
+70          NaN                                                           NaN                                                                                    Cross Border dispute resolution
+71          NaN                                                           NaN                                                 Economic Loss Quantification and Business Valuations in litigation
+72          NaN                                                           NaN                                                     Insurance Claims (Insured/Business Interruption Loss Analysis)
+73          NaN                                                           NaN                                                                                     Intellectual Property Disputes
+74          NaN                                                           NaN                                                Matrimonial disputes (income determination, family asset valuation)
+75          NaN                                                           NaN                                                           Other (Advisory - Litigation Support/Dispute Resolution)
+76          NaN                                                           NaN                                     Personal Injury/Medical Malpractice/Motor Vehicle Accident Loss Quantification
+77          NaN                                                           NaN                                                Trustee or Liquidator in Receivership (excluding treasury services)
+78          NaN                                                           NaN                                                Trustee or Liquidator in Receivership (including treasury services)
+79          NaN                              Advisory - Management Consulting                                                                                        Asset Management Consulting
+80          NaN                                                           NaN                                                                                              Compensation advisory
+81          NaN                                                           NaN                                                                                   Compliance Management Consulting
+82          NaN                                                           NaN                                                                                               Corporate Governance
+83          NaN                                                           NaN                                                                                      Financial Management Advisory
+84          NaN                                                           NaN                                                                           Other (Advisory - Management Consulting)
+85          NaN                                                           NaN                                                                                               Performance advisory
+86          NaN                                                           NaN                                                                                       Program & Project Management
+87          NaN                                                           NaN                                                                                  Systems and Procedures Consulting
+88          NaN                              Advisory - Merger & Acquisitions                                                                                                       M&A services
+89          NaN                                                           NaN                                                                           Other (Advisory - Merger & Acquisitions)
+90          NaN                                                           NaN                                                                                         Post Investment Monitoring
+91          NaN                             Advisory - Operational Excellence                                                                                 Capacity Assessment & Optimization
+92          NaN                                                           NaN                                                                                    Capital Planning & Optimization
+93          NaN                                                           NaN                                                                                Cost Reduction / EBITDA Improvement
+94          NaN                                              Advisory - Other                                                                                                Accounting Advisory
+95          NaN                                                           NaN                                                                                                 Actuarial Services
+96          NaN                                                           NaN                                                                                                     Audit Advisory
+97          NaN                                                           NaN                                                                                       Business continuity planning
+98          NaN                                                           NaN                                                                                    Corporate Social Responsibility
+99          NaN                                                           NaN       Customised Training (Courses, Training needs assessment, planning, budget, Training Projects and management)
+100         NaN                                                           NaN                                                                         Employee Stock Option Plan (ESOP) Services
+101         NaN                                                           NaN                                                                        Executive/Board Level Professional Services
+102         NaN                                                           NaN                                                                                                Financial Modelling
+103         NaN                                                           NaN                                                                                                        HR advisory
+104         NaN                                                           NaN                                                                                        Interim Management Services
+105         NaN                                                           NaN                                   International Institutions and Donor Assurance (IIDA) - Advisory and/or Delivery
+106         NaN                                                           NaN                                                                                                   IPO Preparedness
+107         NaN                                                           NaN                                                                                                   Other (Advisory)
+108         NaN                                                           NaN                                                                                               Real Estate Advisory
+109         NaN                                                           NaN                                                                                                  Solvency services
+110         NaN                                                           NaN                                                                                              Standardised Training
+111         NaN                                                           NaN                                                                                                Succession Planning
+112         NaN                                        Advisory - Outsourcing                                                                                                   Managed Security
+113         NaN                                                           NaN              Managed Services (Service Desk, Infrastructure-MS, Application-MS, Virtual DBA, onsite support, etc.)
+114         NaN                                                           NaN                                                                                     Other (Advisory - Outsourcing)
+115         NaN                                                           NaN                                                                                       Program & Project Management
+116         NaN                                        Advisory - Recruitment                                                                                     Other (Advisory - Recruitment)
+117         NaN                                                           NaN                                                                                               Recruitment services
+118         NaN                                      Advisory - Restructuring                                                                                             Business restructuring
+119         NaN                                                           NaN                                                           Corporate Trustee or Receivership or Solvent liquidation
+120         NaN                                                           NaN                                                                                            Creditor Representation
+121         NaN                                                           NaN                                                                                   Other (Advisory - Restructuring)
+122         NaN                              Advisory - Risk Management (RAS)                                                                                         Brand Standards compliance
+123         NaN                                                           NaN                                                                                       Business process enhancement
+124         NaN                                                           NaN                                                                                         Enterprise risk management
+125         NaN                                                           NaN                                                                                                   Fraud prevention
+126         NaN                                                           NaN                                                                                                     Internal Audit
+127         NaN                                                           NaN                                                                                       Internal Controls Consulting
+128         NaN                                                           NaN                                                                                   Internal Controls Implementation
+129         NaN                                                           NaN                                                                               IT advisory and information security
+130         NaN                                                           NaN                                                                            Other (Advisory - Risk Management (RAS)
+131         NaN                      Advisory - Risk, Regulatory & Compliance                                                                                             Information Governance
+132         NaN                                                           NaN                                                                   Other (Advisory - Risk, Regulatory & Compliance)
+133         NaN                                                           NaN                                                                                        Privacy and Data Protection
+134         NaN                                                           NaN                                                                              Regulatory Compliance (NSC,PCI, GDPR)
+135         NaN                                          Advisory - Solutions                                                                                  Cloud Service Provider Re-selling
+136         NaN                                                           NaN                                                                                                Document Management
+137         NaN                                                           NaN                                                                       Enterprise Business Applications (CRM & ERP)
+138         NaN                                                           NaN                                                                                 Hosting Company Records or Systems
+139         NaN                                                           NaN  Modern Workplace (governance & doc design, BPA, collaboration tools & processes: Office 365, Teams, SP, OneDrive)
+140         NaN                                                           NaN                                                                                       Other (Advisory - Solutions)
+141         NaN                                                           NaN                                                                                        Robotics Process Automation
+142         NaN                                                           NaN                                                                                   Software/Application Development
+143         NaN                                                           NaN                                                                                Software/Application Implementation
+144         NaN                                                           NaN                                                                                                Systems Integration
+145         NaN                            Advisory - Sourcing & Supply Chain                                                                    Inventory Optimization Distribution & Logistics
+146         NaN                                                           NaN                                                                                        Resiliency & Sustainability
+147         NaN                                                           NaN                                                                                   Strategic Sourcing & Procurement
+148         NaN                                                           NaN                                                                                              Supply Chain Strategy
+149         NaN                                Advisory - Strategy and Growth                                                                                              Business Model Design
+150         NaN                                                           NaN                                                                                               Competitive Strategy
+151         NaN                                                           NaN                                                                                                    Growth Strategy
+152         NaN                                                           NaN                                                                                         Market & Economic analysis
+153         NaN                                                           NaN                                                                                                 Strategic Planning
+154         NaN                                                           NaN                                                                                                     Value Creation
+155         NaN                                Advisory - Technology Advisory                                                                                          Application Modernization
+156         NaN                                                           NaN                                                                                                Audit of IT systems
+157         NaN                                                           NaN                                                                                                      Data Strategy
+158         NaN                                                           NaN                                                                                                   Digital Strategy
+159         NaN                                                           NaN                                                                                   Digital Transformation & Support
+160         NaN                                                           NaN                                                                                         Enterprise Data Governance
+161         NaN                                                           NaN                                                                                                   IT Due Diligence
+162         NaN                                                           NaN                                                                                                    IT Optimization
+163         NaN                                                           NaN                                                                                                        IT Strategy
+164         NaN                                                           NaN                                                                             Other (Advisory - Technology Advisory)
+165         NaN                                                           NaN                                                                                                 Software Selection
+166         NaN                                         Advisory - Valuations                                                                            ‘Fair Value’/independent expert reports
+167         NaN                                                           NaN                                                                                              Commercial valuations
+168         NaN                                                           NaN                                                                                                   Impairment tests
+169         NaN                                                           NaN                                                                                   Intellectual property valuations
+170         NaN                                                           NaN                                                                                      Other (Advisory - Valuations)
+171         NaN                                                           NaN                                                                               Purchase price allocation valuations
+172         NaN                                                           NaN               Tax valuations for inheritance tax, income tax purposes, including employee shares and share options
+173         NaN                                                           NaN                                                           Valuations for international and US accounting standards
+174         NaN                    Audit & Assurance - Agreed upon procedures                                                                                       Agreed upon procedures (AUP)
+175         NaN                                    Audit & Assurance - Audits                                                                                     Audits of financial statements
+176         NaN                                                           NaN                     Audits of Single Financial Statements and Specific Elements in the ISA 800 series of standards
+177         NaN                                                           NaN                                                                                                   Compliance Audit
+178         NaN                                                           NaN                                                                                                          ESG Audit
+179         NaN                                                           NaN                                                                                                   Integrated Audit
+180         NaN                                                           NaN                                                                                                        Joint Audit
+181         NaN                                                           NaN                                                                                                  Prospectus Report
+182         NaN                 Audit & Assurance - Non-assurance engagements                                                     Review of historical Financial Statements for non-audit client
+183         NaN                           Audit & Assurance - Other assurance                                                         Assurance engagements in the ISAE 3400 series of standards
+184         NaN                                                           NaN                                                                                                     Comfort Letter
+185         NaN                                                           NaN                                                                                                      ESG Assurance
+186         NaN                                                           NaN                                        International Institutions and Donor Assurance (IIDA) - (Audit & Assurance)
+187         NaN                                                           NaN                                                                                    ISAE 3000 assurance engagements
+188         NaN                                                           NaN                                                            Other (Audit & Assurance - Other assurance engagements)
+189         NaN                                                           NaN                                                                                        Third Party Assurance (TPA)
+190         NaN                                   Audit & Assurance - Reviews                                                                                                        ESG Reviews
+191         NaN                                                           NaN                                                         Interim Reviews of financial information for audit clients
+192         NaN                                                           NaN                                                                                Other (Audit & Assurance - Reviews)
+193         NaN                                                           NaN                                                                Review of Financial Statements for non-audit client
+194         NaN                                                           NaN                                                                                              SOX Compliance Review
+195         NaN                                  BSO - Accounting and Payroll                                                           Accounting and Bookkeeping (excluding treasury services)
+196         NaN                                                           NaN                                                           Accounting and Bookkeeping (including treasury services)
+197         NaN                                                           NaN                                                                                Compilation of financial statements
+198         NaN                                                           NaN                                                                                     Financial Analysis Outsourcing
+199         NaN                                                           NaN                                                                                    Financial Statement Translation
+200         NaN                                                           NaN                                                                                                      iXBRL Tagging
+201         NaN                                                           NaN                                                                                               Management reporting
+202         NaN                                                           NaN                                                                               Other (BSO - Accounting and Payroll)
+203         NaN                                                           NaN                                                                     Payroll Services (excluding treasury services)
+204         NaN                                                           NaN                                                                     Payroll Services (including treasury services)
+205         NaN                            BSO - Business process outsourcing                         Corporate Registration / Domicile of Foreign Group Companies (excluding treasury services)
+206         NaN                                                           NaN                         Corporate Registration / Domicile of Foreign Group Companies (including treasury services)
+207         NaN                                                           NaN                                                                          Financial reporting insights and analysis
+208         NaN                                                           NaN                                                                         Other (BSO - Business process outsourcing)
+209         NaN                                                           NaN                           Provision of Administrative, HR and/or Accounting services (excluding treasury services)
+210         NaN                                                           NaN                           Provision of Administrative, HR and/or Accounting services (including treasury services)
+211         NaN                                            BSO - Directorship                                                                                              Directorship Services
+212         NaN                                                           NaN                                                                                         Other (BSO - Directorship)
+213         NaN                                       BSO - Global Compliance                                                                                               Compliance reporting
+214         NaN                                                           NaN                                    Corporate secretarial and administrative services (excluding treasury services)
+215         NaN                                                           NaN                                    Corporate secretarial and administrative services (including treasury services)
+216         NaN                                                           NaN                                                                      Global Statutory Compliance Work Coordination
+217         NaN                                                           NaN                                                                                    Other (BSO - Global Compliance)
+218         NaN                                  BSO - Information technology                                                                                                         Consulting
+219         NaN                                                           NaN                                                                               Other (BSO - Information technology)
+220         NaN                                                           NaN                                                                                                        Outsourcing
+221         NaN                                             BSO - Recruitment                                                                                          Other (BSO - Recruitment)
+222         NaN                                                           NaN                                                                          Recruitment services - staff augmentation
+223         NaN                                                           NaN                                                                                         Recruitment services (BSO)
+224         NaN                                                Legal Services                                                   Administrator/trustee/liquidator/ official receiver of an estate
+225         NaN                                                           NaN                                                                                                     Commercial law
+226         NaN                                                           NaN                                                                                                      Corporate law
+227         NaN                                                           NaN                                                                                                     Employment law
+228         NaN                                                           NaN                                                                                                     Foundation Law
+229         NaN                                                           NaN                                                                                                    Immigration law
+230         NaN                                                           NaN                                                                              IP/IT (including data protection law)
+231         NaN                                                           NaN                                                                                                   Legal compliance
+232         NaN                                                           NaN                                                             Legal Dispute Resolution (excluding treasury services)
+233         NaN                                                           NaN                                                             Legal Dispute Resolution (including treasury services)
+234         NaN                                                           NaN                                                                                                Legal due diligence
+235         NaN                                                           NaN                                                                                            Legal Forensic Services
+236         NaN                                                           NaN                                                                            Legal M&A (excluding treasury services)
+237         NaN                                                           NaN                                                                            Legal M&A (including treasury services)
+238         NaN                                                           NaN                                                                                                Legal Restructuring
+239         NaN                                                           NaN                                                                  Licenses and permits applications and/or renewals
+240         NaN                                                           NaN                                                                                             Other (Legal services)
+241         NaN                                                           NaN                                                                                 Public, financial & regulatory law
+242         NaN                                                           NaN                                                                                                Social Security Law
+243         NaN                                                           NaN                                                                                                Succession planning
+244         NaN                                                         Other                                                                                              Business relationship
+245         NaN                                                           NaN                                                                                           Firms Financial interest
+246         NaN                                                           NaN                                                                                            Firms Lending agreement
+247         NaN                                                           NaN                                                              Not available due to commercially sensitive in nature
+248         NaN                                                           NaN                                                                      Personal appointment (eg. Director & Officer)
+249         NaN                                                           NaN                                                                                   Professional secondment services
+250         NaN                                           Tax - Corporate Tax                                                                            Base Erosion and Profit Shifting (BEPS)
+251         NaN                                                           NaN                                                                            International digital services taxation
+252         NaN                                                           NaN                                                                                        Other (Tax - Corporate Tax)
+253         NaN                                                           NaN                                                                       Tax Compliance (excluding treasury services)
+254         NaN                                                           NaN                                                                       Tax Compliance (including treasury services)
+255         NaN                                                           NaN                                                                                          Tax planning and advisory
+256         NaN                                                           NaN                                                                                         Tax Transparency Reporting
+257         NaN                                       Tax - Employer Services               Expatriate tax, tax and immigration compliance for business travellers (excluding treasury services)
+258         NaN                                                           NaN               Expatriate tax, tax and immigration compliance for business travellers (including treasury services)
+259         NaN                                                           NaN                                                                                    Other (Tax - Employer Services)
+260         NaN                                                           NaN                                       Payroll taxes, taxation of equity compensation (excluding treasury services)
+261         NaN                                                           NaN                                       Payroll taxes, taxation of equity compensation (including treasury services)
+262         NaN                                            Tax - Indirect Tax                                                                              Central & State Government Incentives
+263         NaN                                                           NaN                                                            Customs and excise duties (excluding treasury services)
+264         NaN                                                           NaN                                                            Customs and excise duties (including treasury services)
+265         NaN                                                           NaN                                                                                        Other (Tax - Indirect Tax )
+266         NaN                                                           NaN                                                                                               Tax credits recovery
+267         NaN                                                           NaN                                                      VAT, GST, sales and local taxes (excluding treasury services)
+268         NaN                                                           NaN                                                      VAT, GST, sales and local taxes (including treasury services)
+269         NaN                                      Tax - Other tax services                                                                       Foreign Institutional Investors (FII) filing
+270         NaN                                                           NaN                                                                                                      IXBRL tagging
+271         NaN                                                           NaN                                                                                                            M&A Tax
+272         NaN                                                           NaN                                                                                   Other (Tax - Other tax services)
+273         NaN                                                           NaN                                                                                                     Tax Accounting
+274         NaN                                                           NaN                                                                            Tax diagnostics and/or reporting review
+275         NaN                                                           NaN                                                                          Tax dispute resolution and representation
+276         NaN                                                           NaN                                                                                                  Tax Due Diligence
+277         NaN                                                           NaN                                                                                                 Tax Expert Witness
+278         NaN                                                           NaN                                                                                          Tax Reward & Remuneration
+279         NaN                                                           NaN                                                                                            Tax Transaction Support
+280         NaN                Tax - Private Client / Private Wealth Services                                                                                       Estate and gift tax planning
+281         NaN                                                           NaN                                                             Other (Tax - Private Client / Private Wealth Services)
+282         NaN                                                           NaN                                                                                Personal Tax Compliance & Reporting
+283         NaN                                                           NaN                                                                                          Tax advice on investments
+284         NaN                                                           NaN                                                                                           Tax efficient relocation
+285         NaN                              Tax - R&D Credits and Incentives                                                                           Other (Tax - R&D Credits and Incentives)
+286         NaN                                                           NaN                                Research & development tax benefits and credit claims (excluding treasury services)
+287         NaN                                                           NaN                                Research & development tax benefits and credit claims (including treasury services)
+288         NaN                                        Tax - Transfer Pricing                                                                                     Other (Tax - Transfer Pricing)
+289         NaN                                                           NaN                                                                               Tax efficient value chain management
+290         NaN                                                           NaN                                                                                Transfer pricing dispute resolution
+291         NaN                                                           NaN                                    Transfer pricing documentation, benchmarking, certification, and/or adjustments

@@ -1,0 +1,7 @@
+[
+  { "id": 1, "title": "Quarterly targets updated", "message": "Q3 revenue target increased by 8%.", "date": "2025-08-01" },
+  { "id": 2, "title": "Timesheet policy", "message": "Submit timesheets by Friday 6 PM.", "date": "2025-08-05" },
+  { "id": 3, "title": "System maintenance", "message": "Scheduled downtime this Sunday 1-3 AM UTC.", "date": "2025-08-10" }
+]
+
+

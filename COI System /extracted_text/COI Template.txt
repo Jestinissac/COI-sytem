@@ -1,0 +1,28 @@
+--- Page 1 ---
+BDO Kuwait
+Client Conflict of Interest Review Form
+Client Data:
+Requestor Name Designation
+Entity Line of Service
+Requested Document Language
+Client Name
+Parent Company (if any)
+Client Location Other
+Relationship with Client Client Type
+Regulated Body Status
+Service Type
+Requested service Period From To
+Other Companies or Data:
+(If the provided service is intended for a company other than the client, its parent company or additional data)
+Review Results
+Client Status
+Previous Services ☐ N/A Service Date
+Notes (if any)
+Checked By:
+Name Designation Date
+Decision
+☐ Proceed ☐ Reject ☐ Escalate
+Notes (if any)
+Approved By:
+Name Designation Date
+Governance & Compliance

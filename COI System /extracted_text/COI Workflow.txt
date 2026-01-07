@@ -1,0 +1,100 @@
+“Proposal & Engagement Local Conflict of Interest (“COI”)
+Check & Processing System”
+Objective:
+To ensure no proposal or engagement letter is issued or signed without a full, documented, and approved COI review, using a centralized system that:
+• Eliminates Excel trackers;
+• Prevents duplicate and/or contradicting proposals;
+• Ensures that the partner have full detailed on the engagement track starting from the proposal with only one click;
+• Enforces mandatory data fields;
+• Automates finance coding; and
+• Provides alerts for expiry, renewal, and lapses.
+Automatic Document System (the “System”) for COIs Requests: 
+to be able to initiate the COI request starting from the proposal till the final execution of the engagement and further system alert for any pending engagements or proposals.
+Update InVision Platform to Reflect the Following:
+3.1. Minimum Required Data Fields (MANDATORY)
+1. Minimum Information Required
+A. Service Information
+- Exact description and scope of the intended service.
+- Specify if the service is recurring, new, or linked to an existing engagement.
+- Clarify whether the service is assurance, advisory, tax, accounting, or other regulated services.
+- Specify valuation purposes 
+B. Client Information
+- Full legal name and commercial registration details (to be chosen from the drop list, any additional clients shall be requested to be added).
+- Nature of business and operating sectors.
+- Confirm if the client is new, existing, or a potential client.
+- If existing: provide engagement code, service history, and partner in charge.
+- If new: provide introduction source and due diligence notes.
+C. Ownership & Structure
+- Parent company name and full ownership structure.
+- Identify if the entity or its parent is a PIE.
+- List all related and affiliated entities under common control.
+D. Signatory Details
+- Names and positions of authorized signatories.
+E. International Operations & Global Checks
+- Whether the entity operates internationally.
+- Names of all foreign subsidiaries, branches, or affiliates.
+- Global independence clearance is mandatory.
+ COI Request Process and Responsible Persons (prior to issuing the proposal):
+Step 1: Processing the initial form: 
+The requester shall initiate his request for either a proposal/engagement after filling in the mandatory information, choose from the drop list the client’s name and include other specifications or create a new client.
+The requester shall be the director responsible with the option to assign this authority to any member of his team.
+In the event of the form being filled by any other team member, the respective director’s written approval shall be attached to the request. 
+In the engagement phase we shall include as well the ISQM forms for example: Client Screening Questionnaire Form, New Client Acceptance checklist (prior to the final acceptance stage) to be mandatory filled and attached.
+Step 2: Upon Chosen of International Operations:
+Another additional tab shall be active upon the checking this box.
+Attached an excel sheet including the required information currently required by Global COI portal, which shall be subject to further updates upon launching the new system by Global.
+Step 3: Reviewing the COI request by Compliance Department: 
+The system shall have an automatic alert in the event of existing proposal and/or Engagement for the same client with showing other specification.
+The proposal shall automatically lapse after 30 days. An alert of which shall be sent to the requester, compliance department, admin (Malita & Nermin) and partner’s emails every 10 days from the date of proposal approval.
+Upon review there will be the following options to choose from:
+Approved
+Approved with restrictions
+Need more information
+Reject
+Step 4: Sent to Partner for Final Approval:
+Upon review there will be the following options to choose from:
+Approved
+Approved with restrictions
+Need more information
+Reject
+If approved, it shall be transferred directly to admin (Malita & Nermin).
+Otherwise, it shall be transferred back to compliance department.
+Step 5: Sent to Finance team for creating the respective code: finance team shall include the required field from financial perspectives and include any due pending amounts or comments/concerns (if any, including but not limited to late payment).   
+Step 6: Execution of Proposal and/or Engagement:
+Upon receipt of the COI clearance request to the admin (Malita & Nermin) and its execution by BDO, admin team shall include the execution date in the system to activate the automatic alert for getting the countersigned proposal. 
+A disclaimer shall be included in the proposal and highlighted to the client by the email attaching the proposal.
+The system shall keep the request opened during the 30 days with alerts sent automatically to the emails of the requestor and admin team.
+The client’s response to the proposal:
+Approved: sign back the proposal within the required timeframe. Admin team shall update the COI request with the same, Issuance of Engagement letter shall be within the 1-3 working days. Admin team shall be responsible for updating the system thereafter by any changes. System shall have an automatic alert of the renewal of the Engagement after 3 years. Prior alerts shall be sent to admin team.
+Rejected: after being followed up by the requester. The latter shall send admin team a rejection confirmation email that shall be attached to the request to close the request. 
+Lapse of timing with no confirmation: the request shall be automatically cancelled and a copy of which shall be sent to all involved parties ‘emails. However, the historical request data, timing and other specifications shall always keep saved on the system.
+In the event of requesting another proposal for the same client during the 30 days: upon receipt of the said new additional proposal by the compliance department. The latter shall assess the situation and based on which:
+Option 1: Both services are not conflicting: approved.
+Option 2: Potential conflict: there was no other alternative options the priority shall be given to the earlier submitted one unless otherwise agreed with and written approved by the partner for other business interests (if any) and in all circumstances the evidenced documents shall be attached to the request on the system. 
+General Notes:
+Partner shall be able to print a tracking report for any COI request (either approved or cancelled).
+Partner One-Click Dashboard. The system must provide:
+• All active/past proposals
+• COI decisions
+• Engagement Letters
+• Engagement Codes
+• Group-level services
+• Red flags
+• Expiry/renewal alerts
+System Automates checks, alerts, matching, duplication filters, dashboards
+• A proposal already exists for the same entity
+• An engagement is already active
+• Parent or subsidiaries have active engagements
+If duplication detected → system blocks submission unless justification is entered.
+System features required:
+• No free-text names
+• Auto-complete
+• Linking to group structure
+• Prevention of duplicates
+• Fuzzy matching to detect similar names
+Security & Access:
+• Partners → full dashboard
+• Compliance → full COI workspace
+• Directors or assigned team → create proposals only
+• Finance → engagement code module
+• Admin team → execution process for proposals/engagements

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design Option 1 - Step Wizard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .step-active { background: #1e3a8a; color: white; }
+    .step-completed { background: #22c55e; color: white; }
+    .step-pending { background: #e5e7eb; color: #6b7280; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <!-- Header -->
+  <nav class="bg-[#1e3a8a] shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+          <span class="text-[#1e3a8a] font-bold text-sm">E</span>
+        </div>
+        <span class="text-white font-semibold text-lg">ENVISION</span>
+        <span class="text-blue-200 text-sm">COI System</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span class="text-white text-sm">John Smith</span>
+        <button class="px-3 py-1.5 bg-blue-700 text-white text-sm rounded hover:bg-blue-600">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Sub Nav -->
+  <nav class="bg-white shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex space-x-6">
+        <a href="#" class="px-3 py-3 text-sm text-gray-600 hover:text-gray-900">Dashboard</a>
+        <a href="#" class="px-3 py-3 text-sm text-blue-600 border-b-2 border-blue-600 font-medium">New Request</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    <!-- Page Title -->
+    <div class="mb-6">
+      <h1 class="text-xl font-semibold text-gray-900">Create New COI Request</h1>
+      <p class="text-sm text-gray-500 mt-1">Complete all steps to submit your conflict of interest request</p>
+    </div>
+
+    <!-- Progress Steps -->
+    <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <div class="w-8 h-8 rounded-full step-completed flex items-center justify-center text-sm font-medium">✓</div>
+          <span class="ml-2 text-sm font-medium text-gray-900">Requestor</span>
+        </div>
+        <div class="flex-1 h-1 bg-green-500 mx-4"></div>
+        <div class="flex items-center">
+          <div class="w-8 h-8 rounded-full step-active flex items-center justify-center text-sm font-medium">2</div>
+          <span class="ml-2 text-sm font-medium text-blue-600">Client Info</span>
+        </div>
+        <div class="flex-1 h-1 bg-gray-200 mx-4"></div>
+        <div class="flex items-center">
+          <div class="w-8 h-8 rounded-full step-pending flex items-center justify-center text-sm font-medium">3</div>
+          <span class="ml-2 text-sm text-gray-500">Service</span>
+        </div>
+        <div class="flex-1 h-1 bg-gray-200 mx-4"></div>
+        <div class="flex items-center">
+          <div class="w-8 h-8 rounded-full step-pending flex items-center justify-center text-sm font-medium">4</div>
+          <span class="ml-2 text-sm text-gray-500">Review</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white rounded-lg shadow-sm">
+      <div class="px-6 py-4 border-b bg-gray-50 rounded-t-lg">
+        <h2 class="font-medium text-gray-900">Step 2: Client Information</h2>
+        <p class="text-sm text-gray-500 mt-1">Enter details about the client for this engagement</p>
+      </div>
+      
+      <div class="p-6 space-y-6">
+        <!-- Client Selection -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Client Name <span class="text-red-500">*</span></label>
+          <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">Select a client...</option>
+            <option>ABC Corporation W.L.L.</option>
+            <option>XYZ Holdings Ltd</option>
+            <option>Global Trading Co.</option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">Can't find client? <a href="#" class="text-blue-600 hover:underline">Request New Client</a></p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Client Code</label>
+            <input type="text" value="CLI-001" readonly class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Client Type</label>
+            <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option>W.L.L.</option>
+              <option>K.S.C.</option>
+              <option>K.S.C.C.</option>
+              <option>Sole Proprietorship</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+            <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option>State of Kuwait</option>
+              <option>United Arab Emirates</option>
+              <option>Saudi Arabia</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
+            <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option>Existing Client</option>
+              <option>New Client</option>
+              <option>Referral</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">PIE Status</label>
+          <div class="flex space-x-6">
+            <label class="flex items-center">
+              <input type="radio" name="pie" class="text-blue-600 focus:ring-blue-500">
+              <span class="ml-2 text-sm text-gray-700">Yes - Public Interest Entity</span>
+            </label>
+            <label class="flex items-center">
+              <input type="radio" name="pie" checked class="text-blue-600 focus:ring-blue-500">
+              <span class="ml-2 text-sm text-gray-700">No</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Parent Company (if applicable)</label>
+          <input type="text" placeholder="Enter parent company name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t bg-gray-50 rounded-b-lg flex justify-between">
+        <button class="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium">
+          ← Previous Step
+        </button>
+        <div class="flex space-x-3">
+          <button class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+            Save as Draft
+          </button>
+          <button class="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+            Next Step →
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+

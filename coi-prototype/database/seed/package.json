@@ -1,0 +1,11 @@
+{
+  "name": "coi-seed",
+  "type": "module",
+  "scripts": {
+    "seed": "node seedData.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.5.0"
+  }
+}
+

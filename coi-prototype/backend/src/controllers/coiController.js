@@ -275,15 +275,29 @@ export async function submitRequest(req, res) {
       client.client_name, 
       request.id,
       request.service_type,  // Pass service type for conflict checking
-      request.pie_status === 'Yes'  // Pass PIE status for stricter rules
+      request.pie_status === 'Yes',  // Pass PIE status for stricter rules
+      request  // Pro: Pass full request data for Red Lines and IESBA Matrix
     )
     
     // Evaluate business rules
+    // Include client data and computed fields for rule evaluation
     const ruleEvaluation = evaluateRules({
       ...request,
       client_name: client.client_name,
       client_type: client.client_type,
-      pie_status: request.pie_status
+      client_country: client.country || null,
+      client_industry: client.industry || null,
+      pie_status: request.pie_status,
+      engagement_start_date: request.requested_service_period_start,
+      engagement_end_date: request.requested_service_period_end,
+      total_fees: request.total_fees || null,
+      // Computed fields
+      engagement_duration: request.requested_service_period_start && request.requested_service_period_end
+        ? (new Date(request.requested_service_period_end) - new Date(request.requested_service_period_start)) / (1000 * 60 * 60 * 24 * 365)
+        : null,
+      service_turnaround_days: request.requested_service_period_start && request.requested_service_period_end
+        ? Math.ceil((new Date(request.requested_service_period_end) - new Date(request.requested_service_period_start)) / (1000 * 60 * 60 * 24))
+        : null
     })
 
     // Combine duplicates and rule recommendations

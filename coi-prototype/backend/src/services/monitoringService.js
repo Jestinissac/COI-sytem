@@ -7,6 +7,91 @@ import { logAuditTrail } from './auditTrailService.js'
  * Handles scheduled monitoring tasks for engagements, compliance, and alerts
  */
 
+// Legacy exports for backward compatibility with existing controllers
+export function updateMonitoringDays() {
+  const db = getDatabase()
+  try {
+    // Update days elapsed for active engagements
+    db.prepare(`
+      UPDATE coi_requests 
+      SET monitoring_days_elapsed = CAST((julianday('now') - julianday(execution_date)) AS INTEGER)
+      WHERE status = 'Active' AND execution_date IS NOT NULL
+    `).run()
+    return { success: true, message: 'Monitoring days updated' }
+  } catch (error) {
+    console.error('Error updating monitoring days:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export function getApproachingLimitRequests(daysRemaining = 25) {
+  const db = getDatabase()
+  try {
+    const requests = db.prepare(`
+      SELECT r.*, c.client_name
+      FROM coi_requests r
+      LEFT JOIN clients c ON r.client_id = c.id
+      WHERE r.status = 'Active'
+        AND r.monitoring_days_elapsed IS NOT NULL
+        AND (30 - r.monitoring_days_elapsed) <= ?
+        AND (30 - r.monitoring_days_elapsed) > 0
+      ORDER BY r.monitoring_days_elapsed DESC
+    `).all(daysRemaining)
+    return requests
+  } catch (error) {
+    console.error('Error getting approaching limit requests:', error)
+    return []
+  }
+}
+
+export function getExceededLimitRequests() {
+  const db = getDatabase()
+  try {
+    const requests = db.prepare(`
+      SELECT r.*, c.client_name
+      FROM coi_requests r
+      LEFT JOIN clients c ON r.client_id = c.id
+      WHERE r.status = 'Active'
+        AND r.monitoring_days_elapsed IS NOT NULL
+        AND r.monitoring_days_elapsed >= 30
+      ORDER BY r.monitoring_days_elapsed DESC
+    `).all()
+    return requests
+  } catch (error) {
+    console.error('Error getting exceeded limit requests:', error)
+    return []
+  }
+}
+
+export function createRenewalTracking(requestId, renewalData) {
+  const db = getDatabase()
+  try {
+    db.prepare(`
+      UPDATE coi_requests 
+      SET renewal_tracking = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(JSON.stringify(renewalData), requestId)
+    return { success: true }
+  } catch (error) {
+    console.error('Error creating renewal tracking:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Interval alerts for coi.routes.js
+export function sendIntervalAlerts() {
+  return checkExpiringEngagements()
+}
+
+export function checkRenewalAlerts() {
+  return checkPendingComplianceReviews()
+}
+
+export function getMonitoringAlertsSummary() {
+  return getMonitoringDashboard()
+}
+
 // Monitoring configuration
 const MONITORING_CONFIG = {
   engagementExpiryWarningDays: [30, 14, 7, 1],

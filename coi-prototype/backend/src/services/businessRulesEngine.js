@@ -394,6 +394,38 @@ function getFieldValue(requestData, fieldPath) {
     }
   }
 
+  // Handle direct field access (e.g., client_name from requestData.client_name or clients table)
+  if (value === undefined) {
+    // Check if it's a client field that might be in requestData directly
+    const clientFields = ['client_name', 'client_country', 'client_industry']
+    if (clientFields.includes(fieldPath) && requestData[fieldPath]) {
+      value = requestData[fieldPath]
+    }
+    // Check if it's an engagement field
+    else if (fieldPath === 'engagement_start_date' && requestData.requested_service_period_start) {
+      value = requestData.requested_service_period_start
+    }
+    else if (fieldPath === 'engagement_end_date' && requestData.requested_service_period_end) {
+      value = requestData.requested_service_period_end
+    }
+    // Calculate engagement_duration if both dates exist
+    else if (fieldPath === 'engagement_duration' && requestData.requested_service_period_start && requestData.requested_service_period_end) {
+      const start = new Date(requestData.requested_service_period_start)
+      const end = new Date(requestData.requested_service_period_end)
+      const diffTime = Math.abs(end - start)
+      const diffYears = diffTime / (1000 * 60 * 60 * 24 * 365)
+      value = diffYears
+    }
+    // Calculate service_turnaround_days
+    else if (fieldPath === 'service_turnaround_days' && requestData.requested_service_period_start && requestData.requested_service_period_end) {
+      const start = new Date(requestData.requested_service_period_start)
+      const end = new Date(requestData.requested_service_period_end)
+      const diffTime = Math.abs(end - start)
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      value = diffDays
+    }
+  }
+
   // Also check custom_fields JSON
   if (value === undefined && requestData.custom_fields) {
     try {

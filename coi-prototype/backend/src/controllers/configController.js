@@ -639,8 +639,9 @@ export async function saveBusinessRule(req, res) {
       INSERT INTO business_rules_config (
         rule_name, rule_type, condition_field, condition_operator,
         condition_value, condition_groups, action_type, action_value, is_active,
-        approval_status, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        approval_status, created_by, rule_category, regulation_reference, applies_to_pie, tax_sub_type, complex_conditions,
+        confidence_level, can_override, override_guidance, guidance_text, required_override_role
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       rule.rule_name,
       rule.rule_type,
@@ -652,7 +653,17 @@ export async function saveBusinessRule(req, res) {
       rule.action_value || null,
       requiresApproval ? 0 : (rule.is_active !== undefined ? (rule.is_active ? 1 : 0) : 1), // Only active if approved
       approvalStatus,
-      userId
+      userId,
+      rule.rule_category || 'Custom',
+      rule.regulation_reference || null,
+      rule.applies_to_pie ? 1 : 0,
+      rule.tax_sub_type || null,
+      rule.complex_conditions || null,
+      rule.confidence_level || 'MEDIUM',
+      rule.can_override !== undefined ? (rule.can_override ? 1 : 0) : 1,
+      rule.override_guidance || null,
+      rule.guidance_text || null,
+      rule.required_override_role || null
     )
     
     const message = requiresApproval 
@@ -739,6 +750,16 @@ export async function updateBusinessRule(req, res) {
         action_value = COALESCE(?, action_value),
         is_active = ?,
         approval_status = ?,
+        rule_category = COALESCE(?, rule_category),
+        regulation_reference = COALESCE(?, regulation_reference),
+        applies_to_pie = COALESCE(?, applies_to_pie),
+        tax_sub_type = COALESCE(?, tax_sub_type),
+        complex_conditions = COALESCE(?, complex_conditions),
+        confidence_level = COALESCE(?, confidence_level),
+        can_override = COALESCE(?, can_override),
+        override_guidance = COALESCE(?, override_guidance),
+        guidance_text = COALESCE(?, guidance_text),
+        required_override_role = COALESCE(?, required_override_role),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(
@@ -752,6 +773,16 @@ export async function updateBusinessRule(req, res) {
       updates.action_value !== undefined ? (updates.action_value || null) : undefined,
       isActive,
       approvalStatus,
+      updates.rule_category !== undefined ? (updates.rule_category || 'Custom') : undefined,
+      updates.regulation_reference !== undefined ? (updates.regulation_reference || null) : undefined,
+      updates.applies_to_pie !== undefined ? (updates.applies_to_pie ? 1 : 0) : undefined,
+      updates.tax_sub_type !== undefined ? (updates.tax_sub_type || null) : undefined,
+      updates.complex_conditions !== undefined ? updates.complex_conditions : undefined,
+      updates.confidence_level !== undefined ? (updates.confidence_level || 'MEDIUM') : undefined,
+      updates.can_override !== undefined ? (updates.can_override ? 1 : 0) : undefined,
+      updates.override_guidance !== undefined ? (updates.override_guidance || null) : undefined,
+      updates.guidance_text !== undefined ? (updates.guidance_text || null) : undefined,
+      updates.required_override_role !== undefined ? (updates.required_override_role || null) : undefined,
       id
     )
     
@@ -1215,13 +1246,16 @@ export async function getRuleFields(req, res) {
       clientInfo: {
         label: 'Client Information',
         fields: [
+          { id: 'client_name', label: 'Client Name', type: 'text', source: 'clients.client_name' },
           { id: 'client_type', label: 'Client Type', type: 'select', options: ['Existing', 'New', 'Potential'] },
           { id: 'client_status', label: 'Client Status', type: 'select', options: ['Active', 'Inactive', 'Potential'] },
           { id: 'client_location', label: 'Client Location', type: 'select', options: ['State of Kuwait', 'GCC', 'International'] },
+          { id: 'client_country', label: 'Client Country', type: 'text', source: 'clients.country' },
           { id: 'relationship_with_client', label: 'Relationship with Client', type: 'select', options: ['Direct', 'Referral', 'Group Company'] },
           { id: 'regulated_body', label: 'Regulated Body', type: 'select', options: ['CMA', 'CBK', 'Ministry of Commerce', 'None'] },
           { id: 'parent_company', label: 'Parent Company', type: 'text' },
-          { id: 'client_industry', label: 'Client Industry', type: 'select', options: ['Banking', 'Insurance', 'Manufacturing', 'Retail', 'Oil & Gas', 'Real Estate', 'Healthcare', 'Technology', 'Other'], source: 'clients.industry' }
+          { id: 'client_industry', label: 'Client Industry', type: 'select', options: ['Financial Services', 'Banking', 'Insurance', 'Manufacturing', 'Retail', 'Oil & Gas', 'Real Estate', 'Healthcare', 'Technology', 'Other'], source: 'clients.industry' },
+          { id: 'client_relationship_duration', label: 'Client Relationship Duration', type: 'select', options: ['New', 'Less than 1 year', '1-3 years', '3-5 years', '5+ years'], valueType: 'text' }
         ]
       },
       
@@ -1229,9 +1263,12 @@ export async function getRuleFields(req, res) {
       serviceInfo: {
         label: 'Service Information',
         fields: [
-          { id: 'service_type', label: 'Service Type', type: 'select', options: ['Statutory Audit', 'External Audit', 'Tax Compliance', 'Tax Advisory', 'Management Consulting', 'Business Advisory', 'Internal Audit', 'Due Diligence', 'Valuation', 'IT Advisory'] },
+          { id: 'service_type', label: 'Service Type', type: 'select', options: ['Statutory Audit', 'External Audit', 'Tax Compliance', 'Tax Advisory', 'Tax Planning', 'Tax Strategy', 'Tax Return', 'Management Consulting', 'Business Advisory', 'Internal Audit', 'Due Diligence', 'Valuation', 'IT Advisory', 'Litigation Support', 'Dispute Resolution', 'Legal Representation', 'Consulting'] },
           { id: 'service_category', label: 'Service Category', type: 'select', options: ['Assurance', 'Non-Assurance', 'Tax', 'Advisory'] },
-          { id: 'service_description', label: 'Service Description', type: 'text' }
+          { id: 'service_description', label: 'Service Description', type: 'text' },
+          { id: 'engagement_start_date', label: 'Engagement Start Date', type: 'date', source: 'coi_requests.requested_service_period_start' },
+          { id: 'engagement_end_date', label: 'Engagement End Date', type: 'date', source: 'coi_requests.requested_service_period_end' },
+          { id: 'service_turnaround_days', label: 'Service Turnaround Days', type: 'number', valueType: 'number', description: 'Number of days for service completion' }
         ]
       },
       
@@ -1256,13 +1293,24 @@ export async function getRuleFields(req, res) {
         ]
       },
       
+      // Financial & Relationship Fields
+      financialFields: {
+        label: 'Financial & Relationship',
+        fields: [
+          { id: 'total_fees', label: 'Total Fees', type: 'number', valueType: 'number', source: 'coi_requests.total_fees', description: 'Total engagement fees' },
+          { id: 'financial_interest', label: 'Financial Interest in Client', type: 'select', options: ['Yes', 'No'], valueType: 'text' },
+          { id: 'family_relationship', label: 'Family Relationship with Client Management', type: 'text', description: 'Family relationship details (e.g., CEO, CFO, Director, Partner)' }
+        ]
+      },
+      
       // Computed/Derived Fields (for advanced logic)
       computedFields: {
         label: 'Computed Fields',
         fields: [
           { id: 'has_active_audit', label: 'Has Active Audit Engagement', type: 'computed', valueType: 'boolean', description: 'True if client has any active statutory/external audit' },
           { id: 'days_since_submission', label: 'Days Since Submission', type: 'computed', valueType: 'number', description: 'Number of days since request was submitted' },
-          { id: 'is_group_company', label: 'Is Group Company', type: 'computed', valueType: 'boolean', description: 'True if client has a parent company' }
+          { id: 'is_group_company', label: 'Is Group Company', type: 'computed', valueType: 'boolean', description: 'True if client has a parent company' },
+          { id: 'engagement_duration', label: 'Engagement Duration (Years)', type: 'computed', valueType: 'number', description: 'Calculated duration of engagement in years' }
         ]
       }
     }
@@ -1509,4 +1557,3 @@ function evaluateCondition(fieldValue, operator, conditionValue) {
       return false
   }
 }
-

@@ -122,3 +122,97 @@ export function parseRecommendations(request) {
   }
 }
 
+/**
+ * General-purpose audit trail logging
+ * Used for any action that needs to be recorded in the audit log
+ */
+export function logAuditTrail(userId, entityType, entityId, actionType, description, metadata = {}) {
+  try {
+    // Ensure general audit_trail table exists
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS audit_trail (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        entity_type VARCHAR(100) NOT NULL,
+        entity_id INTEGER,
+        action_type VARCHAR(100) NOT NULL,
+        description TEXT,
+        metadata TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `)
+    
+    db.prepare(`
+      INSERT INTO audit_trail (user_id, entity_type, entity_id, action_type, description, metadata)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      userId || null,
+      entityType,
+      entityId || null,
+      actionType,
+      description || null,
+      JSON.stringify(metadata)
+    )
+    
+    console.log(`[Audit] ${actionType} on ${entityType}#${entityId}: ${description}`)
+  } catch (error) {
+    console.error('[Audit] Error logging audit trail:', error)
+    // Don't throw - audit logging should not break the workflow
+  }
+}
+
+/**
+ * Get general audit trail entries
+ */
+export function getGeneralAuditTrail(filters = {}) {
+  try {
+    let query = 'SELECT * FROM audit_trail WHERE 1=1'
+    const params = []
+    
+    if (filters.entityType) {
+      query += ' AND entity_type = ?'
+      params.push(filters.entityType)
+    }
+    
+    if (filters.entityId) {
+      query += ' AND entity_id = ?'
+      params.push(filters.entityId)
+    }
+    
+    if (filters.userId) {
+      query += ' AND user_id = ?'
+      params.push(filters.userId)
+    }
+    
+    if (filters.actionType) {
+      query += ' AND action_type = ?'
+      params.push(filters.actionType)
+    }
+    
+    query += ' ORDER BY created_at DESC'
+    
+    if (filters.limit) {
+      query += ' LIMIT ?'
+      params.push(filters.limit)
+    }
+    
+    const logs = db.prepare(query).all(...params)
+    
+    return logs.map(log => ({
+      ...log,
+      metadata: log.metadata ? JSON.parse(log.metadata) : {}
+    }))
+  } catch (error) {
+    console.error('[Audit] Error fetching audit trail:', error)
+    return []
+  }
+}
+
+export default {
+  logComplianceDecision,
+  getAuditTrail,
+  parseRecommendations,
+  logAuditTrail,
+  getGeneralAuditTrail
+}

@@ -68,7 +68,10 @@ const fileFilter = (req, file, cb) => {
 // Multer configuration moved to routes file to avoid circular dependency
 
 // Initialize database
-initDatabase()
+initDatabase().catch(err => {
+  console.error('Database initialization error:', err)
+  process.exit(1)
+})
 
 // Routes
 app.use('/api/auth', authRoutes)

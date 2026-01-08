@@ -17,7 +17,7 @@ export function getDatabase() {
   return db
 }
 
-export function initDatabase() {
+export async function initDatabase() {
   const db = getDatabase()
   
   // Read and execute schema
@@ -229,6 +229,31 @@ export function initDatabase() {
   } catch (error) {
     if (!error.message.includes('duplicate column')) {
       // Column already exists, that's fine
+    }
+  }
+
+  // Add Pro version columns if they don't exist
+  const proColumns = [
+    { name: 'rule_category', type: 'VARCHAR(50) DEFAULT "Custom"' },
+    { name: 'regulation_reference', type: 'VARCHAR(255)' },
+    { name: 'applies_to_pie', type: 'BOOLEAN DEFAULT 0' },
+    { name: 'tax_sub_type', type: 'VARCHAR(50)' },
+    { name: 'complex_conditions', type: 'TEXT' },
+    { name: 'confidence_level', type: 'VARCHAR(20) DEFAULT "MEDIUM"' },
+    { name: 'can_override', type: 'BOOLEAN DEFAULT 1' },
+    { name: 'override_guidance', type: 'TEXT' },
+    { name: 'guidance_text', type: 'TEXT' },
+    { name: 'required_override_role', type: 'VARCHAR(50)' }
+  ]
+
+  for (const col of proColumns) {
+    try {
+      db.exec(`ALTER TABLE business_rules_config ADD COLUMN ${col.name} ${col.type}`)
+      console.log(`✅ Added ${col.name} column to business_rules_config`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        console.log(`Note: ${col.name} column:`, error.message)
+      }
     }
   }
 
@@ -484,6 +509,22 @@ export function initDatabase() {
     }
   }
   
+  // Seed IESBA rules (Pro Version)
+  try {
+    const { seedIESBARules } = await import('../scripts/seedIESBARules.js')
+    seedIESBARules()
+  } catch (error) {
+    console.log('Note: IESBA rules seeding skipped (may already exist)')
+  }
+
+  // Seed additional rules (IESBA category, validation, conflict, custom)
+  try {
+    const { seedAdditionalRules } = await import('../scripts/seedAdditionalRules.js')
+    seedAdditionalRules()
+  } catch (error) {
+    console.log('Note: Additional rules seeding skipped (may already exist)')
+  }
+
   console.log('Database initialized')
 }
 

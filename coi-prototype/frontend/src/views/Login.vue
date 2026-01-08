@@ -120,11 +120,19 @@ async function handleLogin() {
     
     if (!result.success) {
       error.value = result.error || 'Invalid credentials'
+      loading.value = false
+      return
+    }
+    
+    // Ensure user data is available
+    if (!authStore.user) {
+      error.value = 'Login succeeded but user data is missing. Please try again.'
+      loading.value = false
       return
     }
     
     // Route based on role
-    const role = authStore.user?.role
+    const role = authStore.user.role
     const routes: Record<string, string> = {
       'Requester': '/coi/requester',
       'Director': '/coi/director',
@@ -134,15 +142,16 @@ async function handleLogin() {
       'Admin': '/coi/admin',
       'Super Admin': '/coi/super-admin'
     }
-    const targetRoute = routes[role || ''] || '/coi/requester'
+    const targetRoute = routes[role] || '/coi/requester'
     
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Login.vue:124',message:'Routing decision',data:{role,targetRoute,routeExists:!!routes[role||'']},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Login.vue:124',message:'Routing decision',data:{role,targetRoute,routeExists:!!routes[role]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
     // #endregion
     
     router.push(targetRoute)
   } catch (e: any) {
-    error.value = e.message || 'Invalid credentials'
+    console.error('Login error:', e)
+    error.value = e.response?.data?.error || e.message || 'Login failed. Please check your credentials and try again.'
   } finally {
     loading.value = false
   }

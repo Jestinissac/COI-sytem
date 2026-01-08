@@ -40,8 +40,16 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('token', token.value)
       api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
       
+      // Load edition and features after successful login
+      try {
+        await loadEdition()
+      } catch (editionError) {
+        console.warn('Failed to load edition after login:', editionError)
+        // Don't fail login if edition loading fails
+      }
+      
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:33',message:'Frontend login success',data:{storedRole:user.value?.role,storedEmail:user.value?.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:33',message:'Frontend login success',data:{storedRole:user.value?.role,storedEmail:user.value?.email,edition:edition.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
       // #endregion
       return { success: true }
     } catch (error: any) {

@@ -547,6 +547,10 @@ const infoRequired = ref('')
 const previousEngagements = ref<any[]>([])
 const duplicationMatches = ref<any[]>([])
 const ruleRecommendations = ref<any[]>([])
+const allRecommendations = ref<any[]>([]) // Pro: All recommendations (Red Lines, IESBA, Business Rules, Conflicts)
+const isPro = ref(false) // Pro edition flag
+const showDecisionLog = ref(false)
+const decisionLog = ref<any[]>([]) // Pro: Decision history
 const attachments = ref<any[]>([])
 const showUploadModal = ref(false)
 

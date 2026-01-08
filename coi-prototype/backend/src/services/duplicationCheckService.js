@@ -1,10 +1,18 @@
 import { getDatabase } from '../database/init.js'
+import { checkRedLines } from './redLinesService.js'
+import { evaluateIESBADecisionMatrix } from './iesbaDecisionMatrix.js'
+import { isProEdition } from './configService.js'
 
 // Service type categories
 const SERVICE_CATEGORIES = {
   AUDIT: ['Statutory Audit', 'External Audit', 'Group Audit', 'IFRS Audit'],
   INTERNAL_AUDIT: ['Internal Audit', 'Internal Controls Review'],
   ADVISORY: ['Management Consulting', 'Business Advisory', 'Strategy Consulting', 'Restructuring'],
+  // Pro Version: Split TAX into sub-types
+  TAX_COMPLIANCE: ['Tax Compliance', 'Tax Return Preparation', 'Tax Filing'],
+  TAX_PLANNING: ['Tax Planning', 'Tax Advisory', 'Tax Strategy', 'Tax Optimization'],
+  TAX_CALCULATIONS: ['Tax Calculations', 'Transfer Pricing', 'Tax Valuation'],
+  // Legacy TAX category (for backward compatibility)
   TAX: ['Tax Compliance', 'Tax Advisory', 'Transfer Pricing', 'Tax Planning'],
   ACCOUNTING: ['Bookkeeping', 'Accounting Services', 'Financial Reporting', 'Payroll Services'],
   VALUATION: ['Valuation Services', 'Business Valuation', 'Asset Valuation'],
@@ -16,14 +24,17 @@ const SERVICE_CATEGORIES = {
 const CONFLICT_MATRIX = {
   // If client has AUDIT, these services are BLOCKED
   AUDIT: {
-    blocked: ['ADVISORY', 'ACCOUNTING', 'VALUATION', 'INTERNAL_AUDIT'],
-    flagged: ['TAX', 'DUE_DILIGENCE', 'IT_ADVISORY'],
+    blocked: ['ADVISORY', 'ACCOUNTING', 'VALUATION', 'INTERNAL_AUDIT', 'TAX_PLANNING'], // Pro: TAX_PLANNING blocked
+    flagged: ['TAX', 'TAX_COMPLIANCE', 'TAX_CALCULATIONS', 'DUE_DILIGENCE', 'IT_ADVISORY'], // Pro: Tax sub-types
     reason: {
       ADVISORY: 'Management consulting threatens auditor independence',
       ACCOUNTING: 'Cannot audit own bookkeeping work (self-review threat)',
       VALUATION: 'Cannot audit valuations we performed (self-review threat)',
       INTERNAL_AUDIT: 'Cannot outsource internal audit function for audit client',
       TAX: 'Tax services for audit client require fee cap review',
+      TAX_COMPLIANCE: 'Tax compliance services require safeguards and fee cap review',
+      TAX_PLANNING: 'Tax planning for audit client creates self-review threat - PROHIBITED',
+      TAX_CALCULATIONS: 'Tax calculations require safeguards and fee cap review',
       DUE_DILIGENCE: 'Due diligence may create self-review threat',
       IT_ADVISORY: 'IT systems advice may affect audit scope'
     }
@@ -64,14 +75,32 @@ const CONFLICT_MATRIX = {
 
 // PIE (Public Interest Entity) additional restrictions
 const PIE_RESTRICTIONS = {
-  blocked: ['ADVISORY', 'ACCOUNTING', 'VALUATION', 'INTERNAL_AUDIT', 'IT_ADVISORY'],
-  flagged: ['TAX', 'DUE_DILIGENCE'],
+  blocked: ['ADVISORY', 'ACCOUNTING', 'VALUATION', 'INTERNAL_AUDIT', 'IT_ADVISORY', 'TAX_PLANNING'], // Pro: TAX_PLANNING blocked for PIE
+  flagged: ['TAX', 'TAX_COMPLIANCE', 'TAX_CALCULATIONS', 'DUE_DILIGENCE'], // Pro: Tax sub-types
   feeCapApplies: true, // Non-audit fees cannot exceed 70% of audit fees
   reason: 'PIE audit clients have strict non-audit service restrictions under EU/local regulations'
 }
 
-export async function checkDuplication(clientName, excludeRequestId = null, newServiceType = null, isPIE = false) {
+export async function checkDuplication(clientName, excludeRequestId = null, newServiceType = null, isPIE = false, requestData = null) {
   const db = getDatabase()
+  const isPro = isProEdition()
+  
+  const allRecommendations = []
+  
+  // Pro Version: Phase 8 - Execution Order with Priority System
+  // 1. Red Lines Check (Pro only) - HIGHEST PRIORITY
+  if (isPro && requestData) {
+    const redLines = checkRedLines(requestData)
+    if (redLines && redLines.length > 0) {
+      redLines.forEach(redLine => {
+        allRecommendations.push({
+          ...redLine,
+          source: 'RED_LINES',
+          priority: 1 // Highest priority
+        })
+      })
+    }
+  }
   
   // Get all active engagements for potential matches
   let activeRequests
@@ -142,6 +171,51 @@ export async function checkDuplication(clientName, excludeRequestId = null, newS
   // Also check for related party / group company conflicts
   const relatedPartyMatches = await checkRelatedPartyConflicts(clientName, newServiceType, excludeRequestId)
   matches.push(...relatedPartyMatches)
+
+  // Pro Version: Phase 8 - IESBA Decision Matrix (after business rules, before conflict matrix)
+  if (isPro && requestData && newServiceType) {
+    const iesbaRecommendations = evaluateIESBADecisionMatrix({
+      ...requestData,
+      service_type: newServiceType,
+      pie_status: isPIE ? 'Yes' : 'No'
+    })
+    if (iesbaRecommendations && iesbaRecommendations.length > 0) {
+      iesbaRecommendations.forEach(rec => {
+        allRecommendations.push({
+          ...rec,
+          source: 'IESBA_DECISION_MATRIX',
+          priority: 2 // Second priority (after Red Lines, before Business Rules)
+        })
+      })
+    }
+  }
+  
+  // Convert matches to recommendations format (Pro) or keep as matches (Standard)
+  if (isPro) {
+    matches.forEach(match => {
+      allRecommendations.push({
+        severity: match.action === 'block' ? 'CRITICAL' : 'HIGH',
+        recommendedAction: match.action === 'block' ? 'REJECT' : 'FLAG',
+        confidence: match.matchScore >= 90 ? 'HIGH' : 'MEDIUM',
+        reason: match.reason,
+        regulation: match.conflicts?.[0]?.regulation || 'IESBA Code of Ethics',
+        canOverride: match.action !== 'block',
+        requiresComplianceReview: true,
+        source: 'CONFLICT_MATRIX',
+        priority: 4, // Lowest priority
+        matchData: match
+      })
+    })
+    
+    // Sort by priority (Red Lines > IESBA Matrix > Conflict Matrix)
+    allRecommendations.sort((a, b) => (a.priority || 99) - (b.priority || 99))
+    
+    return {
+      recommendations: allRecommendations,
+      matches: matches, // Keep for backward compatibility
+      isPro: true
+    }
+  }
 
   return matches.sort((a, b) => {
     // Sort by action (block first), then by score
@@ -215,10 +289,41 @@ function getServiceCategory(serviceType) {
   
   const normalizedService = serviceType.toLowerCase()
   
+  // Pro Version: Check tax sub-types first (more specific)
   for (const [category, services] of Object.entries(SERVICE_CATEGORIES)) {
-    if (services.some(s => normalizedService.includes(s.toLowerCase()) || s.toLowerCase().includes(normalizedService))) {
-      return category
+    if (category.startsWith('TAX_')) {
+      // Check tax sub-types first
+      if (services.some(s => normalizedService.includes(s.toLowerCase()) || s.toLowerCase().includes(normalizedService))) {
+        return category
+      }
     }
+  }
+  
+  // Then check other categories (including legacy TAX)
+  for (const [category, services] of Object.entries(SERVICE_CATEGORIES)) {
+    if (!category.startsWith('TAX_')) {
+      if (services.some(s => normalizedService.includes(s.toLowerCase()) || s.toLowerCase().includes(normalizedService))) {
+        return category
+      }
+    }
+  }
+  
+  return null
+}
+
+// Pro Version: Get tax sub-type from service type
+function getTaxSubType(serviceType) {
+  if (!serviceType) return null
+  const normalized = serviceType.toLowerCase()
+  
+  if (SERVICE_CATEGORIES.TAX_COMPLIANCE.some(s => normalized.includes(s.toLowerCase()))) {
+    return 'TAX_COMPLIANCE'
+  }
+  if (SERVICE_CATEGORIES.TAX_PLANNING.some(s => normalized.includes(s.toLowerCase()))) {
+    return 'TAX_PLANNING'
+  }
+  if (SERVICE_CATEGORIES.TAX_CALCULATIONS.some(s => normalized.includes(s.toLowerCase()))) {
+    return 'TAX_CALCULATIONS'
   }
   
   return null

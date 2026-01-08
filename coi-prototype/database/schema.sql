@@ -627,6 +627,14 @@ CREATE TABLE IF NOT EXISTS rule_execution_log (
 CREATE INDEX IF NOT EXISTS idx_rule_execution_request ON rule_execution_log(coi_request_id);
 CREATE INDEX IF NOT EXISTS idx_rule_execution_rule ON rule_execution_log(rule_id);
 
+-- Pro Version: Add columns to existing business_rules_config table (if not exists)
+-- Note: SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so these should be run manually or via migration
+-- ALTER TABLE business_rules_config ADD COLUMN rule_category VARCHAR(50) DEFAULT 'Custom';
+-- ALTER TABLE business_rules_config ADD COLUMN regulation_reference TEXT;
+-- ALTER TABLE business_rules_config ADD COLUMN applies_to_pie BOOLEAN DEFAULT 0;
+-- ALTER TABLE business_rules_config ADD COLUMN tax_sub_type VARCHAR(50);
+-- ALTER TABLE business_rules_config ADD COLUMN complex_conditions TEXT;
+
 CREATE INDEX idx_users_director ON users(director_id);
 CREATE INDEX idx_engagement_codes_status ON coi_engagement_codes(status);
 

@@ -7,15 +7,39 @@
           <h2 class="text-lg font-semibold text-gray-900">Business Rules</h2>
           <p class="text-sm text-gray-500 mt-1">Define validation, conflict, and workflow rules</p>
         </div>
-        <button
-          @click="showCreateModal = true"
-          class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 flex items-center gap-2"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-          </svg>
-          Create Rule
-        </button>
+        <div class="flex items-center gap-2">
+          <!-- Quick Template Import (Pro) -->
+          <div v-if="authStore.isPro" class="relative">
+            <select
+              v-model="selectedTemplate"
+              @change="loadTemplate"
+              class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 flex items-center gap-2 pr-8 appearance-none cursor-pointer"
+            >
+              <option value="">📋 Quick Import Template</option>
+              <option value="red_line_management">🚫 Red Line: Management Responsibility</option>
+              <option value="red_line_advocacy">🚫 Red Line: Advocacy</option>
+              <option value="red_line_contingent_fees">🚫 Red Line: Contingent Fees</option>
+              <option value="pie_tax_planning">⚠️ PIE: Tax Planning Prohibited</option>
+              <option value="pie_tax_compliance">⚠️ PIE: Tax Compliance Requires Safeguards</option>
+              <option value="pie_advisory">⚠️ PIE: Advisory Services Prohibited</option>
+              <option value="audit_tax_planning_pie">🚫 Audit + Tax Planning (PIE)</option>
+              <option value="audit_tax_planning_nonpie">⚠️ Audit + Tax Planning (Non-PIE)</option>
+              <option value="audit_tax_compliance">✅ Audit + Tax Compliance</option>
+            </select>
+            <svg class="w-4 h-4 text-white absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
+          <button
+            @click="showCreateModal = true"
+            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 flex items-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Create Rule
+          </button>
+        </div>
       </div>
     </div>
 
@@ -25,6 +49,17 @@
         <div class="flex items-center justify-between">
           <h3 class="font-semibold text-gray-900">Active Rules</h3>
           <div class="flex items-center gap-3">
+            <select
+              v-model="filterCategory"
+              class="px-3 py-2 text-sm border border-gray-300 rounded-md"
+            >
+              <option value="">All Categories</option>
+              <option value="Custom">Custom</option>
+              <option value="IESBA">IESBA</option>
+              <option value="Red Line">Red Line</option>
+              <option value="PIE">PIE</option>
+              <option value="Tax">Tax</option>
+            </select>
             <select
               v-model="filterRuleType"
               class="px-3 py-2 text-sm border border-gray-300 rounded-md"
@@ -65,14 +100,45 @@
           <p>No rules found. Create your first rule to get started.</p>
         </div>
 
-        <div v-else class="space-y-4">
-          <div
-            v-for="rule in filteredRules"
-            :key="rule.id"
-            class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors cursor-pointer"
-            :class="rule.is_active ? 'bg-white' : 'bg-gray-50'"
-            @click="toggleRuleDetails(rule.id)"
-          >
+        <div v-else class="space-y-6">
+          <!-- Grouped by Category -->
+          <div v-for="category in groupedRules" :key="category.name" class="space-y-3">
+            <!-- Category Header -->
+            <div class="sticky top-0 z-10 bg-gray-50 border-b-2 border-gray-300 py-3 px-4 -mx-6 -mt-6 mb-4 rounded-t-lg">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <h4 class="text-base font-bold text-gray-900">{{ category.name }}</h4>
+                  <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                    {{ category.rules.length }} {{ category.rules.length === 1 ? 'rule' : 'rules' }}
+                  </span>
+                </div>
+                <button
+                  @click.stop="toggleCategory(category.name)"
+                  class="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+                >
+                  <svg 
+                    class="w-4 h-4 transition-transform" 
+                    :class="{ 'rotate-180': expandedCategories.has(category.name) }"
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                  {{ expandedCategories.has(category.name) ? 'Collapse' : 'Expand' }}
+                </button>
+              </div>
+            </div>
+            
+            <!-- Category Rules -->
+            <div v-show="expandedCategories.has(category.name)" class="space-y-4">
+              <div
+                v-for="rule in category.rules"
+                :key="rule.id"
+                class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors cursor-pointer"
+                :class="rule.is_active ? 'bg-white' : 'bg-gray-50'"
+                @click="toggleRuleDetails(rule.id)"
+              >
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <div class="flex items-center gap-3 mb-2">
@@ -229,9 +295,11 @@
                 </button>
               </div>
             </div>
+            </div>
           </div>
         </div>
       </div>
+    </div>
     </div>
 
     <!-- Create/Edit Rule Modal -->
@@ -277,6 +345,87 @@
               <option value="conflict">Conflict</option>
               <option value="workflow">Workflow</option>
             </select>
+          </div>
+
+          <!-- Pro Version: IESBA Rule Templates -->
+          <div v-if="authStore.isPro" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <label class="block text-sm font-semibold text-blue-900 mb-2">IESBA Rule Templates (Pro)</label>
+            <select
+              v-model="selectedTemplate"
+              @change="loadTemplate"
+              class="w-full px-3 py-2 border border-blue-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select IESBA template...</option>
+              <option value="red_line_management">Red Line: Management Responsibility</option>
+              <option value="red_line_advocacy">Red Line: Advocacy</option>
+              <option value="red_line_contingent_fees">Red Line: Contingent Fees</option>
+              <option value="pie_tax_planning">PIE: Tax Planning Prohibited</option>
+              <option value="pie_tax_compliance">PIE: Tax Compliance Requires Safeguards</option>
+              <option value="pie_advisory">PIE: Advisory Services Prohibited</option>
+              <option value="audit_tax_planning_pie">Audit + Tax Planning (PIE) - Prohibited</option>
+              <option value="audit_tax_planning_nonpie">Audit + Tax Planning (Non-PIE) - Requires Safeguards</option>
+              <option value="audit_tax_compliance">Audit + Tax Compliance - Likely Approved</option>
+            </select>
+            <p class="text-xs text-blue-700 mt-1">One-click import of IESBA-compliant rules</p>
+          </div>
+
+          <!-- Pro Version: Rule Category & Regulation -->
+          <div v-if="authStore.isPro" class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Rule Category</label>
+              <select
+                v-model="ruleForm.rule_category"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Custom">Custom</option>
+                <option value="IESBA">IESBA</option>
+                <option value="Red Line">Red Line</option>
+                <option value="PIE">PIE</option>
+                <option value="Tax">Tax</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Regulation Reference</label>
+              <select
+                v-model="ruleForm.regulation_reference"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select IESBA section...</option>
+                <option value="IESBA Code Section 290">IESBA Code Section 290 (General)</option>
+                <option value="IESBA Code Section 290.104">IESBA Code Section 290.104 (Management Responsibility)</option>
+                <option value="IESBA Code Section 290.105">IESBA Code Section 290.105 (Advocacy)</option>
+                <option value="IESBA Code Section 290.106">IESBA Code Section 290.106 (Contingent Fees)</option>
+                <option value="EU Audit Regulation">EU Audit Regulation</option>
+                <option value="EU Audit Regulation Article 4(2)">EU Audit Regulation Article 4(2) (Fee Cap)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Pro Version: PIE-Specific & Tax Sub-Type -->
+          <div v-if="authStore.isPro" class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  v-model="ruleForm.applies_to_pie"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span class="text-sm font-medium text-gray-700">Applies to PIE clients only</span>
+              </label>
+              <p class="text-xs text-gray-500 mt-1">Rule will only apply to Public Interest Entities</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Tax Sub-Type (if applicable)</label>
+              <select
+                v-model="ruleForm.tax_sub_type"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Not applicable</option>
+                <option value="TAX_COMPLIANCE">Tax Compliance</option>
+                <option value="TAX_PLANNING">Tax Planning</option>
+                <option value="TAX_CALCULATIONS">Tax Calculations</option>
+              </select>
+            </div>
           </div>
 
           <!-- Condition Section -->
@@ -709,7 +858,9 @@ const showCreateModal = ref(false)
 const editingRule = ref<any>(null)
 const searchQuery = ref('')
 const filterRuleType = ref('')
+const filterCategory = ref('')
 const isSuperAdmin = ref(false)
+const expandedCategories = ref(new Set<string>(['Custom', 'IESBA', 'Red Line', 'PIE', 'Tax']))
 const showRejectModal = ref(false)
 const rejectingRule = ref<any>(null)
 const rejectionReason = ref('')
@@ -745,6 +896,7 @@ const ruleFields = ref<Record<string, FieldCategory>>({})
 const fieldOperators = ref<Record<string, FieldOperator[]>>({})
 const allFields = ref<RuleField[]>([])
 const loadingFields = ref(false)
+const selectedTemplate = ref('')
 
 // Condition builder mode
 const useAdvancedConditions = ref(false)
@@ -800,7 +952,15 @@ const ruleForm = ref({
   condition_value: '',
   action_type: '',
   action_value: '',
-  is_active: true
+  is_active: true,
+  rule_category: 'Custom' as string,
+  regulation_reference: '' as string,
+  applies_to_pie: false as boolean,
+  tax_sub_type: '' as string,
+  complex_conditions: null as any,
+  confidence_level: 'MEDIUM' as string,
+  can_override: true as boolean,
+  guidance_text: '' as string
 })
 
 const filteredRules = computed(() => {
@@ -810,17 +970,52 @@ const filteredRules = computed(() => {
     filtered = filtered.filter(r => r.rule_type === filterRuleType.value)
   }
 
+  if (filterCategory.value) {
+    filtered = filtered.filter(r => (r.rule_category || 'Custom') === filterCategory.value)
+  }
+
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     filtered = filtered.filter(r =>
       r.rule_name.toLowerCase().includes(q) ||
       r.rule_type.toLowerCase().includes(q) ||
-      (r.condition_field && r.condition_field.toLowerCase().includes(q))
+      (r.condition_field && r.condition_field.toLowerCase().includes(q)) ||
+      (r.rule_category && r.rule_category.toLowerCase().includes(q))
     )
   }
 
   return filtered
 })
+
+const groupedRules = computed(() => {
+  const groups: Record<string, any[]> = {}
+  
+  filteredRules.value.forEach(rule => {
+    const category = rule.rule_category || 'Custom'
+    if (!groups[category]) {
+      groups[category] = []
+    }
+    groups[category].push(rule)
+  })
+  
+  // Define category order (most important first)
+  const categoryOrder = ['Red Line', 'IESBA', 'PIE', 'Tax', 'Custom']
+  const orderedCategories = categoryOrder.filter(cat => groups[cat])
+  const otherCategories = Object.keys(groups).filter(cat => !categoryOrder.includes(cat))
+  
+  return [...orderedCategories, ...otherCategories].map(name => ({
+    name,
+    rules: groups[name].sort((a, b) => (a.rule_name || '').localeCompare(b.rule_name || ''))
+  }))
+})
+
+function toggleCategory(categoryName: string) {
+  if (expandedCategories.value.has(categoryName)) {
+    expandedCategories.value.delete(categoryName)
+  } else {
+    expandedCategories.value.add(categoryName)
+  }
+}
 
 function getRuleTypeClass(type: string) {
   const classes: Record<string, string> = {
@@ -1060,7 +1255,15 @@ async function editRule(rule: any) {
     condition_value: rule.condition_value || '',
     action_type: rule.action_type,
     action_value: rule.action_value || '',
-    is_active: rule.is_active === 1 || rule.is_active === true
+    is_active: rule.is_active === 1 || rule.is_active === true,
+    rule_category: rule.rule_category || 'Custom',
+    regulation_reference: rule.regulation_reference || '',
+    applies_to_pie: rule.applies_to_pie === 1 || rule.applies_to_pie === true,
+    tax_sub_type: rule.tax_sub_type || '',
+    complex_conditions: rule.complex_conditions,
+    confidence_level: rule.confidence_level || 'MEDIUM',
+    can_override: rule.can_override !== undefined ? (rule.can_override === 1 || rule.can_override === true) : true,
+    guidance_text: rule.guidance_text || ''
   }
   
   // Load condition_groups if present
@@ -1161,6 +1364,7 @@ function closeModal() {
   useAdvancedConditions.value = false
   ruleValidation.value = null
   testResults.value = null
+  selectedTemplate.value = ''
   conditionGroups.value = [
     { operator: 'AND', conditions: [{ field: '', conditionOperator: '', value: '', operator: 'AND' }] }
   ]
@@ -1172,8 +1376,228 @@ function closeModal() {
     condition_value: '',
     action_type: '',
     action_value: '',
-    is_active: true
+    is_active: true,
+    rule_category: 'Custom',
+    regulation_reference: '',
+    applies_to_pie: false,
+    tax_sub_type: '',
+    complex_conditions: null,
+    confidence_level: 'MEDIUM',
+    can_override: true,
+    guidance_text: ''
   }
+}
+
+// Pro Version: Load IESBA template
+function loadTemplate() {
+  if (!selectedTemplate.value) return
+  
+  // Open modal if not already open
+  if (!showCreateModal.value && !editingRule.value) {
+    showCreateModal.value = true
+  }
+  
+  const templates: Record<string, any> = {
+    red_line_management: {
+      rule_name: 'Red Line: Management Responsibility',
+      rule_type: 'conflict',
+      rule_category: 'Red Line',
+      condition_field: 'service_description',
+      condition_operator: 'contains',
+      condition_value: 'management responsibility,financial statements preparation',
+      action_type: 'recommend_reject',
+      action_value: 'CRITICAL: Management responsibility violates auditor independence per IESBA Code Section 290.104',
+      regulation_reference: 'IESBA Code Section 290.104',
+      applies_to_pie: false,
+      confidence_level: 'HIGH',
+      can_override: false,
+      is_active: true
+    },
+    red_line_advocacy: {
+      rule_name: 'Red Line: Advocacy',
+      rule_type: 'conflict',
+      rule_category: 'Red Line',
+      condition_field: 'service_description',
+      condition_operator: 'contains',
+      condition_value: 'advocate,litigation support,court representation',
+      action_type: 'recommend_reject',
+      action_value: 'CRITICAL: Acting as advocate violates auditor independence',
+      regulation_reference: 'IESBA Code Section 290',
+      applies_to_pie: false,
+      confidence_level: 'HIGH',
+      can_override: false,
+      is_active: true
+    },
+    red_line_contingent_fees: {
+      rule_name: 'Red Line: Contingent Fees',
+      rule_type: 'conflict',
+      rule_category: 'Red Line',
+      condition_field: 'service_description',
+      condition_operator: 'contains',
+      condition_value: 'contingent fee,success fee,performance based',
+      action_type: 'recommend_reject',
+      action_value: 'CRITICAL: Contingent fees violate auditor independence',
+      regulation_reference: 'IESBA Code Section 290',
+      applies_to_pie: false,
+      confidence_level: 'HIGH',
+      can_override: false,
+      is_active: true
+    },
+    pie_tax_planning: {
+      rule_name: 'PIE: Tax Planning Prohibited',
+      rule_type: 'conflict',
+      rule_category: 'PIE',
+      condition_field: 'pie_status',
+      condition_operator: 'equals',
+      condition_value: 'Yes',
+      action_type: 'recommend_reject',
+      action_value: 'HIGH: Tax Planning for PIE audit client is prohibited',
+      regulation_reference: 'IESBA Code Section 290',
+      applies_to_pie: true,
+      tax_sub_type: 'TAX_PLANNING',
+      confidence_level: 'HIGH',
+      can_override: false,
+      is_active: true
+    },
+    pie_tax_compliance: {
+      rule_name: 'PIE: Tax Compliance Requires Safeguards',
+      rule_type: 'conflict',
+      rule_category: 'PIE',
+      condition_field: 'pie_status',
+      condition_operator: 'equals',
+      condition_value: 'Yes',
+      action_type: 'recommend_review',
+      action_value: 'MEDIUM: Tax Compliance for PIE requires safeguards and fee cap review',
+      regulation_reference: 'IESBA Code Section 290',
+      applies_to_pie: true,
+      tax_sub_type: 'TAX_COMPLIANCE',
+      confidence_level: 'MEDIUM',
+      can_override: true,
+      is_active: true
+    },
+    pie_advisory: {
+      rule_name: 'PIE: Advisory Services Prohibited',
+      rule_type: 'conflict',
+      rule_category: 'PIE',
+      condition_field: 'pie_status',
+      condition_operator: 'equals',
+      condition_value: 'Yes',
+      action_type: 'recommend_reject',
+      action_value: 'HIGH: Advisory services for PIE audit client are prohibited',
+      regulation_reference: 'IESBA Code Section 290',
+      applies_to_pie: true,
+      confidence_level: 'HIGH',
+      can_override: false,
+      is_active: true
+    },
+    audit_tax_planning_pie: {
+      rule_name: 'Audit + Tax Planning (PIE) - Prohibited',
+      rule_type: 'conflict',
+      rule_category: 'Tax',
+      condition_field: 'service_type',
+      condition_operator: 'contains',
+      condition_value: 'Tax Planning,Tax Strategy',
+      action_type: 'recommend_reject',
+      action_value: 'HIGH: Tax Planning for PIE audit client is prohibited - cannot override',
+      regulation_reference: 'IESBA Code Section 290',
+      applies_to_pie: true,
+      tax_sub_type: 'TAX_PLANNING',
+      confidence_level: 'HIGH',
+      can_override: false,
+      is_active: true
+    },
+    audit_tax_planning_nonpie: {
+      rule_name: 'Audit + Tax Planning (Non-PIE) - Requires Safeguards',
+      rule_type: 'conflict',
+      rule_category: 'Tax',
+      condition_field: 'service_type',
+      condition_operator: 'contains',
+      condition_value: 'Tax Planning,Tax Strategy',
+      action_type: 'recommend_review',
+      action_value: 'MEDIUM: Tax Planning for non-PIE audit client requires safeguards',
+      regulation_reference: 'IESBA Code Section 290',
+      applies_to_pie: false,
+      tax_sub_type: 'TAX_PLANNING',
+      confidence_level: 'MEDIUM',
+      can_override: true,
+      is_active: true
+    },
+    audit_tax_compliance: {
+      rule_name: 'Audit + Tax Compliance - Likely Approved',
+      rule_type: 'conflict',
+      rule_category: 'Tax',
+      condition_field: 'service_type',
+      condition_operator: 'contains',
+      condition_value: 'Tax Compliance,Tax Return',
+      action_type: 'recommend_flag',
+      action_value: 'LOW: Tax Compliance usually approved with safeguards',
+      regulation_reference: 'IESBA Code Section 290',
+      applies_to_pie: false,
+      tax_sub_type: 'TAX_COMPLIANCE',
+      confidence_level: 'LOW',
+      can_override: true,
+      is_active: true
+    }
+  }
+  
+  const template = templates[selectedTemplate.value]
+  if (template) {
+    // Open modal if not already open
+    if (!showCreateModal.value && !editingRule.value) {
+      showCreateModal.value = true
+      // Wait for modal to render before populating
+      setTimeout(() => {
+        populateTemplate(template)
+      }, 100)
+    } else {
+      populateTemplate(template)
+    }
+  } else {
+    showError('Template not found. Please try again.')
+    selectedTemplate.value = ''
+  }
+}
+
+function populateTemplate(template: any) {
+  // Ensure we're using simple mode (not advanced) for templates
+  useAdvancedConditions.value = false
+  
+  // Clear existing form and populate with template
+  ruleForm.value = {
+    rule_name: template.rule_name || '',
+    rule_type: template.rule_type || '',
+    condition_field: template.condition_field || '',
+    condition_operator: template.condition_operator || '',
+    condition_value: template.condition_value || '',
+    action_type: template.action_type || '',
+    action_value: template.action_value || '',
+    is_active: template.is_active !== undefined ? template.is_active : true,
+    rule_category: template.rule_category || 'Custom',
+    regulation_reference: template.regulation_reference || '',
+    applies_to_pie: template.applies_to_pie || false,
+    tax_sub_type: template.tax_sub_type || '',
+    complex_conditions: null,
+    confidence_level: template.confidence_level || 'MEDIUM',
+    can_override: template.can_override !== undefined ? template.can_override : true,
+    guidance_text: template.guidance_text || ''
+  }
+  
+  // Reset template selector to allow selecting another template
+  const templateName = selectedTemplate.value
+  setTimeout(() => {
+    selectedTemplate.value = ''
+  }, 200)
+  
+  const displayName = templateName.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+  showSuccess(`✅ Template "${displayName}" loaded successfully! Review and customize as needed.`)
+  
+  // Scroll to top of form to show the loaded fields
+  setTimeout(() => {
+    const modal = document.querySelector('.max-h-\\[90vh\\]')
+    if (modal) {
+      modal.scrollTop = 0
+    }
+  }, 150)
 }
 
 // Validate rule in real-time

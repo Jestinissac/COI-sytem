@@ -31,9 +31,10 @@
           <input
             type="checkbox"
             :checked="edition === 'pro'"
-            @change="handleToggle"
+            @click.prevent="handleToggle"
             :disabled="switching"
             class="sr-only peer"
+            ref="toggleInput"
           />
           <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
           <span class="ml-3 text-sm font-medium text-gray-700">
@@ -124,6 +125,7 @@ const { success, error } = useToast()
 const edition = computed(() => authStore.edition)
 const switching = ref(false)
 const showConfirmModal = ref(false)
+const toggleInput = ref<HTMLInputElement | null>(null)
 
 const allFeatures = [
   { name: 'Basic Rules Engine', standard: true, pro: true },
@@ -140,11 +142,18 @@ const allFeatures = [
 ]
 
 function handleToggle(event: Event) {
+  event.preventDefault()
   const target = event.target as HTMLInputElement
-  if (target.checked && edition.value === 'standard') {
-    showConfirmModal.value = true
-  } else if (!target.checked && edition.value === 'pro') {
-    showConfirmModal.value = true
+  
+  // Determine the intended new edition based on current state
+  const intendedEdition = edition.value === 'standard' ? 'pro' : 'standard'
+  
+  // Show confirmation modal
+  showConfirmModal.value = true
+  
+  // Reset checkbox to current state (prevent visual toggle until confirmed)
+  if (toggleInput.value) {
+    toggleInput.value.checked = edition.value === 'pro'
   }
 }
 
@@ -157,11 +166,27 @@ async function confirmSwitch() {
     if (result.success) {
       success(`System edition switched to ${newEdition === 'pro' ? 'Pro' : 'Standard'}`)
       showConfirmModal.value = false
+      
+      // Update checkbox state to match new edition
+      if (toggleInput.value) {
+        toggleInput.value.checked = newEdition === 'pro'
+      }
+      
+      // Force a small delay to ensure the store is updated before UI re-renders
+      await new Promise(resolve => setTimeout(resolve, 100))
     } else {
       error(result.error || 'Failed to switch edition')
+      // Reset checkbox on error
+      if (toggleInput.value) {
+        toggleInput.value.checked = edition.value === 'pro'
+      }
     }
   } catch (e: any) {
     error(e.message || 'Failed to switch edition')
+    // Reset checkbox on error
+    if (toggleInput.value) {
+      toggleInput.value.checked = edition.value === 'pro'
+    }
   } finally {
     switching.value = false
   }

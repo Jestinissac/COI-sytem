@@ -19,7 +19,15 @@ import {
 } from '../controllers/coiController.js'
 import { findSimilarCases, findCasesByCriteria, getClientDecisionHistory } from '../services/similarCasesService.js'
 import { getRegulation, getAllRegulations, searchRegulations, getApplicableRegulations } from '../services/regulationService.js'
-import { getMonitoringDashboard, runScheduledTasks, generateMonthlyReport } from '../services/monitoringService.js'
+import { 
+  getMonitoringDashboard, 
+  runScheduledTasks, 
+  generateMonthlyReport,
+  sendIntervalAlerts, 
+  checkRenewalAlerts, 
+  getMonitoringAlertsSummary,
+  checkAndLapseExpiredProposals
+} from '../services/monitoringService.js'
 import { getFilesForRequest, getISQMDocuments, getISQMDocumentTypes, getFileStatistics } from '../services/fileUploadService.js'
 import { uploadAttachment, getAttachments, downloadAttachment, deleteAttachment } from '../controllers/attachmentController.js'
 import multer from 'multer'
@@ -131,6 +139,16 @@ router.get('/monitoring/summary', requireRole('Admin'), async (req, res) => {
   try {
     const result = getMonitoringAlertsSummary()
     res.json(result)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Automatic lapse checking
+router.post('/monitoring/check-lapses', requireRole('Admin', 'Super Admin'), async (req, res) => {
+  try {
+    const result = await checkAndLapseExpiredProposals()
+    res.json({ success: true, result })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }

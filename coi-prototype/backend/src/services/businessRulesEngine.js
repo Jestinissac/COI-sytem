@@ -2,6 +2,7 @@ import { getDatabase } from '../database/init.js'
 import { getSystemEdition, isProEdition } from './configService.js'
 import { checkRedLines } from './redLinesService.js'
 import { evaluateIESBADecisionMatrix } from './iesbaDecisionMatrix.js'
+import FieldMappingService from './fieldMappingService.js'
 
 const db = getDatabase()
 
@@ -15,6 +16,9 @@ export function evaluateRules(requestData) {
   try {
     const isPro = isProEdition()
     
+    // Prepare request data with computed fields
+    const enhancedRequestData = FieldMappingService.prepareForRuleEvaluation(requestData)
+    
     // Load all active approved rules
     const rules = db.prepare(`
       SELECT * FROM business_rules_config
@@ -27,7 +31,7 @@ export function evaluateRules(requestData) {
     const executionLogs = []
 
     for (const rule of rules) {
-      const evaluation = evaluateRule(rule, requestData)
+      const evaluation = evaluateRule(rule, enhancedRequestData)
       
       if (evaluation.matched) {
         if (isPro) {
@@ -75,14 +79,14 @@ export function evaluateRules(requestData) {
     }
 
     // Log all executions
-    if (executionLogs.length > 0 && requestData.id) {
-      logRuleExecutions(executionLogs, requestData.id)
+    if (executionLogs.length > 0 && enhancedRequestData.id) {
+      logRuleExecutions(executionLogs, enhancedRequestData.id)
     }
 
     if (isPro) {
       // Pro edition: Combine business rules with red lines and IESBA matrix
-      const redLineRecommendations = checkRedLines(requestData)
-      const iesbaRecommendations = evaluateIESBADecisionMatrix(requestData)
+      const redLineRecommendations = checkRedLines(enhancedRequestData)
+      const iesbaRecommendations = evaluateIESBADecisionMatrix(enhancedRequestData)
       
       // Combine all recommendations
       const allRecommendations = [
@@ -202,7 +206,7 @@ function evaluateRule(rule, requestData) {
     return { matched: true, reason: 'No condition specified' }
   }
 
-  const fieldValue = getFieldValue(requestData, rule.condition_field)
+  const fieldValue = FieldMappingService.getValue(requestData, rule.condition_field)
   
   if (fieldValue === undefined || fieldValue === null) {
     return { matched: false, reason: 'Field not found in request data' }
@@ -255,7 +259,7 @@ function evaluateConditionGroups(rule, requestData) {
         continue
       }
       
-      const fieldValue = getFieldValue(requestData, cond.field)
+      const fieldValue = FieldMappingService.getValue(enhancedRequestData, cond.field)
       const condResult = evaluateCondition(fieldValue, cond.conditionOperator, cond.value)
       
       const conditionDesc = `${cond.field} ${cond.conditionOperator} "${cond.value}"`
@@ -381,73 +385,13 @@ function evaluateCondition(fieldValue, operator, conditionValue) {
   }
 }
 
-function getFieldValue(requestData, fieldPath) {
-  // Handle nested paths like "client.client_name"
-  const parts = fieldPath.split('.')
-  let value = requestData
-
-  for (const part of parts) {
-    if (value && typeof value === 'object') {
-      value = value[part]
-    } else {
-      return undefined
-    }
-  }
-
-  // Handle direct field access (e.g., client_name from requestData.client_name or clients table)
-  if (value === undefined) {
-    // Check if it's a client field that might be in requestData directly
-    const clientFields = ['client_name', 'client_country', 'client_industry']
-    if (clientFields.includes(fieldPath) && requestData[fieldPath]) {
-      value = requestData[fieldPath]
-    }
-    // Check if it's an engagement field
-    else if (fieldPath === 'engagement_start_date' && requestData.requested_service_period_start) {
-      value = requestData.requested_service_period_start
-    }
-    else if (fieldPath === 'engagement_end_date' && requestData.requested_service_period_end) {
-      value = requestData.requested_service_period_end
-    }
-    // Calculate engagement_duration if both dates exist
-    else if (fieldPath === 'engagement_duration' && requestData.requested_service_period_start && requestData.requested_service_period_end) {
-      const start = new Date(requestData.requested_service_period_start)
-      const end = new Date(requestData.requested_service_period_end)
-      const diffTime = Math.abs(end - start)
-      const diffYears = diffTime / (1000 * 60 * 60 * 24 * 365)
-      value = diffYears
-    }
-    // Calculate service_turnaround_days
-    else if (fieldPath === 'service_turnaround_days' && requestData.requested_service_period_start && requestData.requested_service_period_end) {
-      const start = new Date(requestData.requested_service_period_start)
-      const end = new Date(requestData.requested_service_period_end)
-      const diffTime = Math.abs(end - start)
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-      value = diffDays
-    }
-  }
-
-  // Also check custom_fields JSON
-  if (value === undefined && requestData.custom_fields) {
-    try {
-      const customFields = typeof requestData.custom_fields === 'string'
-        ? JSON.parse(requestData.custom_fields)
-        : requestData.custom_fields
-      value = customFields[fieldPath]
-    } catch {
-      // Invalid JSON, ignore
-    }
-  }
-
-  return value
-}
-
 function getReason(rule, requestData) {
   if (rule.action_value) {
     return rule.action_value
   }
 
   // Generate default reason
-  const fieldValue = getFieldValue(requestData, rule.condition_field)
+  const fieldValue = FieldMappingService.getValue(requestData, rule.condition_field)
   return `Rule "${rule.rule_name}": ${rule.condition_field} ${rule.condition_operator} ${rule.condition_value} (actual: ${fieldValue})`
 }
 

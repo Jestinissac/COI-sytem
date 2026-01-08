@@ -42,9 +42,9 @@
 - ✅ Impact analysis framework (Pro)
 
 ### Critical Issues Found
-1. **Rule Seeding Inconsistency**: `seedIESBARules.js` missing Pro fields (confidence_level, can_override, etc.)
-2. **Multiple Seeding Scripts**: 4 different rule seeding mechanisms (consolidation needed)
-3. **Field Mapping Gaps**: Some computed fields may not resolve correctly in all scenarios
+1. ✅ **FIXED: Rule Seeding Inconsistency**: Unified `seedRules.js` now includes all Pro fields
+2. ✅ **FIXED: Multiple Seeding Scripts**: Consolidated into single `seedRules.js` (replaces 4 scripts)
+3. ✅ **FIXED: Field Mapping Gaps**: Centralized `fieldMappingService.js` handles all field resolution
 4. **Historical Decisions**: Service exists but not integrated into UI
 
 ---
@@ -116,52 +116,36 @@ Response (JSON)
 
 ## Over-Engineering Issues
 
-### 1. Multiple Rule Seeding Scripts ⚠️
+### 1. Multiple Rule Seeding Scripts ✅ FIXED
 
-**Issue**: Four different mechanisms for seeding rules:
-- `seedIESBARules.js` - IESBA-specific rules (9 rules)
-- `seedAdditionalRules.js` - Additional rules (20 rules)
-- `seedDefaultRules.js` - Default conflict rules (legacy)
-- Inline seeding in `init.js` - Basic rules (3 rules)
+**Issue**: ~~Four different mechanisms for seeding rules~~ **RESOLVED**
 
-**Problem**:
-- Inconsistent field coverage (some include Pro fields, some don't)
-- Maintenance burden (changes need to be made in multiple places)
-- Risk of duplicate rules
-- Unclear which script runs when
+**Solution Implemented**:
+- ✅ Created unified `seedRules.js` that consolidates all rule seeding
+- ✅ Single INSERT statement with all Pro fields (confidence_level, can_override, guidance_text, etc.)
+- ✅ All 88 rules now seeded consistently with complete field coverage
+- ✅ Old scripts deleted: `seedIESBARules.js`, `seedAdditionalRules.js`, `seedDefaultRules.js`
+- ✅ `init.js` updated to call unified seeder
 
 **Location**:
-- `backend/src/scripts/seedIESBARules.js`
-- `backend/src/scripts/seedAdditionalRules.js`
-- `backend/src/scripts/seedDefaultRules.js`
-- `backend/src/database/init.js` (lines 260-350)
+- `backend/src/scripts/seedRules.js` (NEW - unified seeder)
+- `backend/src/database/init.js` (updated to use unified seeder)
 
-**Recommendation**: 
-- Consolidate into single `seedRules.js` with modular rule definitions
-- Use feature flags for Standard vs Pro rules
-- Single INSERT statement with all fields
+### 2. Redundant Field Mapping Logic ✅ FIXED
 
-### 2. Redundant Field Mapping Logic ⚠️
+**Issue**: ~~Field value resolution has hardcoded mappings in multiple places~~ **RESOLVED**
 
-**Issue**: Field value resolution has hardcoded mappings in multiple places:
-- `businessRulesEngine.js` - `getFieldValue()` function
-- `coiController.js` - Field mapping in `submitRequest()`
-- `configController.js` - `getRuleFields()` endpoint
-
-**Problem**:
-- Changes need to be synchronized across files
-- Risk of inconsistencies
-- Hard to maintain
+**Solution Implemented**:
+- ✅ Created centralized `fieldMappingService.js` as single source of truth
+- ✅ All field resolution logic (including computed fields) now in one place
+- ✅ `businessRulesEngine.js` updated to use `FieldMappingService.getValue()`
+- ✅ `coiController.js` updated to use `FieldMappingService.prepareForRuleEvaluation()`
+- ✅ Eliminates duplicate field mapping code across services
 
 **Location**:
-- `backend/src/services/businessRulesEngine.js` (lines 384-410)
-- `backend/src/controllers/coiController.js` (lines 283-288)
-- `backend/src/controllers/configController.js` (lines 1227-1367)
-
-**Recommendation**:
-- Create centralized `fieldMappingService.js`
-- Single source of truth for field mappings
-- Computed field calculations in one place
+- `backend/src/services/fieldMappingService.js` (NEW - centralized service)
+- `backend/src/services/businessRulesEngine.js` (updated to use service)
+- `backend/src/controllers/coiController.js` (updated to use service)
 
 ### 3. Duplicate Rule Categories ⚠️
 
@@ -203,27 +187,18 @@ Response (JSON)
 
 ## Illogical Builds & Inconsistencies
 
-### 1. Rule Seeding Field Mismatch ❌
+### 1. Rule Seeding Field Mismatch ✅ FIXED
 
-**Issue**: `seedIESBARules.js` INSERT statement missing Pro fields:
-```javascript
-// seedIESBARules.js - Missing Pro fields
-INSERT INTO business_rules_config (
-  rule_name, rule_type, rule_category, ..., approved_at
-) VALUES (?, ?, ?, ..., ?)  // 16 fields
+**Issue**: ~~`seedIESBARules.js` INSERT statement missing Pro fields~~ **RESOLVED**
 
-// seedAdditionalRules.js - Includes Pro fields
-INSERT INTO business_rules_config (
-  rule_name, rule_type, rule_category, ..., 
-  confidence_level, can_override, guidance_text, override_guidance
-) VALUES (?, ?, ?, ..., ?, ?, ?, ?)  // 21 fields
-```
+**Solution Implemented**:
+- ✅ Unified `seedRules.js` includes all Pro fields in single INSERT statement
+- ✅ All rules (IESBA, validation, conflict, custom) now have complete field coverage:
+  - `confidence_level`, `can_override`, `guidance_text`, `override_guidance`
+  - `regulation_reference`, `applies_to_pie`, `tax_sub_type`
+- ✅ Consistent field handling across all rule types
 
-**Impact**: IESBA rules don't have confidence levels, override permissions, or guidance text
-
-**Location**: `backend/src/scripts/seedIESBARules.js` (line 186-191)
-
-**Fix Required**: Update INSERT to include all Pro fields
+**Location**: `backend/src/scripts/seedRules.js` (NEW - unified seeder with all fields)
 
 ### 2. Inconsistent Rule Type Values ⚠️
 

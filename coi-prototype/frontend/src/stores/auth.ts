@@ -111,9 +111,25 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function updateEdition(newEdition: 'standard' | 'pro') {
     try {
-      await api.put('/config/edition', { edition: newEdition })
-      edition.value = newEdition
+      const response = await api.put('/config/edition', { edition: newEdition })
+      // Use the edition from the API response to ensure consistency
+      const updatedEdition = response.data?.edition || newEdition
+      
+      // Set edition immediately to ensure UI updates
+      edition.value = updatedEdition
+      
+      // Reload features to ensure they match the new edition
+      // Use a small delay to ensure database update is complete
+      await new Promise(resolve => setTimeout(resolve, 50))
       await loadEdition()
+      
+      // Ensure edition value is preserved after loadEdition
+      // (loadEdition should get the updated value, but ensure it matches)
+      if (edition.value !== updatedEdition) {
+        console.warn(`Edition mismatch after load: expected ${updatedEdition}, got ${edition.value}. Correcting...`)
+        edition.value = updatedEdition
+      }
+      
       return { success: true }
     } catch (error: any) {
       return { success: false, error: error.response?.data?.error || 'Failed to update edition' }

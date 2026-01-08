@@ -1,4 +1,5 @@
 import { getDatabase } from '../database/init.js'
+import { getUserById } from '../utils/userUtils.js'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -12,11 +13,6 @@ const db = getDatabase()
 const uploadsDir = path.join(__dirname, '../../uploads/coi-requests')
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true })
-}
-
-// Helper to get user by ID
-function getUserById(userId) {
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(userId)
 }
 
 export async function uploadAttachment(req, res) {

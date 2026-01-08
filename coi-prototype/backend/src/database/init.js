@@ -511,16 +511,16 @@ export async function initDatabase() {
   
   // Seed IESBA rules (Pro Version)
   try {
-    const { seedIESBARules } = await import('../scripts/seedIESBARules.js')
-    seedIESBARules()
+    // Use unified seeder instead of separate scripts
+    const { seedRules } = await import('../scripts/seedRules.js')
+    seedRules()
   } catch (error) {
     console.log('Note: IESBA rules seeding skipped (may already exist)')
   }
 
   // Seed additional rules (IESBA category, validation, conflict, custom)
   try {
-    const { seedAdditionalRules } = await import('../scripts/seedAdditionalRules.js')
-    seedAdditionalRules()
+    // Rules are now seeded by unified seedRules() above
   } catch (error) {
     console.log('Note: Additional rules seeding skipped (may already exist)')
   }

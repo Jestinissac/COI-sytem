@@ -5,6 +5,9 @@ import { sendApprovalNotification, sendRejectionNotification, sendEngagementCode
 import { generateEngagementCode as generateCode } from '../services/engagementCodeService.js'
 import { updateMonitoringDays, getApproachingLimitRequests, getExceededLimitRequests } from '../services/monitoringService.js'
 import { evaluateRules } from '../services/businessRulesEngine.js'
+import FieldMappingService from '../services/fieldMappingService.js'
+import { parseRecommendations, logComplianceDecision } from '../services/auditTrailService.js'
+import { getUserById } from '../utils/userUtils.js'
 
 const db = getDatabase()
 
@@ -118,6 +121,16 @@ export async function getRequestById(req, res) {
       client_code: client?.client_code || null,
       requester_name: requester?.requester_name || request.requestor_name || null,
       signatories
+    }
+    
+    // Exclude commercial data for Compliance role
+    if (user.role === 'Compliance') {
+      delete response.financial_parameters
+      delete response.engagement_code
+      // Note: total_fees may not be in request object, but if it exists, exclude it
+      if (response.total_fees !== undefined) {
+        delete response.total_fees
+      }
     }
     
     res.json(response)
@@ -280,25 +293,16 @@ export async function submitRequest(req, res) {
     )
     
     // Evaluate business rules
-    // Include client data and computed fields for rule evaluation
-    const ruleEvaluation = evaluateRules({
+    // Use FieldMappingService to prepare request data with all computed fields
+    const requestDataForRules = {
       ...request,
+      client: client, // Include client object for field mapping
       client_name: client.client_name,
       client_type: client.client_type,
       client_country: client.country || null,
-      client_industry: client.industry || null,
-      pie_status: request.pie_status,
-      engagement_start_date: request.requested_service_period_start,
-      engagement_end_date: request.requested_service_period_end,
-      total_fees: request.total_fees || null,
-      // Computed fields
-      engagement_duration: request.requested_service_period_start && request.requested_service_period_end
-        ? (new Date(request.requested_service_period_end) - new Date(request.requested_service_period_start)) / (1000 * 60 * 60 * 24 * 365)
-        : null,
-      service_turnaround_days: request.requested_service_period_start && request.requested_service_period_end
-        ? Math.ceil((new Date(request.requested_service_period_end) - new Date(request.requested_service_period_start)) / (1000 * 60 * 60 * 24))
-        : null
-    })
+      client_industry: client.industry || null
+    }
+    const ruleEvaluation = evaluateRules(FieldMappingService.prepareForRuleEvaluation(requestDataForRules))
 
     // Combine duplicates and rule recommendations
     const allRecommendations = {
@@ -316,14 +320,14 @@ export async function submitRequest(req, res) {
     const hasBlockRecommendation = ruleEvaluation.recommendations?.some(r => r.recommendedAction === 'block')
     const hasRequireApproval = ruleEvaluation.recommendations?.some(r => r.recommendedAction === 'require_approval')
     
-    if (hasBlockRecommendation || hasRequireApproval) {
+    // Directors skip their own approval, go directly to Compliance
+    if (user.role === 'Director') {
       newStatus = 'Pending Compliance'
-    }
-    
-    // If team member, require director approval first (unless blocked by rules)
-    if (user.role === 'Requester' && user.director_id && !hasBlockRecommendation) {
+    } else if (user.role === 'Requester' && user.director_id && !hasBlockRecommendation) {
+      // Team members require director approval first (unless blocked by rules)
       newStatus = 'Pending Director Approval'
     }
+    // If hasBlockRecommendation or hasRequireApproval, status is already 'Pending Compliance' (set above)
 
     // Update status with all recommendations
     db.prepare('UPDATE coi_requests SET status = ?, duplication_matches = ? WHERE id = ?').run(
@@ -580,8 +584,8 @@ export async function executeProposal(req, res) {
       UPDATE coi_requests 
       SET execution_date = ?,
           proposal_sent_date = ?,
-          status = 'Active',
-          stage = 'Engagement',
+          status = 'Approved',
+          stage = 'Proposal',
           days_in_monitoring = 0,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -738,7 +742,5 @@ export async function reEvaluateRequest(req, res) {
   }
 }
 
-function getUserById(userId) {
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(userId)
-}
+// getUserById now imported from utils/userUtils.js
 

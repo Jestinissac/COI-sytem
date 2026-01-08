@@ -3,24 +3,93 @@ import { getDatabase } from '../database/init.js'
 const db = getDatabase()
 
 /**
- * Seed Additional Rules:
- * - IESBA category rules (standalone)
- * - Validation rules
- * - Conflict rules
- * - Custom rules
+ * UNIFIED RULE SEEDER
+ * Replaces: seedIESBARules.js, seedAdditionalRules.js, seedDefaultRules.js, and inline seeding in init.js
+ * 
+ * This single script manages all rule seeding with consistent field handling.
  */
-export function seedAdditionalRules() {
+
+export function seedRules() {
   try {
+    console.log('🌱 Starting Unified Rule Seeding...')
+
     // Get Super Admin user for created_by
     const superAdmin = db.prepare('SELECT id FROM users WHERE role = ? LIMIT 1').get('Super Admin')
     if (!superAdmin) {
-      console.error('Super Admin user not found. Cannot seed additional rules.')
-      return
+      console.error('⚠️  Super Admin user not found. Cannot seed rules.')
+      return { inserted: 0, skipped: 0 }
     }
     const createdBy = superAdmin.id
+    const now = new Date().toISOString()
 
-    const rules = [
-      // ========== IESBA Category Rules (Standalone) ==========
+    // ========== ALL RULES DATA ==========
+    const allRules = [
+      // ========== RED LINE RULES ==========
+      {
+        rule_name: 'Red Line: Management Responsibility',
+        rule_type: 'conflict',
+        rule_category: 'Red Line',
+        condition_field: 'service_description',
+        condition_operator: 'contains',
+        condition_value: 'management responsibility,financial statements preparation,management decision',
+        action_type: 'block',
+        action_value: 'CRITICAL: Management responsibility violates auditor independence per IESBA Code Section 290.104',
+        regulation_reference: 'IESBA Code Section 290.104',
+        applies_to_pie: false,
+        is_active: 1,
+        approval_status: 'Approved',
+        created_by: createdBy,
+        approved_by: createdBy,
+        approved_at: now,
+        confidence_level: 'CRITICAL',
+        can_override: 0,
+        guidance_text: 'Management responsibility for financial statements is a fundamental independence violation. Cannot be overridden.',
+        override_guidance: 'Cannot override - red line violation'
+      },
+      {
+        rule_name: 'Red Line: Advocacy',
+        rule_type: 'conflict',
+        rule_category: 'Red Line',
+        condition_field: 'service_description',
+        condition_operator: 'contains',
+        condition_value: 'advocate,litigation support,court representation,dispute resolution',
+        action_type: 'block',
+        action_value: 'CRITICAL: Acting as advocate violates auditor independence per IESBA Code Section 290',
+        regulation_reference: 'IESBA Code Section 290',
+        applies_to_pie: false,
+        is_active: 1,
+        approval_status: 'Approved',
+        created_by: createdBy,
+        approved_by: createdBy,
+        approved_at: now,
+        confidence_level: 'CRITICAL',
+        can_override: 0,
+        guidance_text: 'Auditors cannot act as advocates for audit clients. This includes litigation support, dispute resolution, or legal representation services.',
+        override_guidance: 'Cannot override - red line violation'
+      },
+      {
+        rule_name: 'Red Line: Contingent Fees',
+        rule_type: 'conflict',
+        rule_category: 'Red Line',
+        condition_field: 'service_description',
+        condition_operator: 'contains',
+        condition_value: 'contingent fee,success fee,performance based fee,outcome based',
+        action_type: 'block',
+        action_value: 'CRITICAL: Contingent fees violate auditor independence per IESBA Code Section 290',
+        regulation_reference: 'IESBA Code Section 290',
+        applies_to_pie: false,
+        is_active: 1,
+        approval_status: 'Approved',
+        created_by: createdBy,
+        approved_by: createdBy,
+        approved_at: now,
+        confidence_level: 'CRITICAL',
+        can_override: 0,
+        guidance_text: 'Contingent fees for audit clients create an unacceptable self-interest threat.',
+        override_guidance: 'Cannot override - red line violation'
+      },
+
+      // ========== IESBA CATEGORY RULES ==========
       {
         rule_name: 'IESBA: Auditor Independence - General Principle',
         rule_type: 'validation',
@@ -36,7 +105,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'HIGH',
         can_override: 0,
         guidance_text: 'IESBA Code Section 290 requires auditors to identify and evaluate threats to independence. All audit engagements must be reviewed for potential independence threats.',
@@ -57,7 +126,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'CRITICAL',
         can_override: 0,
         guidance_text: 'Self-review threats occur when audit work is based on previous non-audit work performed by the same firm. This violates fundamental independence principles.',
@@ -78,7 +147,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'CRITICAL',
         can_override: 0,
         guidance_text: 'Auditors cannot act as advocates for audit clients. This includes litigation support, dispute resolution, or legal representation services.',
@@ -99,7 +168,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'MEDIUM',
         can_override: 1,
         guidance_text: 'Long-term audit engagements may create familiarity threats. For PIE clients, rotation requirements apply after 5-7 years depending on jurisdiction.',
@@ -120,14 +189,149 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'HIGH',
         can_override: 1,
         guidance_text: 'When fees from a single client exceed 15% of total firm fees, a self-interest threat exists. For PIE clients, this threshold is stricter.',
         override_guidance: 'May override with documented safeguards and fee cap compliance'
       },
 
-      // ========== Validation Rules ==========
+      // ========== PIE RULES ==========
+      {
+        rule_name: 'PIE: Tax Planning Prohibited',
+        rule_type: 'conflict',
+        rule_category: 'PIE',
+        condition_field: 'pie_status',
+        condition_operator: 'equals',
+        condition_value: 'Yes',
+        action_type: 'block',
+        action_value: 'HIGH: Tax Planning for PIE audit client is prohibited per IESBA Code Section 290',
+        regulation_reference: 'IESBA Code Section 290',
+        applies_to_pie: true,
+        tax_sub_type: 'TAX_PLANNING',
+        is_active: 1,
+        approval_status: 'Approved',
+        created_by: createdBy,
+        approved_by: createdBy,
+        approved_at: now,
+        confidence_level: 'HIGH',
+        can_override: 0,
+        guidance_text: 'Tax planning services for PIE audit clients are strictly prohibited per IESBA Code Section 290.212.',
+        override_guidance: 'Cannot override - PIE restriction'
+      },
+      {
+        rule_name: 'PIE: Tax Compliance Requires Safeguards',
+        rule_type: 'conflict',
+        rule_category: 'PIE',
+        condition_field: 'pie_status',
+        condition_operator: 'equals',
+        condition_value: 'Yes',
+        action_type: 'flag',
+        action_value: 'MEDIUM: Tax Compliance for PIE requires safeguards and fee cap review per IESBA Code Section 290',
+        regulation_reference: 'IESBA Code Section 290',
+        applies_to_pie: true,
+        tax_sub_type: 'TAX_COMPLIANCE',
+        is_active: 1,
+        approval_status: 'Approved',
+        created_by: createdBy,
+        approved_by: createdBy,
+        approved_at: now,
+        confidence_level: 'MEDIUM',
+        can_override: 1,
+        guidance_text: 'Tax compliance services for PIE audit clients require enhanced safeguards and fee cap compliance.',
+        override_guidance: 'May override with documented safeguards'
+      },
+      {
+        rule_name: 'PIE: Advisory Services Prohibited',
+        rule_type: 'conflict',
+        rule_category: 'PIE',
+        condition_field: 'pie_status',
+        condition_operator: 'equals',
+        condition_value: 'Yes',
+        action_type: 'block',
+        action_value: 'HIGH: Advisory services for PIE audit client are prohibited per IESBA Code Section 290',
+        regulation_reference: 'IESBA Code Section 290',
+        applies_to_pie: true,
+        is_active: 1,
+        approval_status: 'Approved',
+        created_by: createdBy,
+        approved_by: createdBy,
+        approved_at: now,
+        confidence_level: 'HIGH',
+        can_override: 0,
+        guidance_text: 'Advisory services for PIE audit clients are generally prohibited to maintain independence.',
+        override_guidance: 'Cannot override - PIE restriction'
+      },
+
+      // ========== TAX SERVICE RULES ==========
+      {
+        rule_name: 'Audit + Tax Planning (PIE) - Prohibited',
+        rule_type: 'conflict',
+        rule_category: 'Tax',
+        condition_field: 'service_type',
+        condition_operator: 'contains',
+        condition_value: 'Tax Planning,Tax Strategy',
+        action_type: 'block',
+        action_value: 'HIGH: Tax Planning for PIE audit client is prohibited - cannot override',
+        regulation_reference: 'IESBA Code Section 290',
+        applies_to_pie: true,
+        tax_sub_type: 'TAX_PLANNING',
+        is_active: 1,
+        approval_status: 'Approved',
+        created_by: createdBy,
+        approved_by: createdBy,
+        approved_at: now,
+        confidence_level: 'HIGH',
+        can_override: 0,
+        guidance_text: 'Tax planning services for PIE audit clients are strictly prohibited.',
+        override_guidance: 'Cannot override - PIE restriction'
+      },
+      {
+        rule_name: 'Audit + Tax Planning (Non-PIE) - Requires Safeguards',
+        rule_type: 'conflict',
+        rule_category: 'Tax',
+        condition_field: 'service_type',
+        condition_operator: 'contains',
+        condition_value: 'Tax Planning,Tax Strategy',
+        action_type: 'flag',
+        action_value: 'MEDIUM: Tax Planning for non-PIE audit client requires safeguards and review',
+        regulation_reference: 'IESBA Code Section 290',
+        applies_to_pie: false,
+        tax_sub_type: 'TAX_PLANNING',
+        is_active: 1,
+        approval_status: 'Approved',
+        created_by: createdBy,
+        approved_by: createdBy,
+        approved_at: now,
+        confidence_level: 'MEDIUM',
+        can_override: 1,
+        guidance_text: 'Tax planning for non-PIE audit clients requires safeguards and careful review.',
+        override_guidance: 'May override with documented safeguards'
+      },
+      {
+        rule_name: 'Audit + Tax Compliance - Likely Approved',
+        rule_type: 'conflict',
+        rule_category: 'Tax',
+        condition_field: 'service_type',
+        condition_operator: 'contains',
+        condition_value: 'Tax Compliance,Tax Return',
+        action_type: 'flag',
+        action_value: 'LOW: Tax Compliance usually approved with safeguards and fee cap compliance',
+        regulation_reference: 'IESBA Code Section 290',
+        applies_to_pie: false,
+        tax_sub_type: 'TAX_COMPLIANCE',
+        is_active: 1,
+        approval_status: 'Approved',
+        created_by: createdBy,
+        approved_by: createdBy,
+        approved_at: now,
+        confidence_level: 'LOW',
+        can_override: 1,
+        guidance_text: 'Tax compliance services are generally acceptable with proper safeguards.',
+        override_guidance: 'May proceed with safeguards'
+      },
+
+      // ========== VALIDATION RULES ==========
       {
         rule_name: 'Validation: Required Fields Missing',
         rule_type: 'validation',
@@ -143,7 +347,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'HIGH',
         can_override: 0,
         guidance_text: 'All COI requests must include client name for proper identification and conflict checking.',
@@ -164,7 +368,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'HIGH',
         can_override: 0,
         guidance_text: 'Service type is essential for conflict detection and IESBA compliance checking.',
@@ -185,7 +389,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'MEDIUM',
         can_override: 1,
         guidance_text: 'Public Interest Entity (PIE) status determines which IESBA rules apply. Missing status may result in incorrect conflict assessment.',
@@ -206,7 +410,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'MEDIUM',
         can_override: 1,
         guidance_text: 'Engagement dates are needed to check for overlapping services and duration-based threats.',
@@ -227,30 +431,30 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'MEDIUM',
         can_override: 0,
         guidance_text: 'Fee amounts must be numeric for proper calculation of fee dependence threats.',
         override_guidance: 'Cannot override - data format issue'
       },
 
-      // ========== Conflict Rules ==========
+      // ========== CONFLICT RULES ==========
       {
-        rule_name: 'Conflict: Audit + Consulting for Same Client',
+        rule_name: 'Conflict: Audit + Advisory for Same Client',
         rule_type: 'conflict',
         rule_category: 'Custom',
         condition_field: 'service_type',
         condition_operator: 'contains',
-        condition_value: 'Audit,Consulting',
+        condition_value: 'Audit,Advisory',
         action_type: 'block',
-        action_value: 'HIGH: Audit and Consulting for same client creates independence threat',
+        action_value: 'HIGH: Audit and Advisory for same client creates independence threat',
         regulation_reference: 'IESBA Code Section 290',
         applies_to_pie: true,
         is_active: 1,
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'HIGH',
         can_override: 1,
         guidance_text: 'Providing consulting services to audit clients may create self-review and management participation threats.',
@@ -271,7 +475,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'MEDIUM',
         can_override: 1,
         guidance_text: 'Multiple simultaneous audit engagements may create resource allocation issues and quality concerns.',
@@ -292,7 +496,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'HIGH',
         can_override: 1,
         guidance_text: 'PIE audit clients have stricter restrictions on non-audit services. Tax planning and advisory services are generally prohibited.',
@@ -313,7 +517,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'CRITICAL',
         can_override: 0,
         guidance_text: 'Any direct or material indirect financial interest in an audit client creates an unacceptable self-interest threat.',
@@ -334,14 +538,35 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'HIGH',
         can_override: 1,
         guidance_text: 'Close family relationships with client management may create familiarity threats. For PIE clients, restrictions are stricter.',
         override_guidance: 'May override with documented safeguards and independence review'
       },
+      {
+        rule_name: 'Audit + Tax Compliance Review',
+        rule_type: 'conflict',
+        rule_category: 'General',
+        condition_field: 'service_type',
+        condition_operator: 'contains',
+        condition_value: 'Audit,Tax',
+        action_type: 'require_approval',
+        action_value: 'Audit + Tax Compliance = Review Required',
+        regulation_reference: '',
+        applies_to_pie: false,
+        is_active: 1,
+        approval_status: 'Approved',
+        created_by: createdBy,
+        approved_by: createdBy,
+        approved_at: now,
+        confidence_level: 'MEDIUM',
+        can_override: 1,
+        guidance_text: 'Audit and tax services for the same client require careful review to ensure independence.',
+        override_guidance: 'May proceed with safeguards'
+      },
 
-      // ========== Custom Rules (5) ==========
+      // ========== CUSTOM RULES (5) ==========
       {
         rule_name: 'Custom: High-Value Engagement Review',
         rule_type: 'validation',
@@ -357,7 +582,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'MEDIUM',
         can_override: 1,
         guidance_text: 'High-value engagements require additional review to ensure proper resource allocation and quality standards.',
@@ -378,7 +603,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'MEDIUM',
         can_override: 1,
         guidance_text: 'New clients require enhanced due diligence to identify potential conflicts and compliance issues before engagement.',
@@ -399,7 +624,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'MEDIUM',
         can_override: 1,
         guidance_text: 'Cross-border engagements require verification of local regulatory requirements and professional licensing.',
@@ -420,7 +645,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'LOW',
         can_override: 1,
         guidance_text: 'Rapid turnaround requests should be reviewed to ensure quality standards and professional standards are not compromised.',
@@ -441,7 +666,7 @@ export function seedAdditionalRules() {
         approval_status: 'Approved',
         created_by: createdBy,
         approved_by: createdBy,
-        approved_at: new Date().toISOString(),
+        approved_at: now,
         confidence_level: 'MEDIUM',
         can_override: 1,
         guidance_text: 'Regulated industries require specialized expertise and additional regulatory compliance checks.',
@@ -449,8 +674,9 @@ export function seedAdditionalRules() {
       }
     ]
 
+    // Prepare INSERT statement with all fields
     const stmt = db.prepare(`
-      INSERT INTO business_rules_config (
+      INSERT OR REPLACE INTO business_rules_config (
         rule_name, rule_type, rule_category, condition_field, condition_operator, condition_value,
         action_type, action_value, regulation_reference, applies_to_pie, tax_sub_type,
         is_active, approval_status, created_by, approved_by, approved_at,
@@ -461,17 +687,18 @@ export function seedAdditionalRules() {
     const transaction = db.transaction((rulesToInsert) => {
       let inserted = 0
       let skipped = 0
+      
       for (const rule of rulesToInsert) {
         try {
           stmt.run(
             rule.rule_name,
             rule.rule_type,
-            rule.rule_category,
-            rule.condition_field,
-            rule.condition_operator,
-            rule.condition_value,
+            rule.rule_category || null,
+            rule.condition_field || null,
+            rule.condition_operator || null,
+            rule.condition_value || null,
             rule.action_type,
-            rule.action_value,
+            rule.action_value || null,
             rule.regulation_reference || null,
             rule.applies_to_pie ? 1 : 0,
             rule.tax_sub_type || null,
@@ -490,23 +717,24 @@ export function seedAdditionalRules() {
           if (error.message.includes('UNIQUE constraint') || error.message.includes('already exists')) {
             skipped++
           } else {
-            console.error(`Error inserting rule "${rule.rule_name}":`, error.message)
+            console.error(`❌ Error inserting rule "${rule.rule_name}":`, error.message)
           }
         }
       }
+      
       return { inserted, skipped }
     })
 
-    const result = transaction(rules)
-    console.log(`✅ Seeded ${result.inserted} additional rules (${result.skipped} already existed)`)
+    const result = transaction(allRules)
+    console.log(`✅ Successfully seeded ${result.inserted} rules (${result.skipped} already existed)`)
     return result
   } catch (error) {
-    console.error('Error seeding additional rules:', error)
+    console.error('❌ Error in unified rule seeding:', error)
     throw error
   }
 }
 
 // Run if called directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  seedAdditionalRules()
+  seedRules()
 }

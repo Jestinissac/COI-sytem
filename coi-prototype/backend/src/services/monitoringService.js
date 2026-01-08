@@ -92,6 +92,77 @@ export function getMonitoringAlertsSummary() {
   return getMonitoringDashboard()
 }
 
+/**
+ * Check and automatically lapse proposals that have exceeded 30-day window
+ * without client response
+ */
+export async function checkAndLapseExpiredProposals() {
+  const db = getDatabase()
+  
+  try {
+    // Find proposals executed >30 days ago with no client response
+    // Status should be 'Approved' with stage 'Proposal' (after execution, before client accepts)
+    const expiredProposals = db.prepare(`
+      SELECT 
+        id, 
+        request_id, 
+        client_id, 
+        execution_date,
+        proposal_sent_date,
+        requester_id
+      FROM coi_requests
+      WHERE status = 'Approved'
+        AND stage = 'Proposal'
+        AND execution_date IS NOT NULL
+        AND client_response_date IS NULL
+        AND DATE(execution_date, '+30 days') < DATE('now')
+    `).all()
+    
+    const lapsed = []
+    const notifications = []
+    
+    for (const proposal of expiredProposals) {
+      // Update status to Lapsed
+      db.prepare(`
+        UPDATE coi_requests 
+        SET status = 'Lapsed',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(proposal.id)
+      
+      lapsed.push({
+        request_id: proposal.request_id,
+        id: proposal.id,
+        execution_date: proposal.execution_date
+      })
+      
+      // Log the lapse
+      console.log(`[Monitoring] Request ${proposal.request_id} automatically lapsed after 30 days without client response`)
+      
+      notifications.push({
+        requestId: proposal.id,
+        requestIdDisplay: proposal.request_id,
+        message: `Request ${proposal.request_id} has automatically lapsed after 30 days without client response`
+      })
+    }
+    
+    return { 
+      success: true, 
+      lapsed: lapsed.length, 
+      requestIds: lapsed.map(l => l.request_id),
+      notifications 
+    }
+  } catch (error) {
+    console.error('Error checking and lapsing expired proposals:', error)
+    return { 
+      success: false, 
+      error: error.message,
+      lapsed: 0,
+      requestIds: []
+    }
+  }
+}
+
 // Monitoring configuration
 const MONITORING_CONFIG = {
   engagementExpiryWarningDays: [30, 14, 7, 1],

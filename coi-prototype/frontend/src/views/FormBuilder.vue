@@ -920,8 +920,6 @@ function importFromExistingForm() {
       is_readonly: Boolean(field.is_readonly),
       display_order: field.display_order || index + 1,
       section_id: field.section_id || 'section-1'
-      ...field,
-      id: `imported_${Date.now()}_${index}`
     }))
     
     success('Form imported from existing COI form! Review and save when ready.')

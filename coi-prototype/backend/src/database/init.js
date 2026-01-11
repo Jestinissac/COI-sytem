@@ -70,6 +70,41 @@ export async function initDatabase() {
     }
   }
 
+  // Ensure restrictions columns exist for approval workflows
+  const restrictionsColumns = [
+    { name: 'director_restrictions', def: 'TEXT' },
+    { name: 'compliance_restrictions', def: 'TEXT' },
+    { name: 'partner_restrictions', def: 'TEXT' }
+  ]
+  
+  for (const col of restrictionsColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        // Column already exists, that's fine
+      }
+    }
+  }
+
+  // Ensure dynamic form support columns exist
+  const dynamicFormColumns = [
+    { name: 'custom_fields', def: 'TEXT' },
+    { name: 'form_version', def: 'INTEGER DEFAULT 1' }
+  ]
+  
+  for (const col of dynamicFormColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        // Column already exists, that's fine
+      }
+    }
+  }
+
   // Initialize system_config table if it doesn't exist
   try {
     db.exec(`
@@ -498,12 +533,29 @@ export async function initDatabase() {
     { name: 'engagement_end_date', def: 'DATE' },
     { name: 'expiry_notification_sent', def: 'TEXT' },
     { name: 'compliance_reminder_sent', def: 'DATETIME' },
-    { name: 'stale_notification_sent', def: 'DATETIME' }
+    { name: 'stale_notification_sent', def: 'DATETIME' },
+    { name: 'interval_alerts_sent', def: 'TEXT' }
   ]
   
   for (const col of monitoringColumns) {
     try {
       db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      // Column exists, ignore
+    }
+  }
+
+  // Add rejection tracking columns for resubmission feature
+  const rejectionColumns = [
+    { name: 'rejection_reason', def: 'TEXT' },
+    { name: 'rejection_type', def: "VARCHAR(20) DEFAULT 'fixable'" }
+  ]
+  
+  for (const col of rejectionColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
     } catch (error) {
       // Column exists, ignore
     }

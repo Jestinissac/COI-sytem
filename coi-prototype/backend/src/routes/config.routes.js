@@ -15,6 +15,7 @@ import {
   approveBusinessRule,
   rejectBusinessRule,
   deleteBusinessRule,
+  cleanupDuplicateRules,
   getFormTemplates,
   getFormTemplate,
   saveFormTemplate,
@@ -52,6 +53,7 @@ router.post('/business-rules/:id/impact', requireRole('Admin', 'Super Admin', 'C
 router.delete('/business-rules/:id', requireRole('Admin', 'Super Admin', 'Compliance'), deleteBusinessRule)
 router.post('/business-rules/:id/approve', requireRole('Super Admin'), approveBusinessRule)
 router.post('/business-rules/:id/reject', requireRole('Super Admin'), rejectBusinessRule)
+router.post('/business-rules/cleanup-duplicates', requireRole('Super Admin'), cleanupDuplicateRules)
 
 // Rule Fields API - Get all available fields for rule building
 router.get('/rule-fields', getRuleFields)

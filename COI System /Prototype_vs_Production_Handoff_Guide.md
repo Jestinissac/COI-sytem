@@ -799,24 +799,88 @@ WHERE Status = 'Active';
 -- PRMS creates project (validates Engagement Code)
 INSERT INTO PRMS.dbo.Projects (
     ProjectID,
-    EngagementCode, -- Must exist and be Active in COI
+    EngagementCode, -- **MANDATORY** - Must exist and be Active in COI
     ClientCode,
     ServiceType,
-    ServiceYear
+    ServiceYear,
+    BillingCurrency, -- From COI financial_parameters.currency
+    Risks, -- From COI financial_parameters.risk_assessment (converted to text)
+    ProjectValue -- Optional: From COI financial_parameters.pending_amount
 ) VALUES (...);
 
 -- Database constraint prevents invalid codes
 -- FOREIGN KEY (EngagementCode) REFERENCES COI.dbo.coi_engagement_codes(engagement_code)
 ```
 
+**⚠️ CRITICAL PRMS REQUIREMENT: Engagement Code Field**
+
+**Status**: Engagement Code field is **NOT currently present** in PRMS project creation form.
+
+**Production Requirement**: 
+- **PRMS MUST add `EngagementCode` as a MANDATORY field** in the Project Creation form
+- This field must be:
+  - Required (cannot be null)
+  - Validated against COI system before project creation
+  - Linked via foreign key constraint to `COI.dbo.coi_engagement_codes(engagement_code)`
+  - Only accepts codes with status = 'Active'
+
+**PRMS Schema Update Required**:
+```sql
+-- PRMS.dbo.Projects table MUST include:
+ALTER TABLE PRMS.dbo.Projects
+ADD COLUMN EngagementCode VARCHAR(50) NOT NULL;
+
+-- Foreign key constraint (enforces validation)
+ALTER TABLE PRMS.dbo.Projects
+ADD CONSTRAINT FK_Projects_EngagementCode
+FOREIGN KEY (EngagementCode)
+REFERENCES COI.dbo.coi_engagement_codes(engagement_code);
+
+-- Check constraint (only Active codes)
+ALTER TABLE PRMS.dbo.Projects
+ADD CONSTRAINT CHK_EngagementCode_Active
+CHECK (
+    EXISTS (
+        SELECT 1 FROM COI.dbo.coi_engagement_codes
+        WHERE engagement_code = PRMS.dbo.Projects.EngagementCode
+        AND status = 'Active'
+    )
+);
+```
+
+**Financial Parameters Integration**:
+
+Based on PRMS field analysis (`http://prms.envisionsystem.com/project/add`), the following financial parameters should be pushed from COI to PRMS:
+
+1. **Billing Currency** (HIGH Priority)
+   - **COI Source**: `financial_parameters.currency`
+   - **PRMS Target**: `Billing Currency` dropdown (already exists)
+   - **Action**: Push during project creation
+
+2. **Risk Assessment** (MEDIUM Priority)
+   - **COI Source**: `financial_parameters.risk_assessment` (Low, Medium, High, Very High)
+   - **PRMS Target**: `Risks` textbox (already exists, free text)
+   - **Action**: Convert structured value to descriptive text
+   - **Mapping**: "Low" → "Risk Assessment: Low", etc.
+
+3. **Project Value** (OPTIONAL, LOW Priority)
+   - **COI Source**: `financial_parameters.pending_amount`
+   - **PRMS Target**: `Project Value` text input (already exists)
+   - **Action**: Push if `pending_amount` is provided
+
+**Fields NOT to Push**:
+- **Credit Terms**: PRMS doesn't have this field - keep in COI only
+- **Financial Notes**: Optional - can be included in PRMS Description field if needed
+
 **Integration Method**:
-- **Option A**: COI provides validation API endpoint
+- **Option A**: COI provides validation API endpoint + financial data push
 - **Option B**: PRMS queries COI database directly (if same network)
 - **Option C**: Database view/synonym (if allowed)
 
 **Synchronization**:
 - **Client Master**: Real-time webhook or 5-minute polling
 - **Engagement Codes**: PRMS validates on project creation (real-time)
+- **Financial Parameters**: Pushed during project creation (real-time)
 
 ---
 
@@ -1212,6 +1276,10 @@ const fields = await db.query('SELECT * FROM coi_field_config WHERE is_active = 
   - [ ] Fetch Client Master (sync strategy)
   - [ ] Provide Engagement Code validation endpoint
   - [ ] Handle project creation triggers
+  - [ ] **⚠️ CRITICAL: Add Engagement Code field to PRMS project form (MANDATORY)**
+  - [ ] Push financial parameters (currency, risk assessment) to PRMS
+  - [ ] Map COI risk assessment to PRMS Risks field (structured → text conversion)
+  - [ ] Update PRMS Projects table schema with Engagement Code foreign key constraint
 
 - [ ] **Email Integration**:
   - [ ] Configure O365 SMTP
@@ -1246,6 +1314,43 @@ const fields = await db.query('SELECT * FROM coi_field_config WHERE is_active = 
   - [ ] Redis cache for duplication checks
   - [ ] Client data caching
   - [ ] Query optimization
+
+### Latest Features (Production Requirements)
+
+- [ ] **Finance Module**:
+  - [ ] Financial parameters modal/form
+  - [ ] Code preview functionality
+  - [ ] Backend validation (Partner approval, status checks)
+  - [ ] Financial parameters display in UI
+  - [ ] Integration with PRMS (currency, risk assessment push)
+
+- [ ] **Resubmission Workflow**:
+  - [ ] Rejection type distinction (fixable/permanent)
+  - [ ] Resubmission logic and UI
+  - [ ] Email notification differentiation
+  - [ ] Database columns: `rejection_reason`, `rejection_type`
+
+- [ ] **Feedback Loops**:
+  - [ ] All notification types implemented
+  - [ ] Role-based recipient logic
+  - [ ] Template-based emails
+  - [ ] Client response notifications
+  - [ ] Monitoring alerts (30-day, renewal, expiry)
+
+- [ ] **Foreign Key Handling**:
+  - [ ] Cascade deletion logic
+  - [ ] Soft delete option (consider)
+  - [ ] Audit trail for deletions
+
+- [ ] **Rule Management**:
+  - [ ] Deduplication logic
+  - [ ] Unique constraints
+  - [ ] Cleanup endpoints
+
+- [ ] **Conflict Detection**:
+  - [ ] Expandable conflict sections
+  - [ ] Clickable conflict items (new tab)
+  - [ ] Visual feedback improvements
 
 ### Security & Compliance
 
@@ -1393,6 +1498,218 @@ CREATE PROCEDURE sp_GetDynamicFields
 - User Journeys: `COI System /User_Journeys_End_to_End.md`
 - Dynamic Fields: `COI System /COI_Template_Fields_Extraction.md`
 - Fuzzy Matching: `COI System /Fuzzy_Matching_Implementation_Location.md`
+- PRMS Integration Analysis: `PRMS_INTEGRATION_ANALYSIS.md` (Financial parameters mapping)
+- Finance Module Gap Analysis: `FINANCE_MODULE_GAP_ANALYSIS.md`
+
+---
+
+## Latest Prototype Updates (January 2026)
+
+### Finance Module Enhancements ✅
+
+**Status**: Fully implemented in prototype
+
+**Features Added**:
+1. **Financial Parameters Modal** (`CodeGenerationModal.vue`)
+   - Credit Terms dropdown (Net 15, 30, 60, 90, Due on Receipt, Custom)
+   - Currency dropdown (KWD, USD, EUR, GBP, SAR, AED)
+   - Risk Assessment dropdown (Low, Medium, High, Very High)
+   - Pending Amount (optional number field)
+   - Notes (optional textarea)
+   - Code preview before generation (`ENG-{YEAR}-{SERVICE_TYPE}-#####`)
+
+2. **Backend Validation** (`coiController.js` - `generateEngagementCode`)
+   - Partner approval required before code generation
+   - Request status validation (Pending Finance, Approved, Pending Partner)
+   - Duplicate code prevention
+   - Service type validation
+   - Financial parameters validation (credit_terms, currency, risk_assessment required)
+
+3. **Financial Parameters Display**
+   - Request detail page shows financial parameters section
+   - Engagement Codes tab shows currency and risk assessment
+   - Color-coded risk assessment display
+
+**Production Notes**:
+- Financial parameters stored in `coi_requests.financial_parameters` (JSON TEXT)
+- These parameters should be pushed to PRMS during project creation (see PRMS Integration section)
+- Currency and Risk Assessment are HIGH/MEDIUM priority for PRMS integration
+
+---
+
+### Resubmission Workflow ✅
+
+**Status**: Fully implemented in prototype
+
+**Features Added**:
+1. **Rejection Type Distinction**
+   - `rejection_type` field: 'fixable' or 'permanent'
+   - Fixable rejections: Requester can modify and resubmit
+   - Permanent rejections: Cannot be resubmitted (e.g., client rejections, hard prohibitions)
+
+2. **Database Schema**:
+   ```sql
+   ALTER TABLE coi_requests ADD COLUMN rejection_reason TEXT;
+   ALTER TABLE coi_requests ADD COLUMN rejection_type VARCHAR(20) DEFAULT 'fixable';
+   ```
+
+3. **Resubmission Logic** (`coiController.js` - `resubmitRejectedRequest`):
+   - Only fixable rejections can be resubmitted
+   - Resubmission converts request back to 'Draft' status
+   - Resets approval fields (director, compliance, partner statuses, dates, notes)
+   - Preserves rejection reason for reference
+
+4. **UI Features**:
+   - Rejection type selector in reject modal (radio buttons)
+   - Conditional "Modify and Resubmit" button (fixable only)
+   - "Create New Request" link for permanent rejections
+   - Rejected requests tab in Requester Dashboard
+
+**Production Notes**:
+- Client rejections are automatically marked as 'permanent'
+- Approver rejections default to 'fixable' but can be set to 'permanent'
+- Email notifications differentiate between fixable and permanent rejections
+- Resubmission is a **common feature** (Standard + Pro editions)
+
+---
+
+### Feedback Loops & Notifications ✅
+
+**Status**: Fully implemented in prototype
+
+**Features Added**:
+1. **Comprehensive Notification Coverage**:
+   - Director approval/rejection notifications
+   - Compliance review notifications (stale requests, duplication alerts)
+   - Partner approval/rejection notifications
+   - Finance engagement code generation notifications (requester, admin, partner)
+   - Client response notifications (acceptance/rejection)
+   - Resubmission notifications
+   - "Need More Info" notifications
+
+2. **Email Service** (`emailService.js`):
+   - Role-based recipient logic
+   - Template-based emails
+   - Notification differentiation by type
+   - Client acceptance/rejection notifications
+
+3. **Monitoring Alerts**:
+   - 30-day proposal monitoring (every 10 days)
+   - Renewal alerts
+   - Expiry tracking
+   - Interval alerts
+
+**Production Notes**:
+- All notifications currently use console logging (prototype)
+- Production must use O365 SMTP (see Email Integration section)
+- Email addresses should be fetched from HRMS Employee Master
+- Templates should be database-driven (see Email Templates section)
+
+---
+
+### Foreign Key Constraint Handling ✅
+
+**Status**: Implemented with balanced approach
+
+**Issue**: Foreign key constraints prevent deletion of draft requests with related records.
+
+**Solution**: Cascade deletion implemented in `deleteRequest` function:
+- Deletes related records from: `coi_attachments`, `uploaded_files`, `coi_signatories`, `isqm_forms`, `global_coi_submissions`, `engagement_renewals`, `monitoring_alerts`, `execution_tracking`
+- Deletes associated files from filesystem
+- Finally deletes `coi_requests` record
+
+**Production Notes**:
+- SQL Server foreign key constraints should use `ON DELETE CASCADE` where appropriate
+- Audit trail should log all deletions
+- Soft delete option should be considered for production
+- Consider retention policies for deleted drafts
+
+---
+
+### Rule Deduplication ✅
+
+**Status**: Implemented in prototype
+
+**Issue**: Duplicate rules appearing in Rule Builder (240+ rules with many duplicates).
+
+**Solution**:
+1. **Backend Deduplication** (`configController.js` - `identifyDuplicates` function):
+   - Groups rules by signature (name, condition, action)
+   - Keeps "best" version (Approved > Pending > Rejected, then Active > Inactive, then most recent)
+   - Applied in `getBusinessRules()` before returning to frontend
+   - Normalization handles null/undefined/empty string values correctly
+
+2. **Cleanup Endpoint**:
+   - Super Admin endpoint: `POST /api/config/business-rules/cleanup-duplicates`
+   - Permanently deletes duplicate rules from database
+   - Keeps only the "best" version
+
+**Production Notes**:
+- Consider adding unique constraint to `business_rules_config` table
+- Normalization logic handles null/undefined/empty string values correctly
+- Deduplication runs on every `getBusinessRules()` call (performance consideration)
+
+---
+
+### Request Deletion (Draft Only) ✅
+
+**Status**: Implemented in prototype
+
+**Features Added**:
+1. **Delete Draft Functionality** (`coiController.js` - `deleteRequest`):
+   - Only draft requests can be deleted
+   - Requires requester ownership or admin role
+   - Cascade deletion of all related records
+   - File system cleanup
+
+2. **UI Features**:
+   - "Delete Draft" button in request detail page
+   - "Delete" button in Requester Dashboard drafts tab
+   - Confirmation dialog before deletion
+
+**Production Notes**:
+- Soft delete option should be considered
+- Audit trail must log all deletions
+- Consider retention policies for deleted drafts
+
+---
+
+### Conflict Detection Enhancements ✅
+
+**Status**: Implemented in prototype
+
+**Features Added**:
+1. **Expandable Conflict Sections** (`COIRequestDetail.vue`):
+   - "Previous COI" section (expandable)
+   - "Service Conflict" section (expandable)
+   - Clickable items open in new tab for comparison
+
+2. **Visual Feedback**:
+   - Hover effects on clickable items
+   - Focus rings for accessibility
+   - Clear indication of clickable elements
+
+**Production Notes**:
+- Conflict detection uses fuzzy matching algorithm
+- Service conflict detection based on service type rules
+- Parent/subsidiary relationships considered
+
+---
+
+### Print Functionality ✅
+
+**Status**: Implemented in prototype
+
+**Features Added**:
+1. **COI Tracking Report Print**:
+   - Print-friendly HTML generation
+   - Includes all request details
+   - Formatted for standard paper sizes
+
+**Production Notes**:
+- Consider PDF generation for production
+- Include company letterhead/branding
+- Support multiple report formats
 
 ---
 
@@ -1402,10 +1719,12 @@ Before starting production build, confirm:
 
 1. **HRMS Access**: Direct SQL Server connection or API?
 2. **PRMS Access**: Direct database or API endpoint?
-3. **Authentication**: SSO provider? Active Directory?
-4. **Email**: O365 account credentials?
-5. **Database**: SQL Server version and connection details?
-6. **Cloud**: Deployment platform (Azure, AWS, on-premise)?
+3. **⚠️ PRMS Engagement Code Field**: Has PRMS added the mandatory Engagement Code field to project creation form?
+4. **PRMS Financial Fields**: Confirm PRMS can accept Billing Currency and Risks fields during project creation
+5. **Authentication**: SSO provider? Active Directory?
+6. **Email**: O365 account credentials?
+7. **Database**: SQL Server version and connection details?
+8. **Cloud**: Deployment platform (Azure, AWS, on-premise)?
 
 ---
 

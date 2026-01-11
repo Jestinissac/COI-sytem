@@ -43,7 +43,7 @@ export function evaluateRules(requestData) {
             recommendedAction: mapActionToRecommendation(rule.action_type),
             reason: getReason(rule, requestData),
             confidence: getConfidenceLevel(rule),
-            canOverride: canOverrideAction(rule.action_type),
+            canOverride: canOverrideAction(rule),
             overrideGuidance: getOverrideGuidance(rule),
             requiresComplianceReview: true,
             guidance: `Rule: ${rule.rule_name}`,
@@ -138,8 +138,12 @@ function mapActionToRecommendation(actionType) {
 }
 
 function getConfidenceLevel(rule) {
-  // In Pro, can be enhanced with ML or historical data
-  // For now, use rule type as indicator
+  // Use stored confidence_level from database if available
+  if (rule.confidence_level) {
+    return rule.confidence_level
+  }
+  
+  // Fallback: calculate from rule type if not set
   if (rule.rule_type === 'conflict') {
     return 'HIGH'
   } else if (rule.rule_type === 'validation') {
@@ -148,8 +152,14 @@ function getConfidenceLevel(rule) {
   return 'MEDIUM'
 }
 
-function canOverrideAction(actionType) {
-  // Block actions typically cannot be overridden easily
+function canOverrideAction(rule) {
+  // Use stored can_override from database if available
+  if (rule.can_override !== undefined && rule.can_override !== null) {
+    return rule.can_override === 1 || rule.can_override === true
+  }
+  
+  // Fallback: calculate from action type if not set
+  const actionType = rule.action_type || rule
   if (actionType === 'block') {
     return false
   }
@@ -157,6 +167,12 @@ function canOverrideAction(actionType) {
 }
 
 function getOverrideGuidance(rule) {
+  // Use stored override_guidance from database if available
+  if (rule.override_guidance) {
+    return rule.override_guidance
+  }
+  
+  // Fallback: generate from action type if not set
   if (rule.action_type === 'block') {
     return 'Override requires Partner approval and documented justification'
   }
@@ -164,19 +180,12 @@ function getOverrideGuidance(rule) {
 }
 
 function getRegulationReference(rule) {
-  // Map rule types to IESBA regulation references
-  const regulationMap = {
-    'red_line': 'IESBA Code Section 290',
-    'conflict': 'IESBA Code Section 290',
-    'pie_tax': 'IESBA Code Section 290.212',
-    'pie_planning': 'IESBA Code Section 290.212',
-    'validation': 'IESBA Code Section 290',
-    'management_responsibility': 'IESBA Code Section 290.104',
-    'advocacy': 'IESBA Code Section 290.105',
-    'contingent_fees': 'IESBA Code Section 290.106'
+  // Use stored regulation_reference from database if available
+  if (rule.regulation_reference) {
+    return rule.regulation_reference
   }
   
-  // Check rule name for specific patterns
+  // Fallback: pattern matching from rule name
   const ruleNameLower = (rule.rule_name || '').toLowerCase()
   if (ruleNameLower.includes('management responsibility') || ruleNameLower.includes('management')) {
     return 'IESBA Code Section 290.104'
@@ -192,6 +201,16 @@ function getRegulationReference(rule) {
   }
   
   // Default based on rule type
+  const regulationMap = {
+    'red_line': 'IESBA Code Section 290',
+    'conflict': 'IESBA Code Section 290',
+    'pie_tax': 'IESBA Code Section 290.212',
+    'pie_planning': 'IESBA Code Section 290.212',
+    'validation': 'IESBA Code Section 290',
+    'management_responsibility': 'IESBA Code Section 290.104',
+    'advocacy': 'IESBA Code Section 290.105',
+    'contingent_fees': 'IESBA Code Section 290.106'
+  }
   return regulationMap[rule.rule_type] || 'IESBA Code Section 290'
 }
 

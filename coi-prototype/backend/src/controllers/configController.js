@@ -403,6 +403,117 @@ export async function saveWorkflowConfig(req, res) {
   }
 }
 
+// Helper function to normalize values for comparison (handles text variations)
+// IMPORTANT: Only normalizes for signature comparison - original rule values are preserved
+function normalizeValue(value) {
+  // Preserve null/undefined as-is for exact matching
+  if (value === null || value === undefined) {
+    return value
+  }
+  
+  // If not a string, convert to string
+  if (typeof value !== 'string') {
+    return String(value)
+  }
+  
+  // Only normalize case and whitespace for non-empty strings
+  // This handles cases like "numeric" vs "Numeric" vs "numeric " as the same
+  // Empty strings remain empty (distinct from null/undefined)
+  if (value.trim() === '') {
+    return ''
+  }
+  
+  return value.trim().toLowerCase()
+}
+
+// Helper function to identify and deduplicate rules
+function identifyDuplicates(rules) {
+  if (!rules || rules.length === 0) {
+    return []
+  }
+  
+  // Group rules by rule_name + condition signature + action signature
+  const ruleMap = new Map()
+  
+  for (const rule of rules) {
+    // Skip only completely invalid rules (must have at least id and rule_name)
+    // rule_type is optional for some legacy rules
+    if (!rule || !rule.id || !rule.rule_name) {
+      console.warn('[identifyDuplicates] Skipping invalid rule:', { id: rule?.id, hasName: !!rule?.rule_name })
+      continue
+    }
+    
+    // Normalize condition value for comparison (handles text variations)
+    // Preserve null/undefined/empty as distinct values using special markers
+    let normalizedConditionValue
+    if (rule.condition_value === null) {
+      normalizedConditionValue = '__NULL__'
+    } else if (rule.condition_value === undefined) {
+      normalizedConditionValue = '__UNDEFINED__'
+    } else if (rule.condition_value === '') {
+      normalizedConditionValue = '__EMPTY__'
+    } else {
+      normalizedConditionValue = normalizeValue(rule.condition_value)
+    }
+    
+    // Create signature: rule_name + condition logic + action logic
+    // Use normalized values for comparison
+    const conditionSig = JSON.stringify({
+      field: rule.condition_field || null,
+      operator: rule.condition_operator || null,
+      value: normalizedConditionValue,
+      groups: rule.condition_groups || null
+    })
+    
+    // Normalize action value as well (preserve null/undefined/empty as distinct)
+    let normalizedActionValue
+    if (rule.action_value === null) {
+      normalizedActionValue = '__NULL__'
+    } else if (rule.action_value === undefined) {
+      normalizedActionValue = '__UNDEFINED__'
+    } else if (rule.action_value === '') {
+      normalizedActionValue = '__EMPTY__'
+    } else {
+      normalizedActionValue = normalizeValue(rule.action_value)
+    }
+    
+    const actionSig = JSON.stringify({
+      type: rule.action_type || null,
+      value: normalizedActionValue
+    })
+    
+    const signature = `${rule.rule_name}::${conditionSig}::${actionSig}`
+    
+    if (!ruleMap.has(signature)) {
+      ruleMap.set(signature, [])
+    }
+    ruleMap.get(signature).push(rule)
+  }
+  
+  // For each group, keep the best version (most recent, approved, active)
+  const deduplicated = []
+  for (const [signature, duplicates] of ruleMap.entries()) {
+    if (duplicates.length === 1) {
+      deduplicated.push(duplicates[0])
+    } else {
+      // Sort by: approved > pending > rejected, then active > inactive, then most recent
+      duplicates.sort((a, b) => {
+        const statusOrder = { 'Approved': 3, 'Pending': 2, 'Rejected': 1 }
+        const statusDiff = (statusOrder[b.approval_status] || 0) - (statusOrder[a.approval_status] || 0)
+        if (statusDiff !== 0) return statusDiff
+        
+        const activeDiff = (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0)
+        if (activeDiff !== 0) return activeDiff
+        
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      })
+      deduplicated.push(duplicates[0]) // Keep the best one
+    }
+  }
+  
+  return deduplicated
+}
+
 // Business Rules Configuration
 export async function getBusinessRules(req, res) {
   try {
@@ -440,9 +551,17 @@ export async function getBusinessRules(req, res) {
     const params = []
     
     // Only show active rules unless Super Admin or includePending=true
+    // Note: For Compliance role, also show Pending rules (they need to review them)
     if (!isSuperAdmin && includePending !== 'true') {
-      query += ' AND r.approval_status = ? AND r.is_active = 1'
-      params.push('Approved')
+      if (userRole === 'Compliance') {
+        // Compliance can see Approved and Pending rules
+        query += ' AND (r.approval_status = ? OR r.approval_status = ?) AND r.is_active = 1'
+        params.push('Approved', 'Pending')
+      } else {
+        // Other roles only see Approved rules
+        query += ' AND r.approval_status = ? AND r.is_active = 1'
+        params.push('Approved')
+      }
     }
     
     if (ruleType) {
@@ -457,11 +576,118 @@ export async function getBusinessRules(req, res) {
     
     rules = db.prepare(query).all(...params)
     
-    console.log('[getBusinessRules] Found', rules.length, 'rules')
+    // Deduplicate rules
+    const deduplicatedRules = identifyDuplicates(rules)
     
-    res.json({ rules })
+    console.log('[getBusinessRules] Found', rules.length, 'rules,', deduplicatedRules.length, 'unique')
+    
+    res.json({ rules: deduplicatedRules })
   } catch (error) {
     console.error('[getBusinessRules] Error:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Cleanup duplicate rules from database (Super Admin only)
+ * Removes duplicate rules, keeping the best version of each
+ */
+export async function cleanupDuplicateRules(req, res) {
+  try {
+    const userId = req.userId
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(userId)
+    
+    if (user?.role !== 'Super Admin') {
+      return res.status(403).json({ error: 'Only Super Admin can cleanup duplicates' })
+    }
+    
+    // Get all rules
+    const allRules = db.prepare('SELECT * FROM business_rules_config').all()
+    
+    // Identify duplicates
+    const ruleMap = new Map()
+    const toDelete = []
+    
+    for (const rule of allRules) {
+      // Skip invalid rules (must have at least id and rule_name)
+      if (!rule || !rule.id || !rule.rule_name) {
+        continue
+      }
+      
+      // Normalize values for comparison (same logic as identifyDuplicates)
+      // Preserve null/undefined/empty as distinct values using special markers
+      let normalizedConditionValue
+      if (rule.condition_value === null) {
+        normalizedConditionValue = '__NULL__'
+      } else if (rule.condition_value === undefined) {
+        normalizedConditionValue = '__UNDEFINED__'
+      } else if (rule.condition_value === '') {
+        normalizedConditionValue = '__EMPTY__'
+      } else {
+        normalizedConditionValue = normalizeValue(rule.condition_value)
+      }
+      
+      let normalizedActionValue
+      if (rule.action_value === null) {
+        normalizedActionValue = '__NULL__'
+      } else if (rule.action_value === undefined) {
+        normalizedActionValue = '__UNDEFINED__'
+      } else if (rule.action_value === '') {
+        normalizedActionValue = '__EMPTY__'
+      } else {
+        normalizedActionValue = normalizeValue(rule.action_value)
+      }
+      
+      const conditionSig = JSON.stringify({
+        field: rule.condition_field || null,
+        operator: rule.condition_operator || null,
+        value: normalizedConditionValue,
+        groups: rule.condition_groups || null
+      })
+      const actionSig = JSON.stringify({
+        type: rule.action_type || null,
+        value: normalizedActionValue
+      })
+      const signature = `${rule.rule_name}::${conditionSig}::${actionSig}`
+      
+      if (!ruleMap.has(signature)) {
+        ruleMap.set(signature, [])
+      }
+      ruleMap.get(signature).push(rule)
+    }
+    
+    // For each duplicate group, mark all but the best one for deletion
+    for (const [signature, duplicates] of ruleMap.entries()) {
+      if (duplicates.length > 1) {
+        duplicates.sort((a, b) => {
+          const statusOrder = { 'Approved': 3, 'Pending': 2, 'Rejected': 1 }
+          const statusDiff = (statusOrder[b.approval_status] || 0) - (statusOrder[a.approval_status] || 0)
+          if (statusDiff !== 0) return statusDiff
+          const activeDiff = (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0)
+          if (activeDiff !== 0) return activeDiff
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        })
+        
+        // Mark all but the first (best) one for deletion
+        for (let i = 1; i < duplicates.length; i++) {
+          toDelete.push(duplicates[i].id)
+        }
+      }
+    }
+    
+    // Delete duplicates
+    if (toDelete.length > 0) {
+      const placeholders = toDelete.map(() => '?').join(',')
+      db.prepare(`DELETE FROM business_rules_config WHERE id IN (${placeholders})`).run(...toDelete)
+    }
+    
+    res.json({
+      success: true,
+      duplicatesRemoved: toDelete.length,
+      totalRulesBefore: allRules.length,
+      totalRulesAfter: allRules.length - toDelete.length
+    })
+  } catch (error) {
     res.status(500).json({ error: error.message })
   }
 }
@@ -612,6 +838,12 @@ export async function saveBusinessRule(req, res) {
     
     const rule = req.body
     
+    // Enforce Standard edition: only Custom category allowed
+    const systemEdition = getSystemEdition()
+    if (systemEdition === 'standard' && rule.rule_category && rule.rule_category !== 'Custom') {
+      rule.rule_category = 'Custom'
+    }
+    
     // Validate rule first
     const validation = validateRule(rule)
     if (!validation.isValid) {
@@ -639,9 +871,9 @@ export async function saveBusinessRule(req, res) {
       INSERT INTO business_rules_config (
         rule_name, rule_type, condition_field, condition_operator,
         condition_value, condition_groups, action_type, action_value, is_active,
-        approval_status, created_by, rule_category, regulation_reference, applies_to_pie, tax_sub_type, complex_conditions,
+        approval_status, created_by, rule_category, regulation_reference, applies_to_pie, tax_sub_type,
         confidence_level, can_override, override_guidance, guidance_text, required_override_role
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       rule.rule_name,
       rule.rule_type,
@@ -658,12 +890,11 @@ export async function saveBusinessRule(req, res) {
       rule.regulation_reference || null,
       rule.applies_to_pie ? 1 : 0,
       rule.tax_sub_type || null,
-      rule.complex_conditions || null,
       rule.confidence_level || 'MEDIUM',
       rule.can_override !== undefined ? (rule.can_override ? 1 : 0) : 1,
       rule.override_guidance || null,
       rule.guidance_text || null,
-      rule.required_override_role || null
+      rule.required_override_role || null // Reserved for future: role required to override this rule
     )
     
     const message = requiresApproval 
@@ -694,6 +925,12 @@ export async function updateBusinessRule(req, res) {
     const rule = db.prepare('SELECT * FROM business_rules_config WHERE id = ?').get(id)
     if (!rule) {
       return res.status(404).json({ error: 'Rule not found' })
+    }
+    
+    // Enforce Standard edition: only Custom category allowed
+    const systemEdition = getSystemEdition()
+    if (systemEdition === 'standard' && updates.rule_category && updates.rule_category !== 'Custom') {
+      updates.rule_category = 'Custom'
     }
     
     // Validate rule updates
@@ -754,7 +991,6 @@ export async function updateBusinessRule(req, res) {
         regulation_reference = COALESCE(?, regulation_reference),
         applies_to_pie = COALESCE(?, applies_to_pie),
         tax_sub_type = COALESCE(?, tax_sub_type),
-        complex_conditions = COALESCE(?, complex_conditions),
         confidence_level = COALESCE(?, confidence_level),
         can_override = COALESCE(?, can_override),
         override_guidance = COALESCE(?, override_guidance),
@@ -777,7 +1013,6 @@ export async function updateBusinessRule(req, res) {
       updates.regulation_reference !== undefined ? (updates.regulation_reference || null) : undefined,
       updates.applies_to_pie !== undefined ? (updates.applies_to_pie ? 1 : 0) : undefined,
       updates.tax_sub_type !== undefined ? (updates.tax_sub_type || null) : undefined,
-      updates.complex_conditions !== undefined ? updates.complex_conditions : undefined,
       updates.confidence_level !== undefined ? (updates.confidence_level || 'MEDIUM') : undefined,
       updates.can_override !== undefined ? (updates.can_override ? 1 : 0) : undefined,
       updates.override_guidance !== undefined ? (updates.override_guidance || null) : undefined,

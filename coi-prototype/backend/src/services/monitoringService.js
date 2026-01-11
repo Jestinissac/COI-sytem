@@ -1,5 +1,5 @@
 import { getDatabase } from '../database/init.js'
-import { notifyEngagementExpiring } from './emailService.js'
+import { notifyEngagementExpiring, notifyProposalMonitoringAlert, notifyProposalLapsed } from './emailService.js'
 import { logAuditTrail } from './auditTrailService.js'
 
 /**
@@ -84,6 +84,160 @@ export function sendIntervalAlerts() {
   return checkExpiringEngagements()
 }
 
+/**
+ * Send 30-day proposal monitoring interval alerts (every 10 days)
+ * Requirement: "An alert of which shall be sent to the requester, compliance department, 
+ * admin (Malita & Nermin) and partner's emails every 10 days from the date of proposal approval"
+ */
+export async function sendIntervalMonitoringAlerts() {
+  const db = getDatabase()
+  const results = {
+    checked: 0,
+    alertsSent: 0,
+    errors: []
+  }
+  
+  try {
+    // Find proposals in 30-day monitoring window (status = 'Approved', stage = 'Proposal')
+    // Calculate days elapsed since execution_date
+    const proposalsInMonitoring = db.prepare(`
+      SELECT 
+        r.*,
+        c.client_name,
+        u.name as requester_name,
+        u.email as requester_email,
+        CAST((julianday('now') - julianday(r.execution_date)) AS INTEGER) as days_elapsed
+      FROM coi_requests r
+      LEFT JOIN clients c ON r.client_id = c.id
+      LEFT JOIN users u ON r.requester_id = u.id
+      WHERE r.status = 'Approved'
+        AND r.stage = 'Proposal'
+        AND r.execution_date IS NOT NULL
+        AND r.client_response_date IS NULL
+        AND CAST((julianday('now') - julianday(r.execution_date)) AS INTEGER) <= 30
+        AND CAST((julianday('now') - julianday(r.execution_date)) AS INTEGER) > 0
+    `).all()
+    
+    results.checked = proposalsInMonitoring.length
+    
+    // Alert intervals: 10, 20, 30 days
+    const alertIntervals = [10, 20, 30]
+    
+    for (const proposal of proposalsInMonitoring) {
+      const daysElapsed = proposal.days_elapsed
+      const daysRemaining = 30 - daysElapsed
+      
+      // Check if we should send an alert (at 10, 20, or 30 days)
+      const shouldAlert = alertIntervals.includes(daysElapsed)
+      
+      if (!shouldAlert) continue
+      
+      // Check if alert already sent for this interval
+      const intervalKey = `${daysElapsed}d`
+      const alertsSent = proposal.interval_alerts_sent || ''
+      
+      if (alertsSent.includes(intervalKey)) {
+        continue // Already sent for this interval
+      }
+      
+      try {
+        // Get all recipients
+        const recipients = []
+        
+        // Requester
+        if (proposal.requester_email) {
+          recipients.push({
+            name: proposal.requester_name,
+            email: proposal.requester_email,
+            role: 'Requester'
+          })
+        }
+        
+        // Compliance officers
+        const complianceOfficers = db.prepare(`
+          SELECT id, name, email FROM users WHERE role = 'Compliance' AND is_active = 1
+        `).all()
+        complianceOfficers.forEach(co => {
+          recipients.push({
+            name: co.name,
+            email: co.email,
+            role: 'Compliance'
+          })
+        })
+        
+        // Admin users
+        const adminUsers = db.prepare(`
+          SELECT id, name, email FROM users WHERE role = 'Admin' AND is_active = 1
+        `).all()
+        adminUsers.forEach(admin => {
+          recipients.push({
+            name: admin.name,
+            email: admin.email,
+            role: 'Admin'
+          })
+        })
+        
+        // Partner (if assigned)
+        if (proposal.partner_approved_by) {
+          const partner = db.prepare(`
+            SELECT id, name, email FROM users WHERE id = ?
+          `).get(proposal.partner_approved_by)
+          if (partner) {
+            recipients.push({
+              name: partner.name,
+              email: partner.email,
+              role: 'Partner'
+            })
+          }
+        }
+        
+        // Send alerts to all recipients
+        for (const recipient of recipients) {
+          await notifyProposalMonitoringAlert(
+            proposal,
+            recipient,
+            daysElapsed,
+            daysRemaining
+          )
+        }
+        
+        // Mark alert as sent for this interval
+        const updatedAlerts = alertsSent ? `${alertsSent},${intervalKey}` : intervalKey
+        db.prepare(`
+          UPDATE coi_requests 
+          SET interval_alerts_sent = ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(updatedAlerts, proposal.id)
+        
+        results.alertsSent += recipients.length
+        
+        logAuditTrail(
+          null,
+          'COI Request',
+          proposal.id,
+          'Monitoring Alert Sent',
+          `30-day monitoring alert sent at ${daysElapsed} days. Alerted ${recipients.length} recipients.`,
+          { days_elapsed: daysElapsed, days_remaining: daysRemaining }
+        )
+      } catch (error) {
+        results.errors.push({ request_id: proposal.request_id, error: error.message })
+        console.error(`Error sending monitoring alert for ${proposal.request_id}:`, error)
+      }
+    }
+    
+    console.log(`📅 30-day monitoring alerts: ${results.checked} checked, ${results.alertsSent} alerts sent`)
+    return results
+  } catch (error) {
+    console.error('Error in sendIntervalMonitoringAlerts:', error)
+    return {
+      success: false,
+      error: error.message,
+      ...results
+    }
+  }
+}
+
 export function checkRenewalAlerts() {
   return checkPendingComplianceReviews()
 }
@@ -104,18 +258,24 @@ export async function checkAndLapseExpiredProposals() {
     // Status should be 'Approved' with stage 'Proposal' (after execution, before client accepts)
     const expiredProposals = db.prepare(`
       SELECT 
-        id, 
-        request_id, 
-        client_id, 
-        execution_date,
-        proposal_sent_date,
-        requester_id
-      FROM coi_requests
-      WHERE status = 'Approved'
-        AND stage = 'Proposal'
-        AND execution_date IS NOT NULL
-        AND client_response_date IS NULL
-        AND DATE(execution_date, '+30 days') < DATE('now')
+        r.id, 
+        r.request_id, 
+        r.client_id, 
+        r.execution_date,
+        r.proposal_sent_date,
+        r.requester_id,
+        r.partner_approved_by,
+        c.client_name,
+        u.name as requester_name,
+        u.email as requester_email
+      FROM coi_requests r
+      LEFT JOIN clients c ON r.client_id = c.id
+      LEFT JOIN users u ON r.requester_id = u.id
+      WHERE r.status = 'Approved'
+        AND r.stage = 'Proposal'
+        AND r.execution_date IS NOT NULL
+        AND r.client_response_date IS NULL
+        AND DATE(r.execution_date, '+30 days') < DATE('now')
     `).all()
     
     const lapsed = []
@@ -139,11 +299,80 @@ export async function checkAndLapseExpiredProposals() {
       // Log the lapse
       console.log(`[Monitoring] Request ${proposal.request_id} automatically lapsed after 30 days without client response`)
       
+      // Get all recipients for notification
+      const recipients = []
+      
+      // Requester
+      if (proposal.requester_email) {
+        recipients.push({
+          name: proposal.requester_name,
+          email: proposal.requester_email,
+          role: 'Requester'
+        })
+      }
+      
+      // Compliance officers
+      const complianceOfficers = db.prepare(`
+        SELECT id, name, email FROM users WHERE role = 'Compliance' AND is_active = 1
+      `).all()
+      complianceOfficers.forEach(co => {
+        recipients.push({
+          name: co.name,
+          email: co.email,
+          role: 'Compliance'
+        })
+      })
+      
+      // Admin users
+      const adminUsers = db.prepare(`
+        SELECT id, name, email FROM users WHERE role = 'Admin' AND is_active = 1
+      `).all()
+      adminUsers.forEach(admin => {
+        recipients.push({
+          name: admin.name,
+          email: admin.email,
+          role: 'Admin'
+        })
+      })
+      
+      // Partner (if assigned)
+      if (proposal.partner_approved_by) {
+        const partner = db.prepare(`
+          SELECT id, name, email FROM users WHERE id = ?
+        `).get(proposal.partner_approved_by)
+        if (partner) {
+          recipients.push({
+            name: partner.name,
+            email: partner.email,
+            role: 'Partner'
+          })
+        }
+      }
+      
+      // Send email notifications to all recipients
+      for (const recipient of recipients) {
+        try {
+          await notifyProposalLapsed(proposal, recipient)
+        } catch (error) {
+          console.error(`Error sending lapse notification to ${recipient.email}:`, error)
+        }
+      }
+      
       notifications.push({
         requestId: proposal.id,
         requestIdDisplay: proposal.request_id,
-        message: `Request ${proposal.request_id} has automatically lapsed after 30 days without client response`
+        message: `Request ${proposal.request_id} has automatically lapsed after 30 days without client response`,
+        recipientsNotified: recipients.length
       })
+      
+      logAuditTrail(
+        null,
+        'COI Request',
+        proposal.id,
+        'Proposal Lapsed',
+        `Proposal automatically lapsed after 30 days. Notifications sent to ${recipients.length} recipients.`,
+        { execution_date: proposal.execution_date }
+      )
     }
     
     return { 

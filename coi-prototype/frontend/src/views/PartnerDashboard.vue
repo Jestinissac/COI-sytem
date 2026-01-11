@@ -8,6 +8,17 @@
             <h1 class="text-xl font-semibold text-gray-900">Partner Review</h1>
             <p class="text-sm text-gray-500 mt-1">Final approval and risk assessment</p>
           </div>
+          <div class="flex items-center gap-3">
+            <button
+              @click="printTrackingReport"
+              class="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+              </svg>
+              Print Tracking Report
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -242,12 +253,23 @@
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <h2 class="font-semibold text-gray-900">All Engagements</h2>
-                <button class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                  </svg>
-                  Export
-                </button>
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="printRequestReport(null)"
+                    class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                    Print All
+                  </button>
+                  <button class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Export
+                  </button>
+                </div>
               </div>
 
               <div class="overflow-x-auto">
@@ -282,9 +304,20 @@
                         <span class="text-sm text-gray-600 font-mono">{{ request.engagement_code || '-' }}</span>
                       </td>
                       <td class="px-6 py-4">
-                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                          View →
-                        </button>
+                        <div class="flex items-center gap-2">
+                          <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            View →
+                          </button>
+                          <button
+                            @click="printRequestReport(request)"
+                            class="text-gray-600 hover:text-gray-800"
+                            title="Print tracking report"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                     <tr v-if="allEngagements.length === 0">
@@ -322,7 +355,7 @@
                         </div>
                       </div>
                       <button 
-                        @click="viewDetails(request)"
+                        @click="viewDetails(request, 'expiring')"
                         class="px-3 py-1.5 bg-orange-600 text-white text-sm font-medium rounded hover:bg-orange-700"
                       >
                         Review
@@ -468,8 +501,264 @@ function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 }
 
-function viewDetails(request: any) {
-  router.push(`/coi/request/${request.id}`)
+function viewDetails(request: any, context?: string) {
+  const query: any = {}
+  if (context) {
+    query.from = context
+  }
+  router.push({
+    path: `/coi/request/${request.id}`,
+    query
+  })
+}
+
+function printRequestReport(request: any | null) {
+  // If specific request provided, print that; otherwise print all engagements
+  const requestsToPrint = request ? [request] : allEngagements.value
+  
+  if (requestsToPrint.length === 0) {
+    alert('No requests to print')
+    return
+  }
+
+  // Create print window
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) {
+    alert('Please allow popups to print the report')
+    return
+  }
+
+  // Build HTML content
+  let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>COI Tracking Report - ${new Date().toLocaleDateString()}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+        h2 { color: #374151; margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background-color: #f3f4f6; text-align: left; padding: 12px; border: 1px solid #d1d5db; font-weight: 600; }
+        td { padding: 10px; border: 1px solid #d1d5db; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+        .status-approved { color: #059669; font-weight: 600; }
+        .status-pending { color: #d97706; font-weight: 600; }
+        .status-active { color: #059669; font-weight: 600; }
+        .status-rejected { color: #dc2626; font-weight: 600; }
+        .header-info { margin-bottom: 20px; color: #6b7280; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #d1d5db; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <h1>COI Request Tracking Report</h1>
+      <div class="header-info">
+        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+        <p><strong>Total Requests:</strong> ${requestsToPrint.length}</p>
+        <p><strong>Report Type:</strong> ${request ? 'Individual Request' : 'All Engagements'}</p>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Request ID</th>
+            <th>Client Name</th>
+            <th>Service Type</th>
+            <th>Status</th>
+            <th>Engagement Code</th>
+            <th>Requester</th>
+            <th>Director</th>
+            <th>Partner</th>
+            <th>Created Date</th>
+            <th>Department</th>
+          </tr>
+        </thead>
+        <tbody>
+  `
+
+  requestsToPrint.forEach((req: any) => {
+    const statusClass = req.status === 'Active' || req.status === 'Approved' 
+      ? 'status-approved' 
+      : req.status === 'Rejected' || req.status === 'Lapsed'
+      ? 'status-rejected'
+      : 'status-pending'
+    
+    html += `
+          <tr>
+            <td><strong>${req.request_id || 'N/A'}</strong></td>
+            <td>${req.client_name || 'Not specified'}</td>
+            <td>${req.service_type || 'General'}</td>
+            <td class="${statusClass}">${req.status || 'N/A'}</td>
+            <td><code>${req.engagement_code || '-'}</code></td>
+            <td>${req.requester_name || req.requestor_name || 'N/A'}</td>
+            <td>${req.director_approval_by_name || (req.director_approval_by ? 'Pending' : 'N/A')}</td>
+            <td>${req.partner_approved_by_name || (req.partner_approved_by ? 'Pending' : 'N/A')}</td>
+            <td>${formatDate(req.created_at)}</td>
+            <td>${req.department || 'N/A'}</td>
+          </tr>
+    `
+  })
+
+  html += `
+        </tbody>
+      </table>
+      
+      <div class="footer">
+        <p>This report was generated from the COI System on ${new Date().toLocaleString()}</p>
+        <p>For questions or concerns, please contact the Compliance Department.</p>
+      </div>
+    </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  
+  // Wait for content to load, then print
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}
+
+function printTrackingReport() {
+  // Print comprehensive tracking report with all requests
+  const allRequests = requests.value.filter(r => 
+    ['Pending Partner', 'Pending Finance', 'Approved', 'Active', 'Rejected', 'Lapsed'].includes(r.status)
+  )
+  
+  if (allRequests.length === 0) {
+    alert('No requests available to print')
+    return
+  }
+
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) {
+    alert('Please allow popups to print the report')
+    return
+  }
+
+  // Group by status
+  const byStatus: Record<string, any[]> = {}
+  allRequests.forEach(req => {
+    const status = req.status || 'Unknown'
+    if (!byStatus[status]) byStatus[status] = []
+    byStatus[status].push(req)
+  })
+
+  let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>COI Complete Tracking Report - ${new Date().toLocaleDateString()}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+        h2 { color: #374151; margin-top: 30px; margin-bottom: 15px; }
+        .summary { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }
+        .summary-card { background: #f3f4f6; padding: 15px; border-radius: 8px; min-width: 150px; }
+        .summary-card strong { display: block; font-size: 24px; color: #1f2937; }
+        .summary-card span { color: #6b7280; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background-color: #f3f4f6; text-align: left; padding: 12px; border: 1px solid #d1d5db; font-weight: 600; }
+        td { padding: 10px; border: 1px solid #d1d5db; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+        .status-approved { color: #059669; font-weight: 600; }
+        .status-pending { color: #d97706; font-weight: 600; }
+        .status-active { color: #059669; font-weight: 600; }
+        .status-rejected { color: #dc2626; font-weight: 600; }
+        .header-info { margin-bottom: 20px; color: #6b7280; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #d1d5db; color: #6b7280; font-size: 12px; }
+        @media print {
+          .no-print { display: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <h1>COI Complete Tracking Report</h1>
+      <div class="header-info">
+        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+        <p><strong>Report Period:</strong> All Active and Historical Requests</p>
+      </div>
+      
+      <div class="summary">
+        <div class="summary-card">
+          <strong>${allRequests.length}</strong>
+          <span>Total Requests</span>
+        </div>
+        <div class="summary-card">
+          <strong>${activeEngagements.value.length}</strong>
+          <span>Active Engagements</span>
+        </div>
+        <div class="summary-card">
+          <strong>${pendingApprovals.value.length}</strong>
+          <span>Pending Approval</span>
+        </div>
+        <div class="summary-card">
+          <strong>${activeProposals.value.length}</strong>
+          <span>Active Proposals</span>
+        </div>
+      </div>
+  `
+
+  // Print by status
+  Object.keys(byStatus).sort().forEach(status => {
+    const statusRequests = byStatus[status]
+    html += `
+      <h2>${status} (${statusRequests.length})</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Request ID</th>
+            <th>Client Name</th>
+            <th>Service Type</th>
+            <th>Engagement Code</th>
+            <th>Requester</th>
+            <th>Director</th>
+            <th>Partner</th>
+            <th>Created Date</th>
+            <th>Department</th>
+          </tr>
+        </thead>
+        <tbody>
+    `
+    
+    statusRequests.forEach((req: any) => {
+      html += `
+          <tr>
+            <td><strong>${req.request_id || 'N/A'}</strong></td>
+            <td>${req.client_name || 'Not specified'}</td>
+            <td>${req.service_type || 'General'}</td>
+            <td><code>${req.engagement_code || '-'}</code></td>
+            <td>${req.requester_name || req.requestor_name || 'N/A'}</td>
+            <td>${req.director_approval_by_name || (req.director_approval_by ? 'Pending' : 'N/A')}</td>
+            <td>${req.partner_approved_by_name || (req.partner_approved_by ? 'Pending' : 'N/A')}</td>
+            <td>${formatDate(req.created_at)}</td>
+            <td>${req.department || 'N/A'}</td>
+          </tr>
+      `
+    })
+    
+    html += `
+        </tbody>
+      </table>
+    `
+  })
+
+  html += `
+      <div class="footer">
+        <p>This comprehensive tracking report was generated from the COI System on ${new Date().toLocaleString()}</p>
+        <p>For questions or concerns, please contact the Compliance Department.</p>
+      </div>
+    </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
 }
 
 onMounted(() => {

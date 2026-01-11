@@ -256,6 +256,149 @@ const EMAIL_TEMPLATES = {
         </div>
       </div>
     `
+  },
+  
+  PROPOSAL_MONITORING_ALERT: {
+    subject: '⏰ Proposal Monitoring Alert - {{request_id}} ({{days_elapsed}}/30 days)',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #ff9800; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">⏰ Proposal Monitoring Alert</h1>
+        </div>
+        <div style="padding: 20px; background: #f5f5f5;">
+          <p>Hello {{recipient_name}},</p>
+          <p>A proposal is in the 30-day monitoring window and requires attention.</p>
+          
+          <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h3 style="margin-top: 0; color: #ff9800;">Proposal Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 5px 0;"><strong>Request ID:</strong></td><td>{{request_id}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Client:</strong></td><td>{{client_name}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Service Type:</strong></td><td>{{service_type}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Days Elapsed:</strong></td><td><strong>{{days_elapsed}}/30 days</strong></td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Days Remaining:</strong></td><td><strong>{{days_remaining}} days</strong></td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Execution Date:</strong></td><td>{{execution_date}}</td></tr>
+            </table>
+          </div>
+          
+          <div style="background: #fff3e0; padding: 10px; border-left: 4px solid #ff9800; margin: 15px 0;">
+            <strong>⚠️ Action Required:</strong>
+            <p style="margin: 5px 0;">This proposal will automatically lapse if no client response is received within {{days_remaining}} days. Please follow up with the client.</p>
+          </div>
+          
+          <a href="{{action_url}}" style="display: inline-block; background: #ff9800; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin-top: 10px;">
+            View Request Details
+          </a>
+        </div>
+      </div>
+    `
+  },
+  
+  PROPOSAL_LAPSED: {
+    subject: '❌ Proposal Lapsed - {{request_id}}',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #f44336; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">❌ Proposal Lapsed</h1>
+        </div>
+        <div style="padding: 20px; background: #f5f5f5;">
+          <p>Hello {{recipient_name}},</p>
+          <p>A proposal has <strong style="color: #f44336;">automatically lapsed</strong> after 30 days without client response.</p>
+          
+          <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h3 style="margin-top: 0; color: #f44336;">Request Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 5px 0;"><strong>Request ID:</strong></td><td>{{request_id}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Client:</strong></td><td>{{client_name}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Service Type:</strong></td><td>{{service_type}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Execution Date:</strong></td><td>{{execution_date}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Lapse Date:</strong></td><td>{{lapse_date}}</td></tr>
+            </table>
+          </div>
+          
+          <div style="background: #ffebee; padding: 15px; border-left: 4px solid #f44336; margin: 15px 0;">
+            <strong>Reason for Lapse:</strong>
+            <p style="margin: 5px 0;">No client response received within 30 days from proposal execution date. The request has been automatically cancelled.</p>
+          </div>
+          
+          <p><strong>Next Steps:</strong></p>
+          <ul>
+            <li>Contact the client to understand the reason for non-response</li>
+            <li>If engagement is still desired, create a new COI request</li>
+            <li>Update internal records accordingly</li>
+          </ul>
+        </div>
+      </div>
+    `
+  },
+  
+  CLIENT_ACCEPTED_PROPOSAL: {
+    subject: '✅ Client Accepted Proposal - {{request_id}}',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #4caf50; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">✅ Proposal Accepted</h1>
+        </div>
+        <div style="padding: 20px; background: #f5f5f5;">
+          <p>Hello {{recipient_name}},</p>
+          <p>The client has <strong style="color: #4caf50;">accepted</strong> the proposal.</p>
+          
+          <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h3 style="margin-top: 0; color: #4caf50;">Engagement Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 5px 0;"><strong>Request ID:</strong></td><td>{{request_id}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Engagement Code:</strong></td><td>{{engagement_code}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Client:</strong></td><td>{{client_name}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Service Type:</strong></td><td>{{service_type}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Status:</strong></td><td><strong style="color: #4caf50;">Active Engagement</strong></td></tr>
+            </table>
+          </div>
+          
+          {{#if is_admin}}
+          <div style="background: #e3f2fd; padding: 10px; border-left: 4px solid #2196f3; margin: 15px 0;">
+            <strong>Action Required:</strong>
+            <p style="margin: 5px 0;">Please prepare the engagement letter within 1-3 working days.</p>
+          </div>
+          {{/if}}
+          
+          <p>The engagement is now active. You may proceed with service delivery.</p>
+        </div>
+      </div>
+    `
+  },
+  
+  CLIENT_REJECTED_PROPOSAL: {
+    subject: '❌ Client Rejected Proposal - {{request_id}}',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #f44336; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">❌ Proposal Rejected</h1>
+        </div>
+        <div style="padding: 20px; background: #f5f5f5;">
+          <p>Hello {{recipient_name}},</p>
+          <p>The client has <strong style="color: #f44336;">rejected</strong> the proposal.</p>
+          
+          <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h3 style="margin-top: 0; color: #f44336;">Request Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 5px 0;"><strong>Request ID:</strong></td><td>{{request_id}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Client:</strong></td><td>{{client_name}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Service Type:</strong></td><td>{{service_type}}</td></tr>
+              <tr><td style="padding: 5px 0;"><strong>Status:</strong></td><td><strong style="color: #f44336;">Rejected</strong></td></tr>
+            </table>
+          </div>
+          
+          {{#if rejection_notes}}
+          <div style="background: #ffebee; padding: 10px; border-left: 4px solid #f44336; margin: 15px 0;">
+            <strong>Client Notes:</strong>
+            <p style="margin: 5px 0;">{{rejection_notes}}</p>
+          </div>
+          {{/if}}
+          
+          <p>The request has been closed. No further action is required.</p>
+        </div>
+      </div>
+    `
   }
 }
 
@@ -461,6 +604,65 @@ export async function notifyEngagementExpiring(engagement, recipient, daysRemain
 }
 
 /**
+ * Send proposal monitoring interval alert (every 10 days during 30-day window)
+ */
+export async function notifyProposalMonitoringAlert(request, recipient, daysElapsed, daysRemaining) {
+  const baseUrl = process.env.APP_URL || 'http://localhost:5173'
+  
+  return sendEmail('PROPOSAL_MONITORING_ALERT', recipient.email, {
+    recipient_name: recipient.name,
+    request_id: request.request_id,
+    client_name: request.client_name,
+    service_type: request.service_type,
+    days_elapsed: daysElapsed,
+    days_remaining: daysRemaining,
+    execution_date: request.execution_date ? new Date(request.execution_date).toLocaleDateString() : 'N/A',
+    action_url: `${baseUrl}/coi/dashboard`
+  })
+}
+
+/**
+ * Send proposal lapsed notification
+ */
+export async function notifyProposalLapsed(request, recipient) {
+  return sendEmail('PROPOSAL_LAPSED', recipient.email, {
+    recipient_name: recipient.name,
+    request_id: request.request_id,
+    client_name: request.client_name,
+    service_type: request.service_type,
+    execution_date: request.execution_date ? new Date(request.execution_date).toLocaleDateString() : 'N/A',
+    lapse_date: new Date().toLocaleDateString()
+  })
+}
+
+/**
+ * Send client accepted proposal notification
+ */
+export async function notifyClientAcceptedProposal(request, recipient, isAdmin = false) {
+  return sendEmail('CLIENT_ACCEPTED_PROPOSAL', recipient.email, {
+    recipient_name: recipient.name,
+    request_id: request.request_id,
+    engagement_code: request.engagement_code || 'N/A',
+    client_name: request.client_name,
+    service_type: request.service_type,
+    is_admin: isAdmin
+  })
+}
+
+/**
+ * Send client rejected proposal notification
+ */
+export async function notifyClientRejectedProposal(request, recipient, rejectionNotes = null) {
+  return sendEmail('CLIENT_REJECTED_PROPOSAL', recipient.email, {
+    recipient_name: recipient.name,
+    request_id: request.request_id,
+    client_name: request.client_name,
+    service_type: request.service_type,
+    rejection_notes: rejectionNotes
+  })
+}
+
+/**
  * Verify email configuration
  */
 export async function verifyEmailConfig() {
@@ -487,6 +689,10 @@ export default {
   notifyRequestRejected,
   notifyStaleRequest,
   notifyEngagementExpiring,
+  notifyProposalMonitoringAlert,
+  notifyProposalLapsed,
+  notifyClientAcceptedProposal,
+  notifyClientRejectedProposal,
   verifyEmailConfig
 }
 

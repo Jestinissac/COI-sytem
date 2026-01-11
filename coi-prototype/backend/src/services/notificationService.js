@@ -92,7 +92,7 @@ COI System`
   return sendEmail(request.requester_email, subject, body, { requestId, infoRequired })
 }
 
-export function sendRejectionNotification(requestId, rejectorName, reason) {
+export function sendRejectionNotification(requestId, rejectorName, reason, rejectionType = 'fixable') {
   const request = db.prepare(`
     SELECT r.*, u.name as requester_name, u.email as requester_email
     FROM coi_requests r
@@ -102,7 +102,14 @@ export function sendRejectionNotification(requestId, rejectorName, reason) {
   
   if (!request) return
   
-  const subject = `COI Request ${request.request_id} - Rejected`
+  const isPermanent = rejectionType === 'permanent'
+  const subject = `COI Request ${request.request_id} - Rejected${isPermanent ? ' (Final)' : ''}`
+  
+  // Differentiate message based on rejection type
+  const resubmissionGuidance = isPermanent
+    ? `This rejection is final and cannot be resubmitted. If circumstances have changed significantly, please create a new COI request.`
+    : `You can modify and resubmit this request after addressing the feedback. Log in to the COI system and click "Modify and Resubmit" to update your request.`
+  
   const body = `Dear ${request.requester_name},
 
 Your Conflict of Interest request has been rejected by ${rejectorName}.
@@ -110,15 +117,18 @@ Your Conflict of Interest request has been rejected by ${rejectorName}.
 Request ID: ${request.request_id}
 Department: ${request.department}
 Service Type: ${request.service_type}
+Rejection Type: ${isPermanent ? 'Permanent (Final)' : 'Fixable (Can Resubmit)'}
 Rejection Reason: ${reason}
 
-Please log in to the COI system to review the feedback and make necessary changes:
-http://localhost:5173/coi
+${resubmissionGuidance}
+
+Please log in to the COI system to review the details:
+http://localhost:5173/coi/request/${requestId}
 
 Best regards,
 COI System`
 
-  return sendEmail(request.requester_email, subject, body, { requestId, reason })
+  return sendEmail(request.requester_email, subject, body, { requestId, reason, rejectionType })
 }
 
 export function sendEngagementCodeNotification(requestId, engagementCode) {
@@ -171,6 +181,33 @@ COI System`
 
     sendEmail(admin.email, adminSubject, adminBody, { requestId, engagementCode })
   })
+  
+  // Notify Partner (if assigned)
+  if (request.partner_approved_by) {
+    const partner = db.prepare('SELECT * FROM users WHERE id = ?').get(request.partner_approved_by)
+    if (partner && partner.email) {
+      const partnerSubject = `Engagement Code Generated - ${request.request_id}`
+      const partnerBody = `Dear ${partner.name},
+
+An engagement code has been generated for a COI request that you approved.
+
+Request ID: ${request.request_id}
+Engagement Code: ${engagementCode}
+Department: ${request.department}
+Service Type: ${request.service_type}
+Client: ${request.client_name || 'Not specified'}
+
+The engagement code is now available for tracking and monitoring purposes.
+
+Please log in to the COI system for full details:
+http://localhost:5173/coi
+
+Best regards,
+COI System`
+
+      sendEmail(partner.email, partnerSubject, partnerBody, { requestId, engagementCode })
+    }
+  }
   
   return { success: true }
 }

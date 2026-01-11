@@ -303,6 +303,12 @@
                         >
                           View
                         </button>
+                        <button 
+                          @click="deleteDraft(request)"
+                          class="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -371,6 +377,79 @@
               </div>
             </div>
           </div>
+
+          <!-- Rejected Tab -->
+          <div v-if="activeTab === 'rejected'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900">Rejected Requests</h2>
+                <p class="text-sm text-gray-500 mt-1">Requests that were rejected - some may be resubmitted</p>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rejection Type</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr v-for="request in rejectedRequests" :key="request.id" class="hover:bg-gray-50">
+                      <td class="px-6 py-4">
+                        <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ request.client_name || 'Not specified' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span 
+                          :class="request.rejection_type === 'permanent' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'" 
+                          class="px-2 py-1 text-xs font-medium rounded"
+                        >
+                          {{ request.rejection_type === 'permanent' ? 'Permanent' : 'Fixable' }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 max-w-xs">
+                        <span class="text-sm text-gray-600 truncate block" :title="request.rejection_reason || 'No reason provided'">
+                          {{ (request.rejection_reason || 'No reason provided').substring(0, 50) }}{{ (request.rejection_reason || '').length > 50 ? '...' : '' }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                          <button @click="viewRequest(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            View
+                          </button>
+                          <button 
+                            v-if="request.rejection_type !== 'permanent'"
+                            @click="resubmitRequest(request)"
+                            class="text-amber-600 hover:text-amber-800 text-sm font-medium"
+                          >
+                            Resubmit
+                          </button>
+                          <router-link 
+                            v-if="request.rejection_type === 'permanent'"
+                            to="/coi/request/new"
+                            class="text-gray-600 hover:text-gray-800 text-sm font-medium"
+                          >
+                            New Request
+                          </router-link>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-if="rejectedRequests.length === 0">
+                      <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        No rejected requests
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -382,6 +461,7 @@ import { ref, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
 import { useAuthStore } from '@/stores/auth'
+import api from '@/services/api'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()
@@ -428,11 +508,20 @@ const PendingIcon = {
   }
 }
 
+const RejectedIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' })
+    ])
+  }
+}
+
 const tabs = computed(() => [
   { id: 'overview', label: 'Overview', icon: OverviewIcon, count: 0, alertColor: '' },
   { id: 'all', label: 'All Requests', icon: AllIcon, count: totalRequests.value, alertColor: 'bg-gray-100 text-gray-600' },
   { id: 'drafts', label: 'Drafts', icon: DraftsIcon, count: draftCount.value, alertColor: 'bg-gray-100 text-gray-600' },
-  { id: 'pending', label: 'Pending', icon: PendingIcon, count: inProgressCount.value, alertColor: 'bg-yellow-100 text-yellow-700' }
+  { id: 'pending', label: 'Pending', icon: PendingIcon, count: inProgressCount.value, alertColor: 'bg-yellow-100 text-yellow-700' },
+  { id: 'rejected', label: 'Rejected', icon: RejectedIcon, count: rejectedCount.value, alertColor: 'bg-red-100 text-red-700' }
 ])
 
 // Stats
@@ -440,9 +529,11 @@ const totalRequests = computed(() => requests.value.length)
 const draftCount = computed(() => requests.value.filter(r => r.status === 'Draft').length)
 const approvedCount = computed(() => requests.value.filter(r => r.status === 'Approved' || r.status === 'Active').length)
 const inProgressCount = computed(() => requests.value.filter(r => r.status.includes('Pending')).length)
+const rejectedCount = computed(() => requests.value.filter(r => r.status === 'Rejected').length)
 
 const draftRequests = computed(() => requests.value.filter(r => r.status === 'Draft'))
 const pendingRequests = computed(() => requests.value.filter(r => r.status.includes('Pending')))
+const rejectedRequests = computed(() => requests.value.filter(r => r.status === 'Rejected'))
 const recentRequests = computed(() => [...requests.value].sort((a, b) => 
   new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
 ).slice(0, 5))
@@ -503,6 +594,51 @@ function editDraft(request: any) {
   // Store request data for editing
   localStorage.setItem('coi-edit-request', JSON.stringify(request))
   router.push('/coi/request/new')
+}
+
+async function resubmitRequest(request: any) {
+  if (request.rejection_type === 'permanent') {
+    alert('This request was permanently rejected and cannot be resubmitted.')
+    return
+  }
+  
+  try {
+    const response = await api.post(`/coi/requests/${request.id}/resubmit`)
+    
+    if (response.data.success) {
+      alert('Request converted to draft. You can now edit and resubmit.')
+      // Refresh the requests list
+      coiStore.fetchRequests()
+      // Navigate to the request detail page for editing
+      router.push(`/coi/request/${request.id}`)
+    } else {
+      alert(response.data.error || 'Failed to resubmit request.')
+    }
+  } catch (error: any) {
+    console.error('Failed to resubmit:', error)
+    alert(error.response?.data?.error || 'Failed to resubmit request. Please try again.')
+  }
+}
+
+async function deleteDraft(request: any) {
+  if (request.status !== 'Draft') {
+    alert('Only draft requests can be deleted.')
+    return
+  }
+  
+  if (!confirm(`Are you sure you want to delete draft "${request.request_id}"? This action cannot be undone.`)) {
+    return
+  }
+  
+  try {
+    await api.delete(`/coi/requests/${request.id}`)
+    alert('Draft deleted successfully')
+    // Refresh the requests list
+    coiStore.fetchRequests()
+  } catch (error: any) {
+    console.error('Failed to delete draft:', error)
+    alert(error.response?.data?.error || 'Failed to delete draft. Please try again.')
+  }
 }
 
 onMounted(() => {

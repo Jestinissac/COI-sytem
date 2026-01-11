@@ -1,5 +1,6 @@
 import { getDatabase } from '../database/init.js';
 import { sendEmail } from '../services/notificationService.js';
+import { notifyClientAcceptedProposal, notifyClientRejectedProposal } from '../services/emailService.js';
 import { createRenewalTracking } from '../services/monitoringService.js';
 
 const db = getDatabase();
@@ -150,6 +151,15 @@ export async function recordClientResponse(req, res) {
       WHERE id = ?
     `).run(response_type, requestId)
     
+    // Get full request details for notifications
+    const request = db.prepare(`
+      SELECT r.*, c.client_name, u.name as requester_name, u.email as requester_email
+      FROM coi_requests r
+      LEFT JOIN clients c ON r.client_id = c.id
+      LEFT JOIN users u ON r.requester_id = u.id
+      WHERE r.id = ?
+    `).get(requestId)
+    
     // If client accepted, update status
     if (response_type === 'Accepted') {
       db.prepare(`
@@ -157,14 +167,64 @@ export async function recordClientResponse(req, res) {
       `).run(requestId)
       
       // Create renewal tracking (3-year)
-      const request = db.prepare('SELECT engagement_code FROM coi_requests WHERE id = ?').get(requestId)
       if (request.engagement_code) {
         createRenewalTracking(requestId, request.engagement_code, new Date().toISOString())
       }
+      
+      // Send notifications for client acceptance
+      try {
+        // Notify requester
+        if (request.requester_email) {
+          await notifyClientAcceptedProposal(request, {
+            name: request.requester_name,
+            email: request.requester_email
+          }, false)
+        }
+        
+        // Notify Admin users
+        const adminUsers = db.prepare('SELECT id, name, email FROM users WHERE role = ? AND is_active = 1').all('Admin')
+        for (const admin of adminUsers) {
+          await notifyClientAcceptedProposal(request, admin, true)
+        }
+        
+        // Notify Partner (if assigned)
+        if (request.partner_approved_by) {
+          const partner = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(request.partner_approved_by)
+          if (partner) {
+            await notifyClientAcceptedProposal(request, partner, false)
+          }
+        }
+      } catch (notificationError) {
+        console.error('Error sending client acceptance notifications:', notificationError)
+      }
     } else if (response_type === 'Rejected') {
+      // Client rejection is always permanent - cannot be resubmitted
       db.prepare(`
-        UPDATE coi_requests SET status = 'Rejected' WHERE id = ?
-      `).run(requestId)
+        UPDATE coi_requests 
+        SET status = 'Rejected',
+            rejection_reason = ?,
+            rejection_type = 'permanent'
+        WHERE id = ?
+      `).run(notes || 'Client rejected the proposal', requestId)
+      
+      // Send notifications for client rejection
+      try {
+        // Notify requester
+        if (request.requester_email) {
+          await notifyClientRejectedProposal(request, {
+            name: request.requester_name,
+            email: request.requester_email
+          }, notes || null)
+        }
+        
+        // Notify Admin users
+        const adminUsers = db.prepare('SELECT id, name, email FROM users WHERE role = ? AND is_active = 1').all('Admin')
+        for (const admin of adminUsers) {
+          await notifyClientRejectedProposal(request, admin, notes || null)
+        }
+      } catch (notificationError) {
+        console.error('Error sending client rejection notifications:', notificationError)
+      }
     }
     
     res.json({ success: true, new_status: response_type === 'Accepted' ? 'Active' : response_type === 'Rejected' ? 'Rejected' : 'Pending' })

@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen bg-gray-100">
+  <div class="bg-gray-100">
     <!-- Top Header -->
-    <div class="bg-white border-b border-gray-200">
-      <div class="max-w-7xl mx-auto px-6 py-4">
+    <div class="bg-white border-b border-gray-200 mb-6">
+      <div class="px-6 py-4">
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-xl font-semibold text-gray-900">Finance Dashboard</h1>
@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-6 py-6">
+    <div class="px-6 pb-6">
       <div class="flex gap-6">
         <!-- Left Sidebar Navigation -->
         <div class="w-56 flex-shrink-0">
@@ -222,12 +222,27 @@
                         <span class="text-sm text-gray-500">{{ formatDate(request.created_at) }}</span>
                       </td>
                       <td class="px-6 py-4">
-                        <button 
-                          @click="viewDetails(request)" 
-                          class="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition-colors"
-                        >
-                          Generate Code
-                        </button>
+                        <div class="flex items-center gap-2">
+                          <button 
+                            v-if="!request.engagement_code"
+                            @click.stop="openCodeGenerationModal(request)" 
+                            class="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition-colors"
+                          >
+                            Generate Code
+                          </button>
+                          <div v-else class="flex items-center gap-2">
+                            <code class="text-xs font-mono font-medium text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                              {{ request.engagement_code }}
+                            </code>
+                            <button
+                              @click="viewCodeDetails(request)"
+                              class="px-2 py-1 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded"
+                              title="View code details"
+                            >
+                              View
+                            </button>
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -268,7 +283,7 @@
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement Code</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Financial Details</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -285,7 +300,27 @@
                         <span class="text-sm text-gray-600">{{ code.client_name || 'Not specified' }}</span>
                       </td>
                       <td class="px-6 py-4">
-                        <span class="text-sm text-gray-600">{{ code.service_type || 'General' }}</span>
+                        <div v-if="getFinancialParams(code)" class="text-xs space-y-1">
+                          <div v-if="getFinancialParams(code).currency">
+                            <span class="text-gray-500">Currency:</span>
+                            <span class="ml-1 font-medium text-gray-900">{{ getFinancialParams(code).currency }}</span>
+                          </div>
+                          <div v-if="getFinancialParams(code).risk_assessment">
+                            <span class="text-gray-500">Risk:</span>
+                            <span 
+                              :class="{
+                                'text-green-700': getFinancialParams(code).risk_assessment === 'Low',
+                                'text-yellow-700': getFinancialParams(code).risk_assessment === 'Medium',
+                                'text-orange-700': getFinancialParams(code).risk_assessment === 'High',
+                                'text-red-700': getFinancialParams(code).risk_assessment === 'Very High'
+                              }"
+                              class="ml-1 font-medium"
+                            >
+                              {{ getFinancialParams(code).risk_assessment }}
+                            </span>
+                          </div>
+                        </div>
+                        <span v-else class="text-xs text-gray-400">No financial data</span>
                       </td>
                       <td class="px-6 py-4">
                         <span :class="getStatusClass(code.status)" class="px-2 py-1 text-xs font-medium rounded">
@@ -373,6 +408,15 @@
         </div>
       </div>
     </div>
+
+    <!-- Code Generation Modal -->
+    <CodeGenerationModal
+      v-if="showCodeModal && selectedRequest"
+      :show="showCodeModal"
+      :request="selectedRequest"
+      @close="closeCodeModal"
+      @success="handleCodeGenerated"
+    />
   </div>
 </template>
 
@@ -380,13 +424,18 @@
 import { ref, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
+import CodeGenerationModal from '@/components/finance/CodeGenerationModal.vue'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()
+const toast = useToast()
 
 const activeTab = ref('overview')
 const searchQuery = ref('')
 const codeSearchQuery = ref('')
+const showCodeModal = ref(false)
+const selectedRequest = ref<any>(null)
 
 const loading = computed(() => coiStore.loading)
 const requests = computed(() => coiStore.requests)
@@ -478,7 +527,71 @@ function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function getFinancialParams(request: any) {
+  if (!request?.financial_parameters) return null
+  try {
+    return typeof request.financial_parameters === 'string'
+      ? JSON.parse(request.financial_parameters)
+      : request.financial_parameters
+  } catch {
+    return null
+  }
+}
+
 function viewDetails(request: any) {
+  router.push(`/coi/request/${request.id}`)
+}
+
+function openCodeGenerationModal(request: any) {
+  try {
+    console.log('[FinanceDashboard] openCodeGenerationModal called with request:', request)
+    
+    if (!request) {
+      console.error('[FinanceDashboard] No request provided to openCodeGenerationModal')
+      toast.error('Invalid request. Please try again.')
+      return
+    }
+    
+    // Verify request has required properties
+    if (!request.id && !request.request_id) {
+      console.error('[FinanceDashboard] Request missing ID:', request)
+      toast.error('Invalid request data. Request ID is missing. Please refresh the page.')
+      return
+    }
+    
+    if (request.engagement_code) {
+      toast.error('Engagement code already generated for this request')
+      return
+    }
+    
+    console.log('[FinanceDashboard] Opening modal for request:', {
+      id: request.id,
+      request_id: request.request_id,
+      service_type: request.service_type,
+      client_name: request.client_name
+    })
+    
+    selectedRequest.value = request
+    showCodeModal.value = true
+  } catch (error) {
+    console.error('[FinanceDashboard] Error opening code generation modal:', error)
+    toast.error('Failed to open code generation form. Please try again.')
+  }
+}
+
+function closeCodeModal() {
+  showCodeModal.value = false
+  selectedRequest.value = null
+}
+
+function handleCodeGenerated(code: string) {
+  toast.success(`Engagement code ${code} generated successfully`)
+  // Refresh requests to show updated status
+  coiStore.fetchRequests()
+  closeCodeModal()
+}
+
+function viewCodeDetails(request: any) {
   router.push(`/coi/request/${request.id}`)
 }
 

@@ -5,9 +5,11 @@ import {
   getRequestById,
   createRequest,
   updateRequest,
+  deleteRequest,
   submitRequest,
   approveRequest,
   rejectRequest,
+  resubmitRejectedRequest,
   requestInfo,
   requestMoreInfo,
   generateEngagementCode,
@@ -24,6 +26,7 @@ import {
   runScheduledTasks, 
   generateMonthlyReport,
   sendIntervalAlerts, 
+  sendIntervalMonitoringAlerts,
   checkRenewalAlerts, 
   getMonitoringAlertsSummary,
   checkAndLapseExpiredProposals
@@ -92,11 +95,13 @@ router.get('/requests', getMyRequests)
 router.get('/requests/:id', getRequestById)
 router.post('/requests', createRequest)
 router.put('/requests/:id', updateRequest)
+router.delete('/requests/:id', deleteRequest) // Delete draft requests only
 router.post('/requests/:id/submit', submitRequest)
 
 // Approval workflows
 router.post('/requests/:id/approve', approveRequest)
 router.post('/requests/:id/reject', rejectRequest)
+router.post('/requests/:id/resubmit', resubmitRejectedRequest) // Resubmit rejected requests (fixable only)
 router.post('/requests/:id/request-info', requestInfo)
 router.post('/requests/:id/need-more-info', requestMoreInfo) // Enhanced: returns to requester with specific questions
 
@@ -120,6 +125,16 @@ router.get('/monitoring/alerts', requireRole('Admin'), getMonitoringAlerts)
 router.post('/monitoring/send-interval-alerts', requireRole('Admin'), async (req, res) => {
   try {
     const result = sendIntervalAlerts()
+    res.json(result)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// 30-day proposal monitoring interval alerts (every 10 days)
+router.post('/monitoring/send-proposal-alerts', requireRole('Admin'), async (req, res) => {
+  try {
+    const result = await sendIntervalMonitoringAlerts()
     res.json(result)
   } catch (error) {
     res.status(500).json({ error: error.message })

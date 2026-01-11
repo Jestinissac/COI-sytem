@@ -2,6 +2,7 @@ import { getDatabase } from '../database/init.js'
 import { getFilteredRequests } from '../middleware/dataSegregation.js'
 import { checkDuplication } from '../services/duplicationCheckService.js'
 import { sendApprovalNotification, sendRejectionNotification, sendEngagementCodeNotification, sendProposalExecutedNotification } from '../services/notificationService.js'
+import { notifyRequestSubmitted, notifyDirectorApprovalRequired, notifyComplianceReviewRequired } from '../services/emailService.js'
 import { generateEngagementCode as generateCode } from '../services/engagementCodeService.js'
 import { updateMonitoringDays, getApproachingLimitRequests, getExceededLimitRequests } from '../services/monitoringService.js'
 import { evaluateRules } from '../services/businessRulesEngine.js'
@@ -39,16 +40,28 @@ const STANDARD_FIELD_MAPPINGS = {
 }
 
 function getCurrentFormVersion() {
-  const version = db.prepare('SELECT MAX(version_number) as max_version FROM form_versions').get()
-  return version?.max_version || 1
+  try {
+    const version = db.prepare('SELECT MAX(version_number) as max_version FROM form_versions').get()
+    return version?.max_version || 1
+  } catch (error) {
+    // Table doesn't exist, return default version
+    console.log('form_versions table not found, using default version 1')
+    return 1
+  }
 }
 
 function getFieldMappings() {
-  const mappings = db.prepare('SELECT * FROM form_field_mappings').all()
   const mappingMap = new Map()
   
-  for (const mapping of mappings) {
-    mappingMap.set(mapping.field_id, mapping)
+  // Try to get mappings from form_field_mappings table, but handle if it doesn't exist
+  try {
+    const mappings = db.prepare('SELECT * FROM form_field_mappings').all()
+    for (const mapping of mappings) {
+      mappingMap.set(mapping.field_id, mapping)
+    }
+  } catch (error) {
+    // Table doesn't exist, use standard mappings only
+    console.log('form_field_mappings table not found, using standard mappings only')
   }
   
   // Add standard mappings if not in DB
@@ -112,6 +125,14 @@ export async function getRequestById(req, res) {
       db.prepare('SELECT name as requester_name FROM users WHERE id = ?').get(request.requester_id) : 
       null
     
+    const directorApprovalBy = request.director_approval_by ? 
+      db.prepare('SELECT name as director_approval_by_name FROM users WHERE id = ?').get(request.director_approval_by) : 
+      null
+    
+    const partnerApprovalBy = request.partner_approved_by ? 
+      db.prepare('SELECT name as partner_approved_by_name FROM users WHERE id = ?').get(request.partner_approved_by) : 
+      null
+    
     const signatories = db.prepare('SELECT * FROM coi_signatories WHERE coi_request_id = ?').all(request.id)
     
     // Merge data
@@ -120,6 +141,8 @@ export async function getRequestById(req, res) {
       client_name: client?.client_name || null,
       client_code: client?.client_code || null,
       requester_name: requester?.requester_name || request.requestor_name || null,
+      director_approval_by_name: directorApprovalBy?.director_approval_by_name || null,
+      partner_approved_by_name: partnerApprovalBy?.partner_approved_by_name || null,
       signatories
     }
     
@@ -148,7 +171,7 @@ export async function createRequest(req, res) {
     // Generate request ID
     const year = new Date().getFullYear()
     const countResult = db.prepare('SELECT COUNT(*) as count FROM coi_requests WHERE request_id LIKE ?').get(`COI-${year}-%`)
-    const count = countResult ? countResult.count : 0
+    const count = (countResult && countResult.count !== undefined) ? countResult.count : 0
     const requestId = `COI-${year}-${String(count + 1).padStart(3, '0')}`
 
     // Get field mappings
@@ -196,10 +219,10 @@ export async function createRequest(req, res) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       requestId, 
-      standardData.client_id || data.client_id, 
+      standardData.client_id || data.client_id || null, 
       user.id, 
-      user.department,
-      standardData.requestor_name || user.name, 
+      user.department || null,
+      standardData.requestor_name || user.name || '', 
       standardData.designation || data.designation || '', 
       standardData.entity || data.entity || '', 
       standardData.line_of_service || data.line_of_service || '',
@@ -216,11 +239,14 @@ export async function createRequest(req, res) {
       standardData.full_ownership_structure || data.full_ownership_structure || '', 
       standardData.pie_status || data.pie_status || 'No', 
       standardData.related_affiliated_entities || data.related_affiliated_entities || '',
-      (standardData.international_operations !== undefined ? standardData.international_operations : (data.international_operations ? 1 : 0)), 
+      // Convert boolean to integer for SQLite
+      (standardData.international_operations !== undefined 
+        ? (standardData.international_operations === true || standardData.international_operations === 1 ? 1 : 0)
+        : (data.international_operations === true || data.international_operations === 1 ? 1 : 0)), 
       standardData.foreign_subsidiaries || data.foreign_subsidiaries || '', 
       standardData.global_clearance_status || data.global_clearance_status || 'Not Required',
       Object.keys(customFields).length > 0 ? JSON.stringify(customFields) : null,
-      formVersion,
+      formVersion || 1,
       'Draft', 
       'Proposal'
     )
@@ -336,6 +362,67 @@ export async function submitRequest(req, res) {
       req.params.id
     )
 
+    // Send notifications based on next status
+    try {
+      const requestWithClient = {
+        ...request,
+        client_name: client.client_name
+      }
+      
+      // Determine next approver for requester confirmation
+      let nextApprover = null
+      if (newStatus === 'Pending Director Approval' && user.director_id) {
+        nextApprover = db.prepare('SELECT * FROM users WHERE id = ?').get(user.director_id)
+      } else if (newStatus === 'Pending Compliance') {
+        const complianceOfficers = db.prepare(`
+          SELECT id, name, email FROM users 
+          WHERE role = 'Compliance' AND is_active = 1
+          ${request.department ? 'AND department = ?' : ''}
+          LIMIT 1
+        `).get(request.department || [])
+        nextApprover = complianceOfficers
+      }
+      
+      // Always send confirmation to requester
+      const requester = getUserById(request.requester_id)
+      if (requester && requester.email && nextApprover) {
+        await notifyRequestSubmitted(requestWithClient, requester, nextApprover)
+      }
+      
+      // Notify Director if status is 'Pending Director Approval'
+      if (newStatus === 'Pending Director Approval' && user.director_id) {
+        const director = db.prepare('SELECT * FROM users WHERE id = ?').get(user.director_id)
+        if (director && director.email) {
+          await notifyDirectorApprovalRequired(requestWithClient, director)
+        }
+      }
+      
+      // Notify Compliance if status is 'Pending Compliance'
+      if (newStatus === 'Pending Compliance') {
+        const complianceOfficers = db.prepare(`
+          SELECT id, name, email FROM users 
+          WHERE role = 'Compliance' AND is_active = 1
+          ${request.department ? 'AND department = ?' : ''}
+        `).all(request.department || [])
+        
+        if (complianceOfficers.length > 0) {
+          const conflicts = ruleEvaluation.recommendations?.filter(r => 
+            r.recommendedAction === 'block' || r.recommendedAction === 'require_approval'
+          ) || []
+          
+          await notifyComplianceReviewRequired(
+            requestWithClient,
+            complianceOfficers,
+            conflicts,
+            duplicates || []
+          )
+        }
+      }
+    } catch (notificationError) {
+      // Log but don't fail the request submission
+      console.error('Error sending submission notifications:', notificationError)
+    }
+
     res.json({ 
       success: true, 
       duplicates: duplicates || [],
@@ -409,16 +496,73 @@ export async function approveRequest(req, res) {
       return res.status(400).json({ error: 'Invalid approval action' })
     }
 
-    db.prepare(`
-      UPDATE coi_requests 
-      SET ${updateField} = ?, 
-          ${dateField} = CURRENT_TIMESTAMP,
-          ${byField} = ?,
-          ${notesField} = ?,
-          ${restrictionsField} = ?,
-          status = ?
-      WHERE id = ?
-    `).run(approvalStatus, user.id, comments || null, restrictions || null, nextStatus, req.params.id)
+    // Build UPDATE statement conditionally based on whether restrictions column exists
+    // Check if restrictions column exists for this role
+    let updateQuery
+    let updateParams
+    
+    try {
+      // Try to check if restrictions column exists by querying table info
+      const tableInfo = db.prepare(`PRAGMA table_info(coi_requests)`).all()
+      const hasRestrictionsColumn = tableInfo.some(col => col.name === restrictionsField)
+      
+      if (hasRestrictionsColumn && restrictionsField) {
+        updateQuery = `
+          UPDATE coi_requests 
+          SET ${updateField} = ?, 
+              ${dateField} = CURRENT_TIMESTAMP,
+              ${byField} = ?,
+              ${notesField} = ?,
+              ${restrictionsField} = ?,
+              status = ?
+          WHERE id = ?
+        `
+        updateParams = [approvalStatus, user.id, comments || null, restrictions || null, nextStatus, req.params.id]
+      } else {
+        // Restrictions column doesn't exist, update without it
+        updateQuery = `
+          UPDATE coi_requests 
+          SET ${updateField} = ?, 
+              ${dateField} = CURRENT_TIMESTAMP,
+              ${byField} = ?,
+              ${notesField} = ?,
+              status = ?
+          WHERE id = ?
+        `
+        updateParams = [approvalStatus, user.id, comments || null, nextStatus, req.params.id]
+        // Store restrictions in notes if restrictions column doesn't exist
+        if (restrictions) {
+          const existingNotes = db.prepare(`SELECT ${notesField} FROM coi_requests WHERE id = ?`).get(req.params.id)
+          const combinedNotes = existingNotes?.[notesField] 
+            ? `${existingNotes[notesField]}\n\nRestrictions: ${restrictions}`
+            : `Restrictions: ${restrictions}`
+          updateParams[2] = combinedNotes
+        }
+      }
+      
+      db.prepare(updateQuery).run(...updateParams)
+    } catch (error) {
+      // Fallback: try without restrictions column
+      console.log(`Column ${restrictionsField} not found, updating without restrictions`)
+      updateQuery = `
+        UPDATE coi_requests 
+        SET ${updateField} = ?, 
+            ${dateField} = CURRENT_TIMESTAMP,
+            ${byField} = ?,
+            ${notesField} = ?,
+            status = ?
+        WHERE id = ?
+      `
+      updateParams = [approvalStatus, user.id, comments || null, nextStatus, req.params.id]
+      if (restrictions) {
+        const existingNotes = db.prepare(`SELECT ${notesField} FROM coi_requests WHERE id = ?`).get(req.params.id)
+        const combinedNotes = existingNotes?.[notesField] 
+          ? `${existingNotes[notesField]}\n\nRestrictions: ${restrictions}`
+          : `Restrictions: ${restrictions}`
+        updateParams[2] = combinedNotes
+      }
+      db.prepare(updateQuery).run(...updateParams)
+    }
 
     // Send notification to next approver
     const roleMapping = {
@@ -485,15 +629,21 @@ export async function requestMoreInfo(req, res) {
 export async function rejectRequest(req, res) {
   try {
     const user = getUserById(req.userId)
-    const { reason, recommendations = [] } = req.body
+    const { reason, recommendations = [], rejection_type = 'fixable' } = req.body
     const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
+
+    // Validate rejection_type
+    const validRejectionTypes = ['fixable', 'permanent']
+    const finalRejectionType = validRejectionTypes.includes(rejection_type) ? rejection_type : 'fixable'
 
     db.prepare(`
       UPDATE coi_requests 
       SET status = 'Rejected',
+          rejection_reason = ?,
+          rejection_type = ?,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(req.params.id)
+    `).run(reason || 'No reason provided', finalRejectionType, req.params.id)
     
     // Enhanced audit trail for Compliance rejections
     if (user.role === 'Compliance') {
@@ -514,11 +664,162 @@ export async function rejectRequest(req, res) {
       })
     }
     
-    // Send rejection notification
-    sendRejectionNotification(req.params.id, user.name, reason || 'No reason provided')
+    // Send rejection notification with rejection type
+    sendRejectionNotification(req.params.id, user.name, reason || 'No reason provided', finalRejectionType)
     
-    res.json({ success: true })
+    res.json({ success: true, rejection_type: finalRejectionType })
   } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
+// Resubmit a rejected request (fixable rejections only)
+export async function resubmitRejectedRequest(req, res) {
+  try {
+    const user = getUserById(req.userId)
+    const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
+    
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    // Check if request is in Rejected status
+    if (request.status !== 'Rejected') {
+      return res.status(400).json({ error: 'Only rejected requests can be resubmitted.' })
+    }
+    
+    // Check if user is the requester (use String() to handle type mismatches)
+    if (String(request.requester_id) !== String(user.id)) {
+      return res.status(403).json({ error: 'Only the requester can resubmit this request.' })
+    }
+    
+    // Check rejection type - allow resubmission only for fixable rejections (or null/undefined for backward compatibility)
+    if (request.rejection_type === 'permanent') {
+      return res.status(400).json({ 
+        error: 'This request was permanently rejected and cannot be resubmitted. Please create a new request if circumstances have changed.' 
+      })
+    }
+    
+    // Convert to Draft and reset approval statuses
+    db.prepare(`
+      UPDATE coi_requests 
+      SET status = 'Draft',
+          director_approval_status = NULL,
+          director_approval_by = NULL,
+          director_approval_date = NULL,
+          director_approval_notes = NULL,
+          compliance_review_status = NULL,
+          compliance_reviewed_by = NULL,
+          compliance_review_date = NULL,
+          compliance_review_notes = NULL,
+          partner_approval_status = NULL,
+          partner_approved_by = NULL,
+          partner_approval_date = NULL,
+          partner_approval_notes = NULL,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(req.params.id)
+    
+    res.json({ 
+      success: true, 
+      message: 'Request converted to draft. You can now edit and resubmit.',
+      new_status: 'Draft'
+    })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
+// Delete a draft request (only drafts can be deleted)
+export async function deleteRequest(req, res) {
+  try {
+    const user = getUserById(req.userId)
+    const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
+    
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    // Only allow deletion of Draft requests
+    if (request.status !== 'Draft') {
+      return res.status(400).json({ 
+        error: 'Only draft requests can be deleted. Submitted requests cannot be deleted.' 
+      })
+    }
+    
+    // Check if user is the requester or an admin
+    const isRequester = String(request.requester_id) === String(user.id)
+    const isAdmin = ['Admin', 'Super Admin'].includes(user.role)
+    
+    if (!isRequester && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied. Only the requester or an admin can delete this request.' })
+    }
+    
+    // Delete related data first (cascade delete) - must delete in order to satisfy foreign key constraints
+    const fs = await import('fs')
+    
+    // 1. Delete attachments and their files
+    const attachments = db.prepare('SELECT * FROM coi_attachments WHERE coi_request_id = ?').all(req.params.id)
+    attachments.forEach(attachment => {
+      if (attachment.file_path && fs.default.existsSync(attachment.file_path)) {
+        try {
+          fs.default.unlinkSync(attachment.file_path)
+        } catch (err) {
+          console.error(`Error deleting attachment file: ${err.message}`)
+        }
+      }
+    })
+    db.prepare('DELETE FROM coi_attachments WHERE coi_request_id = ?').run(req.params.id)
+    
+    // 2. Delete uploaded files (ISQM forms, etc.) and their files
+    const uploadedFiles = db.prepare('SELECT * FROM uploaded_files WHERE request_id = ?').all(req.params.id)
+    uploadedFiles.forEach(file => {
+      if (file.file_path && fs.default.existsSync(file.file_path)) {
+        try {
+          fs.default.unlinkSync(file.file_path)
+        } catch (err) {
+          console.error(`Error deleting uploaded file: ${err.message}`)
+        }
+      }
+    })
+    db.prepare('DELETE FROM uploaded_files WHERE request_id = ?').run(req.params.id)
+    
+    // 3. Delete signatories
+    db.prepare('DELETE FROM coi_signatories WHERE coi_request_id = ?').run(req.params.id)
+    
+    // 4. Delete ISQM forms
+    db.prepare('DELETE FROM isqm_forms WHERE coi_request_id = ?').run(req.params.id)
+    
+    // 5. Delete global COI submissions
+    db.prepare('DELETE FROM global_coi_submissions WHERE coi_request_id = ?').run(req.params.id)
+    
+    // 6. Delete engagement renewals (if any exist for this draft)
+    db.prepare('DELETE FROM engagement_renewals WHERE coi_request_id = ?').run(req.params.id)
+    
+    // 7. Delete monitoring alerts
+    db.prepare('DELETE FROM monitoring_alerts WHERE coi_request_id = ?').run(req.params.id)
+    
+    // 8. Delete execution tracking (if any)
+    try {
+      db.prepare('DELETE FROM execution_tracking WHERE coi_request_id = ?').run(req.params.id)
+    } catch (err) {
+      // Table might not exist, ignore
+    }
+    
+    // 9. Finally, delete the request itself
+    const result = db.prepare('DELETE FROM coi_requests WHERE id = ?').run(req.params.id)
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Draft request deleted successfully',
+      request_id: request.request_id
+    })
+  } catch (error) {
+    console.error('Error deleting request:', error)
     res.status(500).json({ error: error.message })
   }
 }
@@ -551,9 +852,55 @@ export async function generateEngagementCode(req, res) {
       return res.status(404).json({ error: 'Request not found' })
     }
 
+    // Validation: Check if engagement code already exists
+    if (request.engagement_code) {
+      return res.status(400).json({ 
+        error: 'Engagement code already generated for this request',
+        existing_code: request.engagement_code
+      })
+    }
+
+    // Validation: Check request status is valid for code generation
+    // Finance can generate code when request is in "Pending Finance" status
+    const validStatuses = ['Pending Finance', 'Approved']
+    if (!validStatuses.includes(request.status)) {
+      // If not in valid status, require explicit partner approval
+      if (!request.partner_approved_by || request.partner_approval_status !== 'Approved') {
+        return res.status(400).json({ 
+          error: 'Partner approval is required before generating engagement code. Request must be approved by Partner first.'
+        })
+      }
+      return res.status(400).json({ 
+        error: `Cannot generate code for request with status: ${request.status}. Request must be in "Pending Finance" or "Approved" status.`
+      })
+    }
+
+    // Validation: Check service type exists
+    if (!request.service_type) {
+      return res.status(400).json({ 
+        error: 'Service type is required to generate engagement code'
+      })
+    }
+
+    // Validation: Check financial parameters are provided
     const { financial_parameters } = req.body
+    if (!financial_parameters) {
+      return res.status(400).json({ 
+        error: 'Financial parameters are required'
+      })
+    }
+
+    // Validate required financial parameters
+    if (!financial_parameters.credit_terms || !financial_parameters.currency || !financial_parameters.risk_assessment) {
+      return res.status(400).json({ 
+        error: 'Missing required financial parameters: credit_terms, currency, and risk_assessment are required'
+      })
+    }
+
+    // Generate engagement code
     const code = await generateCode(request.service_type, request.id, user.id, financial_parameters)
 
+    // Update request with engagement code and financial parameters
     db.prepare(`
       UPDATE coi_requests 
       SET engagement_code = ?,
@@ -566,9 +913,30 @@ export async function generateEngagementCode(req, res) {
     // Send notification about engagement code
     sendEngagementCodeNotification(req.params.id, code)
 
-    res.json({ engagement_code: code })
+    res.json({ 
+      success: true,
+      engagement_code: code,
+      message: 'Engagement code generated successfully'
+    })
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    console.error('[generateEngagementCode] Error:', error)
+    
+    // Provide more specific error messages
+    if (error.message.includes('UNIQUE constraint')) {
+      return res.status(409).json({ 
+        error: 'Engagement code already exists. Please try again or contact support.'
+      })
+    }
+    
+    if (error.message.includes('no such table')) {
+      return res.status(500).json({ 
+        error: 'Database error: Engagement codes table not found. Please contact support.'
+      })
+    }
+
+    res.status(500).json({ 
+      error: error.message || 'Failed to generate engagement code. Please try again or contact support.'
+    })
   }
 }
 

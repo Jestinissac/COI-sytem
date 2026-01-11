@@ -10,7 +10,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
               </svg>
             </button>
-            <div v-if="request">
+            <div v-if="request" data-section="status">
               <div class="flex items-center gap-3">
                 <h1 class="text-xl font-semibold text-gray-900">{{ request.request_id }}</h1>
                 <span :class="getStatusClass(request.status)" class="px-2.5 py-1 text-xs font-medium rounded">
@@ -23,13 +23,40 @@
               <h1 class="text-xl font-semibold text-gray-900">Request Details</h1>
             </div>
           </div>
-          <button 
-            v-if="request?.status === 'Draft'"
-            @click="editDraft"
-            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Edit Draft
-          </button>
+          <div class="flex items-center gap-2">
+            <button 
+              v-if="request?.status === 'Draft'"
+              @click="editDraft"
+              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Edit Draft
+            </button>
+            <button 
+              v-if="request?.status === 'Draft' && canDeleteDraft"
+              @click="deleteDraft"
+              :disabled="deleting"
+              class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {{ deleting ? 'Deleting...' : 'Delete Draft' }}
+            </button>
+            <!-- Resubmit button for fixable rejections -->
+            <button 
+              v-if="canResubmit"
+              @click="resubmitRequest"
+              :disabled="resubmitting"
+              class="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-700 transition-colors disabled:opacity-50"
+            >
+              {{ resubmitting ? 'Converting...' : 'Modify and Resubmit' }}
+            </button>
+            <!-- Create new request for permanent rejections -->
+            <router-link 
+              v-if="request?.status === 'Rejected' && request?.rejection_type === 'permanent'"
+              to="/coi/request/new"
+              class="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Create New Request
+            </router-link>
+          </div>
         </div>
       </div>
     </div>
@@ -47,6 +74,43 @@
       </div>
     
       <div v-else-if="request" class="grid grid-cols-3 gap-6">
+        <!-- Rejection Alert Banner (full width) -->
+        <div v-if="request.status === 'Rejected'" class="col-span-3">
+          <div :class="request.rejection_type === 'permanent' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'" class="border rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <div :class="request.rejection_type === 'permanent' ? 'text-red-600' : 'text-amber-600'" class="flex-shrink-0 mt-0.5">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <h3 :class="request.rejection_type === 'permanent' ? 'text-red-800' : 'text-amber-800'" class="font-semibold">
+                    Request Rejected
+                  </h3>
+                  <span :class="request.rejection_type === 'permanent' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'" class="px-2 py-0.5 text-xs font-medium rounded">
+                    {{ request.rejection_type === 'permanent' ? 'Permanent' : 'Fixable' }}
+                  </span>
+                </div>
+                <p :class="request.rejection_type === 'permanent' ? 'text-red-700' : 'text-amber-700'" class="text-sm">
+                  <strong>Reason:</strong> {{ request.rejection_reason || 'No reason provided' }}
+                </p>
+                <p :class="request.rejection_type === 'permanent' ? 'text-red-600' : 'text-amber-600'" class="text-sm mt-2">
+                  <template v-if="request.rejection_type === 'permanent'">
+                    This rejection is final and cannot be resubmitted. Please create a new request if circumstances have changed.
+                  </template>
+                  <template v-else>
+                    You can modify and resubmit this request after addressing the feedback above.
+                  </template>
+                </p>
+                <p class="text-xs text-gray-500 mt-2">
+                  Rejected on {{ formatDate(request.updated_at) }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <!-- Main Content (2 cols) -->
         <div class="col-span-2 space-y-6">
           <!-- Request Details -->
@@ -186,17 +250,120 @@
                   {{ validationChecks.clientActive ? 'Yes' : 'No' }}
                 </span>
               </div>
-              <div class="px-4 py-3 flex items-center justify-between">
-                <span class="text-gray-600">Previous COI</span>
-                <span :class="validationChecks.hasPreviousCOI ? 'text-yellow-600' : 'text-green-600'" class="font-medium">
-                  {{ validationChecks.hasPreviousCOI ? `${validationChecks.previousCOICount} found` : 'None' }}
-                </span>
+              <div class="px-4 py-3">
+                <button 
+                  type="button"
+                  class="w-full flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded px-2 py-1 -mx-2 -my-1 transition-colors text-left" 
+                  @click="showPreviousCOI = !showPreviousCOI" 
+                  v-if="validationChecks.hasPreviousCOI"
+                >
+                  <span class="text-gray-600">Previous COI</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-yellow-600 font-medium">
+                      {{ validationChecks.previousCOICount }} found
+                    </span>
+                    <svg 
+                      :class="showPreviousCOI ? 'rotate-180' : ''"
+                      class="w-4 h-4 text-gray-400 transition-transform"
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </div>
+                </button>
+                <div class="flex items-center justify-between" v-else>
+                  <span class="text-gray-600">Previous COI</span>
+                  <span class="text-green-600 font-medium">None</span>
+                </div>
+                <!-- Expandable Previous COI List -->
+                <div v-if="showPreviousCOI && validationChecks.hasPreviousCOI && previousEngagements.length > 0" class="mt-3 pt-3 border-t border-gray-200">
+                  <div class="space-y-2 max-h-64 overflow-y-auto">
+                    <button
+                      type="button"
+                      v-for="eng in previousEngagements" 
+                      :key="eng.id"
+                      class="w-full flex items-center justify-between p-2 bg-yellow-50 rounded border border-yellow-200 hover:bg-yellow-100 hover:border-yellow-300 hover:shadow-sm transition-all cursor-pointer group text-left focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-1"
+                      @click.stop="navigateToEngagement(eng)"
+                      :title="`Click to open ${eng.request_id} in a new tab`"
+                    >
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{{ eng.request_id }}</span>
+                          <span :class="eng.status === 'Active' ? 'text-green-600' : 'text-gray-500'" class="text-xs">
+                            {{ eng.status }}
+                          </span>
+                        </div>
+                        <div class="text-xs text-gray-600 mt-0.5">
+                          {{ eng.service_type || 'N/A' }} · {{ formatDate(eng.created_at) }}
+                        </div>
+                      </div>
+                      <svg class="w-4 h-4 text-gray-400 ml-2 flex-shrink-0 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div class="px-4 py-3 flex items-center justify-between">
-                <span class="text-gray-600">Service Conflict</span>
-                <span :class="validationChecks.hasServiceConflict ? 'text-red-600' : 'text-green-600'" class="font-medium">
-                  {{ validationChecks.hasServiceConflict ? 'Yes' : 'None' }}
-                </span>
+              <div class="px-4 py-3">
+                <button
+                  type="button"
+                  class="w-full flex items-center justify-between cursor-pointer hover:bg-gray-50 rounded px-2 py-1 -mx-2 -my-1 transition-colors text-left" 
+                  @click="showServiceConflict = !showServiceConflict" 
+                  v-if="validationChecks.hasServiceConflict"
+                >
+                  <span class="text-gray-600">Service Conflict</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-red-600 font-medium">Yes</span>
+                    <svg 
+                      :class="showServiceConflict ? 'rotate-180' : ''"
+                      class="w-4 h-4 text-gray-400 transition-transform"
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </div>
+                </button>
+                <div class="flex items-center justify-between" v-else>
+                  <span class="text-gray-600">Service Conflict</span>
+                  <span class="text-green-600 font-medium">None</span>
+                </div>
+                <!-- Expandable Service Conflict Details -->
+                <div v-if="showServiceConflict && validationChecks.hasServiceConflict" class="mt-3 pt-3 border-t border-gray-200">
+                  <div class="space-y-2">
+                    <div class="text-xs text-red-700 mb-2 font-medium">Conflicting engagements:</div>
+                    <button
+                      type="button"
+                      v-for="eng in conflictingEngagements" 
+                      :key="eng.id"
+                      class="w-full flex items-center justify-between p-2 bg-red-50 rounded border border-red-200 hover:bg-red-100 hover:border-red-300 hover:shadow-sm transition-all cursor-pointer group text-left focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1"
+                      @click.stop="navigateToEngagement(eng)"
+                      :title="`Click to open ${eng.request_id} in a new tab`"
+                    >
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="text-sm font-medium text-gray-900 group-hover:text-blue-600">{{ eng.request_id }}</span>
+                          <span class="text-xs text-red-600 font-medium">{{ eng.service_type }}</span>
+                          <span :class="eng.status === 'Active' ? 'text-green-600' : 'text-gray-500'" class="text-xs">
+                            {{ eng.status }}
+                          </span>
+                        </div>
+                        <div class="text-xs text-gray-600 mt-0.5">
+                          {{ formatDate(eng.created_at) }}
+                        </div>
+                      </div>
+                      <svg class="w-4 h-4 text-gray-400 ml-2 flex-shrink-0 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                      </svg>
+                    </button>
+                    <div v-if="conflictingEngagements.length === 0" class="text-xs text-gray-500 italic">
+                      Conflict detected but details not available
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -308,6 +475,65 @@
             </div>
           </div>
 
+          <!-- Director Approval Status -->
+          <div v-if="shouldShowDirectorApprovalStatus" class="bg-white rounded-lg shadow-sm">
+            <div class="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
+              <h2 class="font-medium text-gray-900">Director Approval Status</h2>
+            </div>
+            <div class="p-4">
+              <div class="space-y-3">
+                <!-- Status Badge -->
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-gray-600">Status:</span>
+                  <span 
+                    :class="getDirectorApprovalStatusClass(effectiveDirectorApprovalStatus)"
+                    class="px-2.5 py-1 text-xs font-medium rounded"
+                  >
+                    {{ getDirectorApprovalStatusLabel(effectiveDirectorApprovalStatus) }}
+                  </span>
+                </div>
+
+                <!-- In-System Approval Details -->
+                <div v-if="(effectiveDirectorApprovalStatus === 'Approved' || effectiveDirectorApprovalStatus === 'Approved with Restrictions') && (request.director_approval_by || hasDirectorApprovalDocument)" class="text-sm">
+                  <div v-if="request.director_approval_by" class="text-gray-600 mb-1">Approved by:</div>
+                  <div v-if="request.director_approval_by" class="text-gray-900 font-medium">{{ request.director_approval_by_name || 'Director' }}</div>
+                  <div v-if="request.director_approval_date" class="text-xs text-gray-500 mt-1">
+                    {{ formatDate(request.director_approval_date) }}
+                  </div>
+                  <div v-if="request.director_approval_notes" class="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-700">
+                    {{ request.director_approval_notes }}
+                  </div>
+                  <div v-if="request.director_restrictions" class="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                    <strong>Restrictions:</strong> {{ request.director_restrictions }}
+                  </div>
+                </div>
+
+                <!-- Document Upload Details -->
+                <div v-if="hasDirectorApprovalDocument" class="text-sm">
+                  <div class="text-gray-600 mb-2">Director approval document uploaded:</div>
+                  <div v-for="doc in directorApprovalDocuments" :key="doc.id" class="flex items-center gap-2 p-2 bg-blue-50 rounded">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="text-sm text-gray-900 flex-1">{{ doc.file_name }}</span>
+                    <span class="text-xs text-gray-500">{{ formatDate(doc.created_at) }}</span>
+                    <span class="text-xs text-gray-500">by {{ doc.uploaded_by_name || 'User' }}</span>
+                  </div>
+                </div>
+
+                <!-- Pending Status - Only show if actually pending director approval -->
+                <div v-if="request.status === 'Pending Director Approval' && effectiveDirectorApprovalStatus === 'Pending' && !hasDirectorApprovalDocument" class="text-sm text-gray-600">
+                  Waiting for director approval. Director can approve in-system or you can upload an approval document.
+                </div>
+                
+                <!-- Implied Approval Message - Show when status is beyond Director but no explicit approval recorded -->
+                <div v-if="['Pending Compliance', 'Pending Partner', 'Pending Finance', 'Approved', 'Active'].includes(request.status) && !request.director_approval_by && !hasDirectorApprovalDocument && effectiveDirectorApprovalStatus === 'Approved'" class="text-sm text-gray-600 italic">
+                  Director approval inferred from workflow progression.
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Workflow -->
           <div class="bg-white rounded-lg shadow-sm">
             <div class="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
@@ -325,6 +551,67 @@
                 <span :class="step.current ? 'text-blue-600 font-medium' : step.completed ? 'text-gray-900' : 'text-gray-400'">
                   {{ step.name }}
                 </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Engagement Code & Financial Parameters -->
+          <div v-if="request.engagement_code || (authStore.user?.role === 'Finance' && request.status === 'Pending Finance')" class="bg-white rounded-lg shadow-sm">
+            <div class="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
+              <h2 class="font-medium text-gray-900">Engagement Code & Financial Details</h2>
+            </div>
+            <div class="p-4 space-y-4">
+              <!-- Engagement Code -->
+              <div v-if="request.engagement_code">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-sm text-gray-600">Engagement Code:</span>
+                  <code class="text-sm font-mono font-bold text-blue-900 bg-blue-50 px-2 py-1 rounded">{{ request.engagement_code }}</code>
+                </div>
+              </div>
+              <div v-else-if="authStore.user?.role === 'Finance' && request.status === 'Pending Finance'" class="text-sm text-gray-500 italic">
+                Engagement code will be generated after financial parameters are entered.
+              </div>
+
+              <!-- Financial Parameters -->
+              <div v-if="financialParameters" class="border-t pt-4">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Financial Parameters</h3>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                  <div v-if="financialParameters.credit_terms">
+                    <span class="text-gray-500">Credit Terms:</span>
+                    <span class="ml-2 font-medium text-gray-900">{{ financialParameters.credit_terms }}</span>
+                  </div>
+                  <div v-if="financialParameters.currency">
+                    <span class="text-gray-500">Currency:</span>
+                    <span class="ml-2 font-medium text-gray-900">{{ financialParameters.currency }}</span>
+                  </div>
+                  <div v-if="financialParameters.risk_assessment">
+                    <span class="text-gray-500">Risk Assessment:</span>
+                    <span 
+                      :class="{
+                        'text-green-700': financialParameters.risk_assessment === 'Low',
+                        'text-yellow-700': financialParameters.risk_assessment === 'Medium',
+                        'text-orange-700': financialParameters.risk_assessment === 'High',
+                        'text-red-700': financialParameters.risk_assessment === 'Very High'
+                      }"
+                      class="ml-2 font-medium"
+                    >
+                      {{ financialParameters.risk_assessment }}
+                    </span>
+                  </div>
+                  <div v-if="financialParameters.pending_amount !== null && financialParameters.pending_amount !== undefined">
+                    <span class="text-gray-500">Pending Amount:</span>
+                    <span class="ml-2 font-medium text-gray-900">
+                      {{ formatCurrency(financialParameters.pending_amount, financialParameters.currency) }}
+                    </span>
+                  </div>
+                </div>
+                <div v-if="financialParameters.notes" class="mt-3 pt-3 border-t">
+                  <span class="text-gray-500 text-sm">Notes:</span>
+                  <p class="text-sm text-gray-900 mt-1">{{ financialParameters.notes }}</p>
+                </div>
+              </div>
+              <div v-else-if="request.engagement_code" class="text-sm text-gray-500 italic">
+                Financial parameters not available.
               </div>
             </div>
           </div>
@@ -398,27 +685,63 @@
 
     <!-- Reject Modal -->
     <div v-if="showRejectModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         <div class="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
           <h3 class="font-medium text-gray-900">Reject Request</h3>
         </div>
-        <div class="p-4">
-          <textarea 
-            v-model="rejectionReason" 
-            rows="3" 
-            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500"
-            placeholder="Rejection reason (required)"
-          ></textarea>
-          <div class="flex gap-2 mt-3">
+        <div class="p-4 space-y-4">
+          <!-- Rejection Type Selection -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Rejection Type</label>
+            <div class="space-y-2">
+              <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-amber-50 transition-colors" :class="rejectionType === 'fixable' ? 'border-amber-500 bg-amber-50' : 'border-gray-200'">
+                <input 
+                  type="radio" 
+                  v-model="rejectionType" 
+                  value="fixable" 
+                  class="mt-0.5 text-amber-600 focus:ring-amber-500"
+                />
+                <div>
+                  <span class="text-sm font-medium text-gray-900">Fixable (allows resubmission)</span>
+                  <p class="text-xs text-gray-500 mt-0.5">Requester can modify and resubmit after addressing feedback</p>
+                </div>
+              </label>
+              <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-red-50 transition-colors" :class="rejectionType === 'permanent' ? 'border-red-500 bg-red-50' : 'border-gray-200'">
+                <input 
+                  type="radio" 
+                  v-model="rejectionType" 
+                  value="permanent" 
+                  class="mt-0.5 text-red-600 focus:ring-red-500"
+                />
+                <div>
+                  <span class="text-sm font-medium text-gray-900">Permanent (no resubmission)</span>
+                  <p class="text-xs text-gray-500 mt-0.5">For hard prohibitions or fundamental violations that cannot be fixed</p>
+                </div>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Rejection Reason -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Rejection Reason</label>
+            <textarea 
+              v-model="rejectionReason" 
+              rows="3" 
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500"
+              placeholder="Provide detailed reason for rejection (required)"
+            ></textarea>
+          </div>
+          
+          <div class="flex gap-2 pt-2">
             <button 
-              @click="rejectRequest" 
+              @click="rejectRequestWithType" 
               :disabled="!rejectionReason.trim()"
               class="flex-1 px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
             >
               Reject
             </button>
             <button 
-              @click="showRejectModal = false"
+              @click="showRejectModal = false; rejectionType = 'fixable'"
               class="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
             >
               Cancel
@@ -523,7 +846,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import FileUpload from '@/components/FileUpload.vue'
@@ -542,6 +865,7 @@ const showRestrictionsModal = ref(false)
 const showInfoModal = ref(false)
 const approvalComments = ref('')
 const rejectionReason = ref('')
+const rejectionType = ref<'fixable' | 'permanent'>('fixable')
 const restrictions = ref('')
 const infoRequired = ref('')
 const previousEngagements = ref<any[]>([])
@@ -553,6 +877,9 @@ const showDecisionLog = ref(false)
 const decisionLog = ref<any[]>([]) // Pro: Decision history
 const attachments = ref<any[]>([])
 const showUploadModal = ref(false)
+const showPreviousCOI = ref(false)
+const showServiceConflict = ref(false)
+const resubmitting = ref(false)
 
 const validationChecks = ref({
   clientExists: false,
@@ -585,9 +912,45 @@ const canApprove = computed(() => {
   return false
 })
 
+// Check if request can be resubmitted (fixable rejections only, requester only)
+const canResubmit = computed(() => {
+  if (!request.value) return false
+  // Only rejected requests can be resubmitted
+  if (request.value.status !== 'Rejected') return false
+  // Only the requester can resubmit (use loose equality to handle string/number type mismatch)
+  if (String(request.value.requester_id) !== String(authStore.user?.id)) return false
+  // Permanent rejections cannot be resubmitted
+  if (request.value.rejection_type === 'permanent') return false
+  // Allow resubmission for fixable rejections (or null/undefined for backward compatibility)
+  return true
+})
+
 onMounted(async () => {
   await loadRequest()
 })
+
+// Handle context from query parameters after request loads
+watch(() => request.value, async (newRequest) => {
+  if (newRequest && route.query.from === 'expiring') {
+    // Wait for DOM to update, then scroll to status section
+    await nextTick()
+    setTimeout(() => {
+      const statusSection = document.querySelector('[data-section="status"]')
+      if (statusSection) {
+        // Scroll to top first, then to the section
+        window.scrollTo({ top: 0, behavior: 'instant' })
+        setTimeout(() => {
+          statusSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          // Highlight the section briefly
+          statusSection.classList.add('ring-2', 'ring-orange-500', 'ring-opacity-50', 'rounded-md', 'p-2', 'transition-all')
+          setTimeout(() => {
+            statusSection.classList.remove('ring-2', 'ring-orange-500', 'ring-opacity-50', 'rounded-md', 'p-2', 'transition-all')
+          }, 2000)
+        }, 100)
+      }
+    }, 300)
+  }
+}, { immediate: true })
 
 async function loadRequest() {
   try {
@@ -697,6 +1060,38 @@ function formatFileSize(bytes: number): string {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
 
+const hasDirectorApprovalDocument = computed(() => {
+  return attachments.value.some(a => a.attachment_type === 'director_approval')
+})
+
+const directorApprovalDocuments = computed(() => {
+  return attachments.value.filter(a => a.attachment_type === 'director_approval')
+})
+
+function getDirectorApprovalStatusLabel(status: string | null): string {
+  if (!status) return 'Pending'
+  const labels: Record<string, string> = {
+    'Pending': 'Pending',
+    'Approved': 'Approved',
+    'Approved with Restrictions': 'Approved with Restrictions',
+    'Need More Info': 'Need More Info',
+    'Rejected': 'Rejected'
+  }
+  return labels[status] || status
+}
+
+function getDirectorApprovalStatusClass(status: string | null): string {
+  if (!status) return 'bg-yellow-100 text-yellow-700'
+  const classes: Record<string, string> = {
+    'Pending': 'bg-yellow-100 text-yellow-700',
+    'Approved': 'bg-green-100 text-green-700',
+    'Approved with Restrictions': 'bg-orange-100 text-orange-700',
+    'Need More Info': 'bg-blue-100 text-blue-700',
+    'Rejected': 'bg-red-100 text-red-700'
+  }
+  return classes[status] || 'bg-gray-100 text-gray-700'
+}
+
 function handleAttachmentUploaded(attachment: any) {
   attachments.value.push(attachment)
   showUploadModal.value = false
@@ -790,6 +1185,33 @@ function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+// Financial Parameters
+const financialParameters = computed(() => {
+  if (!request.value?.financial_parameters) return null
+  try {
+    const params = typeof request.value.financial_parameters === 'string'
+      ? JSON.parse(request.value.financial_parameters)
+      : request.value.financial_parameters
+    return params
+  } catch {
+    return null
+  }
+})
+
+function formatCurrency(amount: number, currency: string = 'KWD'): string {
+  if (amount === null || amount === undefined) return 'N/A'
+  const currencySymbols: Record<string, string> = {
+    'KWD': 'KWD',
+    'USD': '$',
+    'EUR': '€',
+    'GBP': '£',
+    'SAR': 'SAR',
+    'AED': 'AED'
+  }
+  const symbol = currencySymbols[currency] || currency
+  return `${symbol} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 function getRecommendationBadgeClass(action: string) {
   const classes: Record<string, string> = {
     'block': 'bg-red-100 text-red-700',
@@ -814,9 +1236,135 @@ function getRecommendationLabel(action: string) {
 
 function goBack() { router.back() }
 
+function navigateToEngagement(engagement: any) {
+  if (!engagement || !engagement.id) {
+    console.error('Invalid engagement data:', engagement)
+    return
+  }
+  // Open in a new tab so user can compare both requests
+  const route = router.resolve(`/coi/request/${engagement.id}`)
+  window.open(route.href, '_blank')
+}
+
+const conflictingEngagements = computed(() => {
+  if (!validationChecks.value.hasServiceConflict || !request.value) return []
+  
+  // Get conflicting engagements based on service type
+  const auditServices = ['audit', 'assurance']
+  const advisoryServices = ['advisory', 'consulting']
+  
+  const currentService = (request.value.service_type || '').toLowerCase()
+  const currentIsAudit = auditServices.some(s => currentService.includes(s))
+  const currentIsAdvisory = advisoryServices.some(s => currentService.includes(s))
+  
+  return previousEngagements.value.filter((eng: any) => {
+    const engService = (eng.service_type || '').toLowerCase()
+    const engIsAudit = auditServices.some(s => engService.includes(s))
+    const engIsAdvisory = advisoryServices.some(s => engService.includes(s))
+    
+    // Check if this is a conflict: Audit + Advisory
+    return ['Active', 'Approved'].includes(eng.status) && 
+           ((currentIsAudit && engIsAdvisory) || (currentIsAdvisory && engIsAudit))
+  })
+})
+
+// Compute effective director approval status based on request stage
+const effectiveDirectorApprovalStatus = computed(() => {
+  if (!request.value) return null
+  
+  const status = request.value.status
+  const directorStatus = request.value.director_approval_status
+  
+  // If status is beyond Director stage, director must have approved (even if not explicitly set)
+  const directorCompletedStatuses = ['Pending Compliance', 'Pending Partner', 'Pending Finance', 'Approved', 'Active']
+  if (directorCompletedStatuses.includes(status)) {
+    // If director_approval_status is explicitly set, use it; otherwise infer "Approved"
+    return directorStatus || 'Approved'
+  }
+  
+  // If status is "Pending Director Approval", use actual status or default to "Pending"
+  if (status === 'Pending Director Approval') {
+    return directorStatus || 'Pending'
+  }
+  
+  // For other statuses (Draft, Rejected, etc.), return the actual status if set
+  return directorStatus || null
+})
+
+// Determine if Director Approval Status section should be shown
+const shouldShowDirectorApprovalStatus = computed(() => {
+  if (!request.value) return false
+  
+  const status = request.value.status
+  const directorStatus = request.value.director_approval_status
+  const hasDocument = hasDirectorApprovalDocument.value
+  
+  // Always show if status is "Pending Director Approval"
+  if (status === 'Pending Director Approval') return true
+  
+  // Show if director has explicitly approved (has status or document)
+  if (directorStatus === 'Approved' || directorStatus === 'Approved with Restrictions' || hasDocument) return true
+  
+  // Show if status is beyond Director stage (to show approval details)
+  const directorCompletedStatuses = ['Pending Compliance', 'Pending Partner', 'Pending Finance', 'Approved', 'Active']
+  if (directorCompletedStatuses.includes(status)) return true
+  
+  return false
+})
+
 function editDraft() {
   localStorage.setItem('coi-edit-request', JSON.stringify(request.value))
   router.push('/coi/request/new')
+}
+
+const deleting = ref(false)
+const canDeleteDraft = computed(() => {
+  if (!request.value || request.value.status !== 'Draft') return false
+  const userId = authStore.user?.id
+  const role = authStore.user?.role
+  return String(request.value.requester_id) === String(userId) || ['Admin', 'Super Admin'].includes(role || '')
+})
+
+async function deleteDraft() {
+  if (!request.value || !canDeleteDraft.value) return
+  
+  if (!confirm(`Are you sure you want to delete draft "${request.value.request_id}"? This action cannot be undone.`)) {
+    return
+  }
+  
+  deleting.value = true
+  try {
+    await api.delete(`/coi/requests/${request.value.id}`)
+    alert('Draft deleted successfully')
+    // Navigate back to requester dashboard
+    router.push('/coi/requester')
+  } catch (error: any) {
+    console.error('Failed to delete draft:', error)
+    alert(error.response?.data?.error || 'Failed to delete draft. Please try again.')
+  } finally {
+    deleting.value = false
+  }
+}
+
+// Resubmit a rejected request (converts to Draft for editing)
+async function resubmitRequest() {
+  if (!canResubmit.value) return
+  
+  resubmitting.value = true
+  try {
+    const response = await api.post(`/coi/requests/${request.value.id}/resubmit`)
+    if (response.data.success) {
+      // Reload the request to get updated status
+      await loadRequest()
+      // Show success message (optional: could use a toast notification)
+      alert('Request converted to draft. You can now edit and resubmit.')
+    }
+  } catch (error: any) {
+    console.error('Failed to resubmit:', error)
+    alert(error.response?.data?.error || 'Failed to resubmit request. Please try again.')
+  } finally {
+    resubmitting.value = false
+  }
 }
 
 async function approveRequest(approvalType: string = 'Approved') {
@@ -877,6 +1425,25 @@ async function rejectRequest() {
     showRejectModal.value = false
     await loadRequest()
     rejectionReason.value = ''
+  } catch (error) {
+    console.error('Failed to reject:', error)
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// Reject request with rejection type (fixable or permanent)
+async function rejectRequestWithType() {
+  actionLoading.value = true
+  try {
+    await api.post(`/coi/requests/${request.value.id}/reject`, { 
+      reason: rejectionReason.value,
+      rejection_type: rejectionType.value
+    })
+    showRejectModal.value = false
+    await loadRequest()
+    rejectionReason.value = ''
+    rejectionType.value = 'fixable' // Reset to default
   } catch (error) {
     console.error('Failed to reject:', error)
   } finally {

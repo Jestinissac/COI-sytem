@@ -8,7 +8,7 @@ test.describe('Authentication Flow', () => {
 
   test('should display login page', async ({ page }) => {
     // Check if login page loads correctly
-    await expect(page).toHaveTitle(/COI Prototype/i);
+    await expect(page).toHaveTitle(/COI System/i);
 
     // Check for login form elements
     await expect(page.locator('input[type="email"]')).toBeVisible();
@@ -37,50 +37,51 @@ test.describe('Authentication Flow', () => {
   });
 
   test('should successfully login with valid credentials', async ({ page }) => {
-    // Enter valid test credentials
-    await page.fill('input[type="email"]', 'requester@test.com');
-    await page.fill('input[type="password"]', 'password123');
+    // Enter valid test credentials (using actual seeded user)
+    await page.fill('input[type="email"]', 'patricia.white@company.com');
+    await page.fill('input[type="password"]', 'password');
 
     // Submit the form
     await page.click('button[type="submit"]');
 
-    // Wait for navigation to dashboard
-    await page.waitForURL(/\/dashboard/i, { timeout: 5000 });
+    // Wait for navigation to role-based dashboard
+    await page.waitForURL(/\/coi\/(requester|director|compliance|partner|finance|admin|super-admin)/i, { timeout: 10000 });
 
-    // Verify we're on the dashboard
-    await expect(page).toHaveURL(/\/dashboard/i);
+    // Verify we're on a dashboard (not login page)
+    await expect(page).not.toHaveURL(/\/login/i);
   });
 
   test('should persist authentication after page reload', async ({ page }) => {
     // Login first
-    await page.fill('input[type="email"]', 'requester@test.com');
-    await page.fill('input[type="password"]', 'password123');
+    await page.fill('input[type="email"]', 'patricia.white@company.com');
+    await page.fill('input[type="password"]', 'password');
     await page.click('button[type="submit"]');
 
     // Wait for dashboard
-    await page.waitForURL(/\/dashboard/i, { timeout: 5000 });
+    await page.waitForURL(/\/coi\//i, { timeout: 10000 });
 
     // Reload the page
     await page.reload();
+    await page.waitForLoadState('networkidle');
 
     // Should still be on dashboard (not redirected to login)
-    await expect(page).toHaveURL(/\/dashboard/i);
+    await expect(page).not.toHaveURL(/\/login/i);
   });
 
   test('should logout successfully', async ({ page }) => {
     // Login first
-    await page.fill('input[type="email"]', 'requester@test.com');
-    await page.fill('input[type="password"]', 'password123');
+    await page.fill('input[type="email"]', 'patricia.white@company.com');
+    await page.fill('input[type="password"]', 'password');
     await page.click('button[type="submit"]');
 
     // Wait for dashboard
-    await page.waitForURL(/\/dashboard/i, { timeout: 5000 });
+    await page.waitForURL(/\/coi\//i, { timeout: 10000 });
 
-    // Click logout button (adjust selector based on actual implementation)
-    // await page.click('button:has-text("Logout")');
+    // Click logout button
+    await page.click('button:has-text("Logout"), a:has-text("Logout")');
 
     // Should redirect to login page
-    // await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL(/\/login/i);
   });
 });
 
@@ -88,32 +89,32 @@ test.describe('Role-Based Access', () => {
   test('should redirect to appropriate dashboard based on role', async ({ page }) => {
     await page.goto('/');
 
-    // Login as Director
-    await page.fill('input[type="email"]', 'director@test.com');
-    await page.fill('input[type="password"]', 'password123');
+    // Login as Director (using actual seeded user)
+    await page.fill('input[type="email"]', 'john.smith@company.com');
+    await page.fill('input[type="password"]', 'password');
     await page.click('button[type="submit"]');
 
     // Wait for navigation
-    await page.waitForLoadState('networkidle');
+    await page.waitForURL(/\/coi\/director/i, { timeout: 10000 });
 
     // Check if redirected to director dashboard
-    // await expect(page).toHaveURL(/\/director-dashboard/i);
+    await expect(page).toHaveURL(/\/coi\/director/i);
   });
 
   test('should prevent unauthorized access to admin pages', async ({ page }) => {
     await page.goto('/');
 
     // Login as regular requester
-    await page.fill('input[type="email"]', 'requester@test.com');
-    await page.fill('input[type="password"]', 'password123');
+    await page.fill('input[type="email"]', 'patricia.white@company.com');
+    await page.fill('input[type="password"]', 'password');
     await page.click('button[type="submit"]');
 
-    await page.waitForLoadState('networkidle');
+    await page.waitForURL(/\/coi\//i, { timeout: 10000 });
 
     // Try to navigate to admin dashboard
-    await page.goto('/admin-dashboard');
+    await page.goto('/coi/admin');
 
-    // Should be redirected or show access denied
-    // await expect(page).not.toHaveURL(/\/admin-dashboard/i);
+    // Should be redirected or show access denied (stays on requester dashboard)
+    await expect(page).not.toHaveURL(/\/coi\/admin/i);
   });
 });

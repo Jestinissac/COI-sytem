@@ -25,10 +25,19 @@ export function applyDataSegregation(req, res, next) {
 export function getFilteredRequests(user, filters = {}) {
   const db = getDatabase()
   let query = `
-    SELECT r.*, c.client_name, c.client_code, u.name as requester_name, u.department as requester_department
+    SELECT 
+      r.*, 
+      c.client_name, 
+      c.client_code, 
+      u.name as requester_name, 
+      u.department as requester_department,
+      d.name as director_approval_by_name,
+      p.name as partner_approved_by_name
     FROM coi_requests r
     INNER JOIN clients c ON r.client_id = c.id
     INNER JOIN users u ON r.requester_id = u.id
+    LEFT JOIN users d ON r.director_approval_by = d.id
+    LEFT JOIN users p ON r.partner_approved_by = p.id
     WHERE 1=1
   `
   const params = []

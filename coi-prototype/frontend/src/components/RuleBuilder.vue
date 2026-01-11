@@ -1,3 +1,18 @@
+<!--
+  Rule Builder Component
+  
+  Edition Differences:
+  - Standard Edition: Basic rule creation with simple conditions (block/flag actions)
+  - Pro Edition: All Standard features PLUS:
+    * IESBA rule templates (one-click import)
+    * Rule categories (IESBA, Red Line, PIE, Tax, Custom)
+    * Regulation references
+    * Advanced conditions (AND/OR groups)
+    * Impact analysis preview
+    * Rule testing against recent requests
+    * Recommendation actions (recommend_reject, recommend_flag, etc.)
+    * PIE-specific and tax sub-type options
+-->
 <template>
   <div class="rule-builder space-y-6">
     <!-- Header -->
@@ -8,28 +23,6 @@
           <p class="text-sm text-gray-500 mt-1">Define validation, conflict, and workflow rules</p>
         </div>
         <div class="flex items-center gap-2">
-          <!-- Quick Template Import (Pro) -->
-          <div v-if="authStore.isPro" class="relative">
-            <select
-              v-model="selectedTemplate"
-              @change="loadTemplate"
-              class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 flex items-center gap-2 pr-8 appearance-none cursor-pointer"
-            >
-              <option value="">📋 Quick Import Template</option>
-              <option value="red_line_management">🚫 Red Line: Management Responsibility</option>
-              <option value="red_line_advocacy">🚫 Red Line: Advocacy</option>
-              <option value="red_line_contingent_fees">🚫 Red Line: Contingent Fees</option>
-              <option value="pie_tax_planning">⚠️ PIE: Tax Planning Prohibited</option>
-              <option value="pie_tax_compliance">⚠️ PIE: Tax Compliance Requires Safeguards</option>
-              <option value="pie_advisory">⚠️ PIE: Advisory Services Prohibited</option>
-              <option value="audit_tax_planning_pie">🚫 Audit + Tax Planning (PIE)</option>
-              <option value="audit_tax_planning_nonpie">⚠️ Audit + Tax Planning (Non-PIE)</option>
-              <option value="audit_tax_compliance">✅ Audit + Tax Compliance</option>
-            </select>
-            <svg class="w-4 h-4 text-white absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </div>
           <button
             @click="showCreateModal = true"
             class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 flex items-center gap-2"
@@ -55,10 +48,12 @@
             >
               <option value="">All Categories</option>
               <option value="Custom">Custom</option>
-              <option value="IESBA">IESBA</option>
-              <option value="Red Line">Red Line</option>
-              <option value="PIE">PIE</option>
-              <option value="Tax">Tax</option>
+              <template v-if="isPro">
+                <option value="IESBA">IESBA</option>
+                <option value="Red Line">Red Line</option>
+                <option value="PIE">PIE</option>
+                <option value="Tax">Tax</option>
+              </template>
             </select>
             <select
               v-model="filterRuleType"
@@ -214,6 +209,23 @@
                       <span class="font-medium text-gray-700">Operator:</span>
                       <span class="ml-2 text-gray-600">{{ rule.condition_operator }}</span>
                     </div>
+                    <!-- Pro-only fields -->
+                    <div v-if="isPro && rule.rule_category && rule.rule_category !== 'Custom'">
+                      <span class="font-medium text-gray-700">Category:</span>
+                      <span class="ml-2 text-gray-600">{{ rule.rule_category }}</span>
+                    </div>
+                    <div v-if="isPro && rule.regulation_reference">
+                      <span class="font-medium text-gray-700">Regulation:</span>
+                      <span class="ml-2 text-gray-600">{{ rule.regulation_reference }}</span>
+                    </div>
+                    <div v-if="isPro && rule.applies_to_pie">
+                      <span class="font-medium text-gray-700">PIE Only:</span>
+                      <span class="ml-2 text-gray-600">Yes</span>
+                    </div>
+                    <div v-if="isPro && rule.tax_sub_type">
+                      <span class="font-medium text-gray-700">Tax Sub-Type:</span>
+                      <span class="ml-2 text-gray-600">{{ rule.tax_sub_type }}</span>
+                    </div>
                   </div>
                   
                   <div v-if="rule.description || rule.notes" class="mt-2">
@@ -308,7 +320,7 @@
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
       @click.self="closeModal"
     >
-      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div ref="modalContent" class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div class="px-6 py-4 border-b border-gray-200">
           <h3 class="text-lg font-semibold text-gray-900">
             {{ editingRule ? 'Edit Rule' : 'Create New Rule' }}
@@ -348,7 +360,7 @@
           </div>
 
           <!-- Pro Version: IESBA Rule Templates -->
-          <div v-if="authStore.isPro" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div v-if="isPro" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <label class="block text-sm font-semibold text-blue-900 mb-2">IESBA Rule Templates (Pro)</label>
             <select
               v-model="selectedTemplate"
@@ -370,7 +382,7 @@
           </div>
 
           <!-- Pro Version: Rule Category & Regulation -->
-          <div v-if="authStore.isPro" class="grid grid-cols-2 gap-4">
+          <div v-if="isPro" class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Rule Category</label>
               <select
@@ -402,7 +414,7 @@
           </div>
 
           <!-- Pro Version: PIE-Specific & Tax Sub-Type -->
-          <div v-if="authStore.isPro" class="grid grid-cols-2 gap-4">
+          <div v-if="isPro" class="grid grid-cols-2 gap-4">
             <div>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input
@@ -432,13 +444,13 @@
           <div class="border-t border-gray-200 pt-4">
             <div class="flex items-center justify-between mb-4">
               <h4 class="text-sm font-semibold text-gray-900">Condition (IF)</h4>
-              <label class="flex items-center gap-2 cursor-pointer">
+              <label v-if="isPro" class="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   v-model="useAdvancedConditions"
                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span class="text-sm text-gray-600">Advanced (AND/OR groups)</span>
+                <span class="text-sm text-gray-600">Advanced (AND/OR groups) <span class="text-xs text-blue-600">(Pro)</span></span>
               </label>
             </div>
             
@@ -523,9 +535,26 @@
               </div>
             </div>
 
-            <!-- Advanced Mode: Multiple conditions with AND/OR -->
+            <!-- Advanced Mode: Multiple conditions with AND/OR (Pro only) -->
+            <div v-if="!isPro && useAdvancedConditions" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                  <h5 class="text-sm font-semibold text-blue-900 mb-1">Advanced Conditions (Pro Feature)</h5>
+                  <p class="text-sm text-blue-700 mb-2">Complex AND/OR condition groups are available in Pro Edition.</p>
+                  <button 
+                    @click="useAdvancedConditions = false"
+                    class="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Switch back to simple mode
+                  </button>
+                </div>
+              </div>
+            </div>
             <ConditionBuilder
-              v-else
+              v-else-if="isPro"
               v-model="conditionGroups"
               :field-categories="ruleFields"
               :operators="fieldOperators"
@@ -548,7 +577,7 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select action...</option>
-                  <template v-if="authStore.isPro">
+                  <template v-if="isPro">
                     <!-- Pro Edition: Recommendation Actions -->
                     <option value="recommend_reject">Recommend Reject</option>
                     <option value="recommend_flag">Recommend Flag</option>
@@ -578,8 +607,63 @@
             </div>
           </div>
 
-          <!-- Impact Analysis (shown when editing) -->
-          <div v-if="editingRule && (impactAnalysis || checkingImpact)" 
+          <!-- Pro Version: Recommendation Configuration -->
+          <div v-if="isPro" class="border-t border-gray-200 pt-4">
+            <h4 class="text-sm font-semibold text-gray-900 mb-4">Recommendation Configuration (Pro)</h4>
+            
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Confidence Level</label>
+                <select
+                  v-model="ruleForm.confidence_level"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="CRITICAL">CRITICAL</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="LOW">LOW</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">How confident is this recommendation?</p>
+              </div>
+              
+              <div>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    v-model="ruleForm.can_override"
+                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span class="text-sm font-medium text-gray-700">Can be overridden</span>
+                </label>
+                <p class="text-xs text-gray-500 mt-1">Allow Compliance to override this recommendation</p>
+              </div>
+            </div>
+            
+            <div class="mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Guidance Text</label>
+              <textarea
+                v-model="ruleForm.guidance_text"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                placeholder="Provide guidance for Compliance officers reviewing this recommendation..."
+              ></textarea>
+              <p class="text-xs text-gray-500 mt-1">Additional context for Compliance review</p>
+            </div>
+            
+            <div class="mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Override Guidance</label>
+              <textarea
+                v-model="ruleForm.override_guidance"
+                rows="2"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                placeholder="Instructions for when and how to override this recommendation..."
+              ></textarea>
+              <p class="text-xs text-gray-500 mt-1">Guidance shown when override is attempted</p>
+            </div>
+          </div>
+
+          <!-- Impact Analysis (Pro only - shown when editing) -->
+          <div v-if="isPro && editingRule && (impactAnalysis || checkingImpact)" 
                :class="{
                  'bg-yellow-50 border-yellow-200': impactAnalysis && (impactAnalysis.riskLevel === 'high' || impactAnalysis.riskLevel === 'critical'),
                  'bg-blue-50 border-blue-200': impactAnalysis && impactAnalysis.riskLevel === 'medium',
@@ -653,10 +737,10 @@
             </div>
           </div>
 
-          <!-- Test Rule Panel -->
-          <div class="border-t border-gray-200 pt-4">
+          <!-- Test Rule Panel (Pro only) -->
+          <div v-if="isPro" class="border-t border-gray-200 pt-4">
             <div class="flex items-center justify-between mb-3">
-              <h4 class="text-sm font-semibold text-gray-900">Test Rule</h4>
+              <h4 class="text-sm font-semibold text-gray-900">Test Rule <span class="text-xs text-blue-600">(Pro)</span></h4>
               <button
                 type="button"
                 @click="testRuleNow"
@@ -851,16 +935,27 @@ import ConditionBuilder from './rules/ConditionBuilder.vue'
 const { success: showSuccess, error: showError } = useToast()
 const authStore = useAuthStore()
 
+// Ensure edition is loaded
+onMounted(async () => {
+  if (authStore.isAuthenticated && !authStore.edition) {
+    await authStore.loadEdition()
+  }
+})
+
+// Computed property for reactive Pro check
+const isPro = computed(() => authStore.isPro)
+
 const loading = ref(false)
 const saving = ref(false)
 const rules = ref<any[]>([])
 const showCreateModal = ref(false)
 const editingRule = ref<any>(null)
+const modalContent = ref<HTMLElement | null>(null)
 const searchQuery = ref('')
 const filterRuleType = ref('')
 const filterCategory = ref('')
 const isSuperAdmin = ref(false)
-const expandedCategories = ref(new Set<string>(['Custom', 'IESBA', 'Red Line', 'PIE', 'Tax']))
+const expandedCategories = ref(new Set<string>(['Custom']))
 const showRejectModal = ref(false)
 const rejectingRule = ref<any>(null)
 const rejectionReason = ref('')
@@ -957,14 +1052,22 @@ const ruleForm = ref({
   regulation_reference: '' as string,
   applies_to_pie: false as boolean,
   tax_sub_type: '' as string,
-  complex_conditions: null as any,
   confidence_level: 'MEDIUM' as string,
   can_override: true as boolean,
-  guidance_text: '' as string
+  guidance_text: '' as string,
+  override_guidance: '' as string
 })
 
 const filteredRules = computed(() => {
   let filtered = rules.value
+
+  // For Standard users, only show Custom category rules
+  if (!isPro.value) {
+    filtered = filtered.filter(r => {
+      const category = r.rule_category || 'Custom'
+      return category === 'Custom'
+    })
+  }
 
   if (filterRuleType.value) {
     filtered = filtered.filter(r => r.rule_type === filterRuleType.value)
@@ -992,14 +1095,19 @@ const groupedRules = computed(() => {
   
   filteredRules.value.forEach(rule => {
     const category = rule.rule_category || 'Custom'
-    if (!groups[category]) {
-      groups[category] = []
+    // For Standard users, only group Custom category
+    if (isPro.value || category === 'Custom') {
+      if (!groups[category]) {
+        groups[category] = []
+      }
+      groups[category].push(rule)
     }
-    groups[category].push(rule)
   })
   
-  // Define category order (most important first)
-  const categoryOrder = ['Red Line', 'IESBA', 'PIE', 'Tax', 'Custom']
+  // Define category order - Standard users only see Custom
+  const categoryOrder = isPro.value 
+    ? ['Red Line', 'IESBA', 'PIE', 'Tax', 'Custom']
+    : ['Custom']
   const orderedCategories = categoryOrder.filter(cat => groups[cat])
   const otherCategories = Object.keys(groups).filter(cat => !categoryOrder.includes(cat))
   
@@ -1091,8 +1199,18 @@ async function loadRules() {
     console.log('Rules count:', response.data?.rules?.length || 0)
     console.log('User role:', authStore.user?.role)
     console.log('Is Super Admin:', isSuperAdmin.value)
+    console.log('Is Pro:', isPro.value)
     
     rules.value = response.data.rules || []
+    
+    // Log category breakdown
+    const categoryBreakdown = rules.value.reduce((acc: any, rule: any) => {
+      const category = rule.rule_category || 'Custom'
+      acc[category] = (acc[category] || 0) + 1
+      return acc
+    }, {})
+    console.log('Rules by category:', categoryBreakdown)
+    console.log('Custom category rules:', rules.value.filter((r: any) => (r.rule_category || 'Custom') === 'Custom').length)
     hasShownInitialError.value = false // Reset on success
     
     if (rules.value.length === 0) {
@@ -1260,10 +1378,10 @@ async function editRule(rule: any) {
     regulation_reference: rule.regulation_reference || '',
     applies_to_pie: rule.applies_to_pie === 1 || rule.applies_to_pie === true,
     tax_sub_type: rule.tax_sub_type || '',
-    complex_conditions: rule.complex_conditions,
     confidence_level: rule.confidence_level || 'MEDIUM',
     can_override: rule.can_override !== undefined ? (rule.can_override === 1 || rule.can_override === true) : true,
-    guidance_text: rule.guidance_text || ''
+    guidance_text: rule.guidance_text || '',
+    override_guidance: rule.override_guidance || ''
   }
   
   // Load condition_groups if present
@@ -1381,10 +1499,10 @@ function closeModal() {
     regulation_reference: '',
     applies_to_pie: false,
     tax_sub_type: '',
-    complex_conditions: null,
     confidence_level: 'MEDIUM',
     can_override: true,
-    guidance_text: ''
+    guidance_text: '',
+    override_guidance: ''
   }
 }
 
@@ -1576,10 +1694,10 @@ function populateTemplate(template: any) {
     regulation_reference: template.regulation_reference || '',
     applies_to_pie: template.applies_to_pie || false,
     tax_sub_type: template.tax_sub_type || '',
-    complex_conditions: null,
     confidence_level: template.confidence_level || 'MEDIUM',
     can_override: template.can_override !== undefined ? template.can_override : true,
-    guidance_text: template.guidance_text || ''
+    guidance_text: template.guidance_text || '',
+    override_guidance: template.override_guidance || ''
   }
   
   // Reset template selector to allow selecting another template
@@ -1593,9 +1711,8 @@ function populateTemplate(template: any) {
   
   // Scroll to top of form to show the loaded fields
   setTimeout(() => {
-    const modal = document.querySelector('.max-h-\\[90vh\\]')
-    if (modal) {
-      modal.scrollTop = 0
+    if (modalContent.value) {
+      modalContent.value.scrollTop = 0
     }
   }, 150)
 }

@@ -5,7 +5,7 @@
       <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" @click="closeModal"></div>
 
       <!-- Modal panel -->
-      <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+      <div class="relative z-10 inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
         <div class="bg-white px-6 py-4 border-b border-gray-200">
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900">Generate Engagement Code</h3>
@@ -201,8 +201,8 @@
               </button>
               <button
                 v-if="!generatedCode"
-                type="submit"
-                @click.prevent="generateCode"
+                type="button"
+                @click="generateCode"
                 :disabled="generating || !isFormValid"
                 class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >

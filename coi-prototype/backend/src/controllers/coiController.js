@@ -397,6 +397,56 @@ export async function submitRequest(req, res) {
       console.log(`[Duplicate Override] Request ${request.request_id} - User ${user.name} provided justification: "${duplicate_justification.substring(0, 100)}..."`)
     }
     
+    // ========================================
+    // GROUP CONFLICT DETECTION (IESBA 290.13)
+    // ========================================
+    // Check for multi-level group conflicts (parent, subsidiary, sister companies)
+    let groupConflicts = { conflicts: [], warnings: [] }
+    let hasGroupConflicts = false
+    
+    if (request.parent_company) {
+      try {
+        groupConflicts = await checkGroupConflicts(req.params.id)
+        hasGroupConflicts = groupConflicts.conflicts && groupConflicts.conflicts.length > 0
+        
+        if (hasGroupConflicts) {
+          const criticalConflicts = groupConflicts.conflicts.filter(c => c.severity === 'CRITICAL')
+          
+          if (criticalConflicts.length > 0) {
+            // Store conflicts in database for Compliance review
+            db.prepare(`
+              UPDATE coi_requests 
+              SET group_conflicts_detected = ?,
+                  requires_compliance_verification = 1
+              WHERE id = ?
+            `).run(
+              JSON.stringify(criticalConflicts),
+              req.params.id
+            )
+            
+            console.log(`[Group Conflict] Request ${request.request_id} - ${criticalConflicts.length} critical group conflict(s) detected`)
+            
+            // Notify ALL Compliance officers about the flagged conflicts
+            const complianceOfficers = db.prepare(`
+              SELECT id, name, email FROM users 
+              WHERE role = 'Compliance' AND is_active = 1
+            `).all()
+            
+            if (complianceOfficers.length > 0) {
+              await notifyGroupConflictFlagged(
+                { ...request, client_name: client.client_name },
+                complianceOfficers,
+                criticalConflicts
+              )
+            }
+          }
+        }
+      } catch (groupConflictError) {
+        // Log but don't block submission if conflict detection fails
+        console.error(`[Group Conflict] Error checking group conflicts for request ${request.request_id}:`, groupConflictError)
+      }
+    }
+    
     // Evaluate business rules
     // Use FieldMappingService to prepare request data with all computed fields
     const requestDataForRules = {
@@ -409,9 +459,10 @@ export async function submitRequest(req, res) {
     }
     const ruleEvaluation = evaluateRules(FieldMappingService.prepareForRuleEvaluation(requestDataForRules))
 
-    // Combine duplicates and rule recommendations
+    // Combine duplicates, group conflicts, and rule recommendations
     const allRecommendations = {
       duplicates: duplicates || [],
+      groupConflicts: groupConflicts.conflicts || [],
       ruleRecommendations: ruleEvaluation.recommendations || [],
       totalRulesEvaluated: ruleEvaluation.totalRulesEvaluated || 0,
       matchedRules: ruleEvaluation.matchedRules || 0
@@ -421,18 +472,20 @@ export async function submitRequest(req, res) {
     // If rule recommends "block", route to Compliance (not auto-reject)
     // If rule recommends "flag", add to conflicts
     // If rule recommends "require_approval", ensure Compliance review
+    // If group conflicts detected, ensure Compliance review
     let newStatus = 'Pending Compliance'
     const hasBlockRecommendation = ruleEvaluation.recommendations?.some(r => r.recommendedAction === 'block')
     const hasRequireApproval = ruleEvaluation.recommendations?.some(r => r.recommendedAction === 'require_approval')
+    const hasCriticalGroupConflicts = hasGroupConflicts && groupConflicts.conflicts.some(c => c.severity === 'CRITICAL')
     
     // Directors skip their own approval, go directly to Compliance
     if (user.role === 'Director') {
       newStatus = 'Pending Compliance'
-    } else if (user.role === 'Requester' && user.director_id && !hasBlockRecommendation) {
-      // Team members require director approval first (unless blocked by rules)
+    } else if (user.role === 'Requester' && user.director_id && !hasBlockRecommendation && !hasCriticalGroupConflicts) {
+      // Team members require director approval first (unless blocked by rules or group conflicts)
       newStatus = 'Pending Director Approval'
     }
-    // If hasBlockRecommendation or hasRequireApproval, status is already 'Pending Compliance' (set above)
+    // If hasBlockRecommendation, hasRequireApproval, or hasCriticalGroupConflicts, status is already 'Pending Compliance' (set above)
 
     // ========================================
     // PROSPECT TAGGING (Requirement 3)
@@ -544,8 +597,13 @@ export async function submitRequest(req, res) {
     res.json({ 
       success: true, 
       duplicates: duplicates || [],
+      groupConflicts: groupConflicts.conflicts || [],
       ruleRecommendations: ruleEvaluation.recommendations || [],
-      requiresComplianceReview: hasBlockRecommendation || hasRequireApproval || duplicates?.some(d => d.action === 'block')
+      requiresComplianceReview: hasBlockRecommendation || hasRequireApproval || hasCriticalGroupConflicts || duplicates?.some(d => d.action === 'block'),
+      flagged: hasCriticalGroupConflicts,
+      message: hasCriticalGroupConflicts 
+        ? 'Request submitted but flagged for Compliance review due to potential group conflicts'
+        : 'Request submitted successfully'
     })
   } catch (error) {
     res.status(500).json({ error: error.message })

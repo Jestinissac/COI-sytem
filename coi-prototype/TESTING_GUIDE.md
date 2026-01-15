@@ -1,416 +1,394 @@
-# COI Prototype - Testing Guide
-
-## Overview
-
-This document provides a comprehensive guide to the testing infrastructure for the COI (Conflict of Interest) Prototype application.
-
-## Testing Stack
-
-### Backend Testing
-- **Framework**: Vitest (Fast Vite-native test runner)
-- **HTTP Testing**: Supertest (API endpoint testing)
-- **Coverage**: @vitest/coverage-v8
-- **Database**: SQLite in-memory/test database
-
-### Frontend Testing
-- **Framework**: Vitest
-- **Component Testing**: @vue/test-utils (Official Vue testing library)
-- **DOM Environment**: happy-dom (Fast DOM implementation)
-- **UI**: @vitest/ui (Visual test interface)
-
-### E2E Testing
-- **Framework**: Playwright (Cross-browser testing)
-- **Browsers**: Chromium, Firefox, WebKit
-- **Features**: Screenshots, video recording, trace viewer
-
-## Project Structure
-
-```
-coi-prototype/
-├── backend/
-│   ├── tests/
-│   │   ├── unit/
-│   │   │   ├── controllers/         # Controller unit tests
-│   │   │   ├── services/            # Service unit tests
-│   │   │   └── middleware/          # Middleware unit tests
-│   │   ├── integration/
-│   │   │   └── api/                 # API integration tests
-│   │   ├── fixtures/
-│   │   │   └── testData.js          # Test data fixtures
-│   │   ├── setup.js                 # Test setup and DB initialization
-│   │   └── test-coi.db              # Test database (auto-created)
-│   └── vitest.config.js             # Vitest configuration
-│
-├── frontend/
-│   ├── tests/
-│   │   ├── unit/
-│   │   │   ├── components/          # Component tests
-│   │   │   ├── stores/              # Pinia store tests
-│   │   │   └── views/               # View tests
-│   │   └── setup.ts                 # Test setup (mocks, global config)
-│   └── vite.config.ts               # Vite + Vitest configuration
-│
-└── e2e/
-    ├── tests/
-    │   ├── auth.spec.ts             # Authentication E2E tests
-    │   └── coi-workflow.spec.ts     # COI workflow E2E tests
-    └── playwright.config.ts         # Playwright configuration
-
-```
-
-## Running Tests
-
-### Backend Tests
-
-```bash
-# Navigate to backend directory
-cd backend
-
-# Run tests in watch mode (interactive)
-npm test
-
-# Run tests once (CI mode)
-npm run test:run
-
-# Run tests with UI
-npm run test:ui
-
-# Run tests with coverage report
-npm run test:coverage
-```
-
-### Frontend Tests
-
-```bash
-# Navigate to frontend directory
-cd frontend
-
-# Run tests in watch mode
-npm test
-
-# Run tests once
-npm run test:run
-
-# Run tests with UI
-npm run test:ui
-
-# Run tests with coverage
-npm run test:coverage
-```
-
-### E2E Tests
-
-```bash
-# From project root
-
-# Run E2E tests (headless)
-npm run test:e2e
-
-# Run E2E tests with UI (interactive)
-npm run test:e2e:ui
-
-# Run specific test file
-npx playwright test e2e/tests/auth.spec.ts
-
-# Run tests in specific browser
-npx playwright test --project=chromium
-npx playwright test --project=firefox
-npx playwright test --project=webkit
-```
-
-### Run All Tests
-
-```bash
-# From project root
-
-# Run backend + frontend tests
-npm run test:all
-
-# Run all tests with coverage
-npm run test:coverage
-```
-
-## Writing Tests
-
-### Backend Unit Test Example
-
-```javascript
-// backend/tests/unit/services/example.test.js
-import { describe, it, expect, beforeEach } from 'vitest';
-import { seedTestData, getTestDb } from '../../setup.js';
-import { testUsers } from '../../fixtures/testData.js';
-
-describe('Service Name', () => {
-  beforeEach(() => {
-    seedTestData({ users: testUsers });
-  });
-
-  it('should do something', () => {
-    const db = getTestDb();
-    // Your test logic
-    expect(true).toBe(true);
-  });
-});
-```
-
-### Backend API Integration Test Example
-
-```javascript
-// backend/tests/integration/api/example.test.js
-import { describe, it, expect } from 'vitest';
-import request from 'supertest';
-import app from '../../../src/index.js'; // Your Express app
-
-describe('GET /api/endpoint', () => {
-  it('should return 200', async () => {
-    const response = await request(app)
-      .get('/api/endpoint')
-      .set('Authorization', 'Bearer token');
-
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('data');
-  });
-});
-```
-
-### Frontend Component Test Example
-
-```typescript
-// frontend/tests/unit/components/MyComponent.test.ts
-import { describe, it, expect } from 'vitest';
-import { mount } from '@vue/test-utils';
-import MyComponent from '@/components/MyComponent.vue';
-
-describe('MyComponent.vue', () => {
-  it('renders correctly', () => {
-    const wrapper = mount(MyComponent, {
-      props: { title: 'Test' }
-    });
-
-    expect(wrapper.text()).toContain('Test');
-  });
-});
-```
-
-### Frontend Store Test Example
-
-```typescript
-// frontend/tests/unit/stores/myStore.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { setActivePinia, createPinia } from 'pinia';
-import { useMyStore } from '@/stores/myStore';
-
-describe('My Store', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia());
-  });
-
-  it('initializes with default state', () => {
-    const store = useMyStore();
-    expect(store.data).toBeNull();
-  });
-});
-```
-
-### E2E Test Example
-
-```typescript
-// e2e/tests/example.spec.ts
-import { test, expect } from '@playwright/test';
-
-test('should navigate to page', async ({ page }) => {
-  await page.goto('/');
-  await expect(page).toHaveTitle(/COI Prototype/);
-});
-```
-
-## Test Database
-
-### Backend Test Database
-
-The backend uses a separate SQLite test database (`backend/tests/test-coi.db`) that:
-- Is automatically created from `database/schema.sql`
-- Is cleared before each test (clean slate)
-- Uses the same schema as production
-- Is deleted after all tests complete
-
-### Seeding Test Data
-
-```javascript
-import { seedTestData } from '../setup.js';
-import { testUsers, testClients } from '../fixtures/testData.js';
-
-beforeEach(() => {
-  seedTestData({
-    users: testUsers,
-    clients: testClients
-  });
-});
-```
-
-## Coverage Reports
-
-After running tests with coverage, reports are generated in:
-
-- **Backend**: `backend/coverage/`
-- **Frontend**: `frontend/coverage/`
-
-Open `coverage/index.html` in a browser to view detailed coverage reports.
-
-## Continuous Integration (CI)
-
-To integrate with CI/CD:
-
-```yaml
-# Example GitHub Actions workflow
-- name: Install dependencies
-  run: npm run install:all
-
-- name: Run backend tests
-  run: cd backend && npm run test:run
-
-- name: Run frontend tests
-  run: cd frontend && npm run test:run
-
-- name: Run E2E tests
-  run: npm run test:e2e
-```
-
-## Best Practices
-
-### 1. Test Isolation
-- Each test should be independent
-- Use `beforeEach` to reset state
-- Don't rely on test execution order
-
-### 2. Descriptive Test Names
-```javascript
-// Good
-it('should return 401 when user is not authenticated')
-
-// Bad
-it('test auth')
-```
-
-### 3. Arrange-Act-Assert Pattern
-```javascript
-it('should add item to cart', () => {
-  // Arrange
-  const cart = new ShoppingCart();
-  const item = { id: 1, name: 'Product' };
-
-  // Act
-  cart.addItem(item);
-
-  // Assert
-  expect(cart.items).toHaveLength(1);
-  expect(cart.items[0]).toBe(item);
-});
-```
-
-### 4. Mock External Dependencies
-```javascript
-import { vi } from 'vitest';
-
-// Mock axios
-vi.mock('axios');
-```
-
-### 5. Test Edge Cases
-- Empty inputs
-- Null/undefined values
-- Maximum/minimum values
-- Error conditions
-
-## Debugging Tests
-
-### Backend/Frontend (Vitest)
-
-```javascript
-// Add debugger statement
-it('should do something', () => {
-  debugger; // Pause execution
-  expect(value).toBe(expected);
-});
-```
-
-Run with Node inspector:
-```bash
-node --inspect-brk node_modules/vitest/vitest.mjs run
-```
-
-### E2E (Playwright)
-
-```bash
-# Run in headed mode (see browser)
-npx playwright test --headed
-
-# Run in debug mode
-npx playwright test --debug
-
-# View test trace
-npx playwright show-trace trace.zip
-```
-
-## Common Issues & Solutions
-
-### Issue: Test database not found
-**Solution**: Ensure you're running tests from the correct directory, or the schema file path in `setup.js` is correct.
-
-### Issue: Tests fail in CI but pass locally
-**Solution**:
-- Check for timezone differences
-- Ensure test database is properly cleaned
-- Check for race conditions in async tests
-
-### Issue: E2E tests timeout
-**Solution**:
-- Increase timeout in playwright.config.ts
-- Ensure dev server starts properly
-- Check for slow network requests
-
-### Issue: Module import errors
-**Solution**: Ensure `type: "module"` is in package.json for ESM imports
-
-## Test Coverage Goals
-
-### Recommended Coverage Targets
-- **Backend Controllers**: 80%+
-- **Backend Services**: 90%+
-- **Backend Middleware**: 90%+
-- **Frontend Components**: 70%+
-- **Frontend Stores**: 85%+
-- **E2E Critical Paths**: 100%
-
-### What to Test
-✅ Business logic
-✅ API endpoints
-✅ User workflows
-✅ Edge cases
-✅ Error handling
-
-### What NOT to Test
-❌ Third-party libraries
-❌ Framework internals
-❌ Simple getters/setters
-❌ Configuration files
-
-## Resources
-
-- [Vitest Documentation](https://vitest.dev/)
-- [Vue Test Utils](https://test-utils.vuejs.org/)
-- [Playwright Documentation](https://playwright.dev/)
-- [Supertest Documentation](https://github.com/ladjs/supertest)
-
-## Getting Help
-
-If you encounter issues:
-1. Check the test output for error messages
-2. Review the setup files (backend/tests/setup.js, frontend/tests/setup.ts)
-3. Check test fixtures and ensure data is properly seeded
-4. Refer to the framework documentation
-5. Run tests with `--reporter=verbose` for detailed output
+# Frontend Testing Guide - Service Catalog & Global COI Export
+
+## 🧪 Testing Checklist
+
+### Prerequisites
+1. ✅ Backend server running on `http://localhost:3000`
+2. ✅ Frontend server running on `http://localhost:5173`
+3. ✅ Database initialized with:
+   - Entity codes (2 entities: BDO Al Nisf & Partners, BDO Consulting)
+   - Global service catalog (177 services)
+4. ✅ Test user account created (any role for basic testing, Super Admin for entity management)
 
 ---
 
-**Last Updated**: 2026-01-07
+## 1. Entity Codes Management Testing
+
+### Access: Super Admin Only
+
+**Test Steps:**
+1. Login as Super Admin
+2. Navigate to `/coi/entity-codes` or click "Entity Codes" button in Super Admin Dashboard
+3. Verify:
+   - [ ] Page loads without errors
+   - [ ] Shows list of 2 entities (BDO Al Nisf & Partners, BDO Consulting)
+   - [ ] Entity codes, names, catalog modes, and status are displayed correctly
+
+**Create Entity:**
+1. Click "Add Entity" button
+2. Fill form:
+   - Entity Code: `TEST_ENTITY`
+   - Entity Name: `Test Entity`
+   - Display Name: `Test Entity Display`
+   - Catalog Mode: `independent`
+   - Default: unchecked
+3. Click "Save"
+4. Verify:
+   - [ ] Entity appears in list
+   - [ ] Success message or no error
+
+**Edit Entity:**
+1. Click "Edit" on any entity (except default)
+2. Change entity name or catalog mode
+3. Click "Save"
+4. Verify:
+   - [ ] Changes are saved
+   - [ ] Updated values appear in list
+
+**Delete Entity:**
+1. Click "Delete" on a non-default entity
+2. Confirm deletion
+3. Verify:
+   - [ ] Entity is removed from list
+   - [ ] Default entity cannot be deleted
+
+**Access Control:**
+1. Logout and login as Admin (not Super Admin)
+2. Try to access `/coi/entity-codes`
+3. Verify:
+   - [ ] Access denied or redirect
+   - [ ] Error message shown
+
+---
+
+## 2. Service Catalog Management Testing
+
+### Access: Super Admin, Admin, Compliance
+
+**Test Steps:**
+1. Login as Admin or Compliance
+2. Navigate to `/coi/service-catalog` or click "Service Catalog" button
+3. Verify:
+   - [ ] Page loads without errors
+   - [ ] Shows "Select entity..." message initially
+
+**Select Entity:**
+1. Select "BDO Al Nisf & Partners" from dropdown
+2. Verify:
+   - [ ] Three panels load:
+     - Left: Global Catalog (read-only, 177 services)
+     - Center: Entity Catalog (enabled services)
+     - Right: Change History
+   - [ ] Loading indicators appear during fetch
+
+**Enable Service:**
+1. In Global Catalog (left panel), click on a service
+2. Verify:
+   - [ ] Service appears in Entity Catalog (center panel)
+   - [ ] Service shows checkmark in Global Catalog
+   - [ ] History entry created (right panel)
+   - [ ] History shows "enabled" action
+
+**Disable Service:**
+1. In Entity Catalog (center panel), click "Disable" (X icon) on an enabled service
+2. Confirm deletion
+3. Verify:
+   - [ ] Service removed from Entity Catalog
+   - [ ] Checkmark removed from Global Catalog
+   - [ ] History entry created with "disabled" action
+
+**Add Custom Service:**
+1. Click "+ Custom Service" button
+2. Fill form:
+   - Category: `Advisory - Custom`
+   - Service Name: `Custom Service Test`
+   - Description: `Test custom service`
+3. Click "Add Service"
+4. Verify:
+   - [ ] Custom service appears in Entity Catalog
+   - [ ] Shows "Custom" badge
+   - [ ] History entry created with "created" action
+
+**Search Functionality:**
+1. In Global Catalog search box, type "Audit"
+2. Verify:
+   - [ ] Only services matching "Audit" are shown
+3. In Entity Catalog search box, type a service name
+4. Verify:
+   - [ ] Only matching enabled services are shown
+
+**Export Catalog:**
+1. Click "Export" button in header
+2. Verify:
+   - [ ] File downloads (JSON format)
+   - [ ] Filename includes entity code and date
+
+**Bulk Operations:**
+1. Click "Bulk Actions" button
+2. Verify:
+   - [ ] Modal opens with options:
+     - Copy from Another Entity
+     - Bulk Enable Services
+     - Bulk Disable Services
+   - [ ] (Note: Full implementation may be pending)
+
+**Access Control:**
+1. Login as Requester (not Admin/Compliance)
+2. Try to access `/coi/service-catalog`
+3. Verify:
+   - [ ] Access denied or redirect
+   - [ ] Error message shown
+
+---
+
+## 3. COI Request Form Testing
+
+### Entity Selection & Service Filtering
+
+**Test Steps:**
+1. Login as Requester
+2. Navigate to `/coi/request/new`
+3. Verify:
+   - [ ] Entity dropdown is present
+   - [ ] Entity dropdown is populated with entities
+   - [ ] Default entity is pre-selected (if available)
+
+**Entity Change:**
+1. Select different entity from dropdown
+2. Verify:
+   - [ ] Service Type dropdown updates
+   - [ ] Only services for selected entity are shown
+   - [ ] Loading indicator appears during fetch
+
+**International Operations:**
+1. Check "International Operations" checkbox
+2. Verify:
+   - [ ] Service Type dropdown updates
+   - [ ] Shows global services (all services)
+   - [ ] Entity-specific filtering is bypassed
+
+**Service Type Selection:**
+1. With entity selected, open Service Type dropdown
+2. Verify:
+   - [ ] Services are grouped by category
+   - [ ] Services match the selected entity
+   - [ ] If no entity selected, shows "Select entity first" message
+
+**Form Submission:**
+1. Fill form with entity and service type selected
+2. Submit form
+3. Verify:
+   - [ ] Request is created successfully
+   - [ ] Entity and service type are saved correctly
+
+---
+
+## 4. Export Global COI Form Testing
+
+### Compliance Dashboard
+
+**Test Steps:**
+1. Login as Compliance
+2. Navigate to Compliance Dashboard
+3. Find a request with `international_operations = true`
+4. Verify:
+   - [ ] "Export" button appears next to "Review" button
+   - [ ] Export button is only visible for international requests
+
+**Export Functionality:**
+1. Click "Export" button
+2. Verify:
+   - [ ] Button shows "Exporting..." state
+   - [ ] Excel file downloads
+   - [ ] Filename format: `Global_COI_Form_{request_id}_{date}.xlsx`
+   - [ ] File opens correctly in Excel
+   - [ ] File contains pre-populated data from COI request
+
+**Error Handling:**
+1. Try to export a request without `international_operations`
+2. Verify:
+   - [ ] Error message shown
+   - [ ] Export button not visible
+
+**Access Control:**
+1. Login as Requester (not Compliance)
+2. Navigate to Compliance Dashboard (if accessible) or request detail
+3. Verify:
+   - [ ] Export button is not visible
+
+---
+
+## 5. COI Request Detail Testing
+
+**Test Steps:**
+1. Login as Compliance
+2. Navigate to a request detail page (`/coi/request/{id}`)
+3. Find a request with `international_operations = true`
+4. Verify:
+   - [ ] "Export Global COI Form" button appears in header
+   - [ ] Button is only visible for Compliance role + international requests
+
+**Export Functionality:**
+1. Click "Export Global COI Form" button
+2. Verify:
+   - [ ] Button shows loading state
+   - [ ] Excel file downloads
+   - [ ] Filename is correct format
+   - [ ] File contains request data
+
+---
+
+## 6. Integration Testing
+
+### End-to-End Flow
+
+**Test Scenario: Create Request with Entity Selection**
+1. Login as Requester
+2. Navigate to new request form
+3. Select entity: "BDO Al Nisf & Partners"
+4. Verify service types are filtered
+5. Select a service type
+6. Fill rest of form
+7. Submit request
+8. Verify request is created with correct entity and service type
+
+**Test Scenario: Enable Service and Use in Form**
+1. Login as Admin
+2. Navigate to Service Catalog
+3. Select "BDO Al Nisf & Partners"
+4. Enable a service from Global Catalog
+5. Logout and login as Requester
+6. Create new request
+7. Select "BDO Al Nisf & Partners" entity
+8. Verify the enabled service appears in Service Type dropdown
+
+**Test Scenario: Export Flow**
+1. Create a request with `international_operations = true`
+2. Submit and get approval (or use existing approved request)
+3. Login as Compliance
+4. Navigate to request detail
+5. Click "Export Global COI Form"
+6. Verify Excel file downloads with correct data
+
+---
+
+## 7. Error Handling Testing
+
+**Test Cases:**
+1. **Network Error:**
+   - Disconnect network
+   - Try to fetch entities
+   - Verify error message shown
+
+2. **Invalid Entity Code:**
+   - Manually enter invalid entity code in URL
+   - Verify 404 or error message
+
+3. **Unauthorized Access:**
+   - Try to access Super Admin pages as regular user
+   - Verify access denied
+
+4. **Empty States:**
+   - Test with no entities in database
+   - Test with no services in catalog
+   - Verify appropriate empty state messages
+
+---
+
+## 8. Performance Testing
+
+**Test Cases:**
+1. **Large Service Catalog:**
+   - Test with 500+ services in global catalog
+   - Verify search performance
+   - Verify rendering performance
+
+2. **Multiple Entities:**
+   - Test with 10+ entities
+   - Verify entity selector performance
+
+3. **History Loading:**
+   - Test with 1000+ history entries
+   - Verify pagination or lazy loading
+
+---
+
+## 9. Browser Compatibility
+
+**Test Browsers:**
+- [ ] Chrome (latest)
+- [ ] Firefox (latest)
+- [ ] Safari (latest)
+- [ ] Edge (latest)
+
+**Test Features:**
+- [ ] File downloads work
+- [ ] Modals display correctly
+- [ ] Forms submit correctly
+- [ ] API calls work
+
+---
+
+## 10. Mobile Responsiveness
+
+**Test Cases:**
+- [ ] Entity Codes Management is usable on mobile
+- [ ] Service Catalog Management adapts to mobile (may need layout changes)
+- [ ] COI Request Form is mobile-friendly
+- [ ] Export buttons are accessible on mobile
+
+---
+
+## 🐛 Known Issues to Watch For
+
+1. **Service Type Filtering:**
+   - If entity is not selected, service types should show message
+   - If international_operations is checked, should show all services
+
+2. **Export Permissions:**
+   - Only Compliance role should see export buttons
+   - Only requests with `international_operations = true` should be exportable
+
+3. **Entity Default:**
+   - Default entity should be pre-selected in form
+   - Default entity cannot be deleted
+
+4. **History Tracking:**
+   - All catalog changes should create history entries
+   - History should show user who made change
+
+---
+
+## ✅ Success Criteria
+
+All tests pass when:
+- [ ] All components load without errors
+- [ ] All API calls succeed (with proper authentication)
+- [ ] Entity selection filters services correctly
+- [ ] Export functionality works for Compliance users
+- [ ] Access control works correctly
+- [ ] Error handling shows user-friendly messages
+- [ ] Loading states appear during async operations
+
+---
+
+## 📝 Test Results Template
+
+```
+Date: ___________
+Tester: ___________
+Environment: Development/Staging/Production
+
+Entity Codes Management: [ ] Pass [ ] Fail
+Service Catalog Management: [ ] Pass [ ] Fail
+COI Request Form: [ ] Pass [ ] Fail
+Export Functionality: [ ] Pass [ ] Fail
+Access Control: [ ] Pass [ ] Fail
+
+Issues Found:
+1. 
+2. 
+3. 
+
+Notes:
+```

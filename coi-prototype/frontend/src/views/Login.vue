@@ -79,6 +79,10 @@
               <span class="font-medium">Finance</span>
               <span class="text-gray-400 block truncate">lisa.thomas@company.com</span>
             </button>
+            <button @click="fillDemo('james.jackson@company.com')" class="px-2 py-1.5 border rounded hover:bg-gray-50 text-left">
+              <span class="font-medium">Admin</span>
+              <span class="text-gray-400 block truncate">james.jackson@company.com</span>
+            </button>
             <button @click="fillDemo('admin@company.com')" class="px-2 py-1.5 border rounded hover:bg-gray-50 text-left">
               <span class="font-medium">Super Admin</span>
               <span class="text-gray-400 block truncate">admin@company.com</span>

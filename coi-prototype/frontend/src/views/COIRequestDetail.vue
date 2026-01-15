@@ -24,6 +24,29 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
+            <!-- Export Global COI Form (Compliance only, international_operations required) -->
+            <button 
+              v-if="authStore.user?.role === 'Compliance' && request?.international_operations"
+              @click="exportGlobalCOIForm"
+              :disabled="exporting"
+              class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              {{ exporting ? 'Exporting...' : 'Export Global COI Form' }}
+            </button>
+            <!-- Convert to Engagement button -->
+            <button 
+              v-if="canConvertToEngagement"
+              @click="handleConvertToEngagement"
+              class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+              Convert to Engagement
+            </button>
             <button 
               v-if="request?.status === 'Draft'"
               @click="editDraft"
@@ -526,6 +549,34 @@
                   Waiting for director approval. Director can approve in-system or you can upload an approval document.
                 </div>
                 
+                <!-- Approver Unavailable Status - Requirement 5: HRMS Vacation Integration -->
+                <div v-if="request.current_approver_status && !request.current_approver_status.is_available && authStore.user?.role === 'Requester'" 
+                     class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div class="flex items-start gap-2">
+                    <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <div class="flex-1">
+                      <p class="text-sm font-medium text-amber-800">
+                        Approval Delayed - Approver Unavailable
+                      </p>
+                      <p class="text-sm text-amber-700 mt-1">
+                        Your request is pending approval from <strong>{{ request.current_approver_status.approver_name }}</strong> 
+                        ({{ request.current_approver_status.role }}), who is currently unavailable.
+                      </p>
+                      <p v-if="request.current_approver_status.unavailable_reason" class="text-xs text-amber-600 mt-1">
+                        Reason: {{ request.current_approver_status.unavailable_reason }}
+                      </p>
+                      <p v-if="request.current_approver_status.unavailable_until" class="text-xs text-amber-600 mt-1">
+                        Expected return: {{ formatDate(request.current_approver_status.unavailable_until) }}
+                      </p>
+                      <p class="text-xs text-amber-600 mt-2 italic">
+                        Your request will be reviewed upon the approver's return. If this is urgent, please contact your department administrator.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
                 <!-- Implied Approval Message - Show when status is beyond Director but no explicit approval recorded -->
                 <div v-if="['Pending Compliance', 'Pending Partner', 'Pending Finance', 'Approved', 'Active'].includes(request.status) && !request.director_approval_by && !hasDirectorApprovalDocument && effectiveDirectorApprovalStatus === 'Approved'" class="text-sm text-gray-600 italic">
                   Director approval inferred from workflow progression.
@@ -647,8 +698,8 @@
                 </button>
               </div>
               
-              <!-- Enhanced Options -->
-              <div class="border-t pt-3 mt-3">
+              <!-- Enhanced Options (Compliance/Partner Only, NOT Directors) -->
+              <div v-if="(userRole === 'Compliance' && request.status === 'Pending Compliance') || (userRole === 'Partner' && request.status === 'Pending Partner')" class="border-t pt-3 mt-3">
                 <p class="text-xs text-gray-500 mb-2">Additional Options:</p>
                 <div class="flex gap-2">
                   <button 
@@ -666,6 +717,13 @@
                     Need More Info
                   </button>
                 </div>
+              </div>
+              
+              <!-- Director Tooltip (Directors see only Approve/Reject) -->
+              <div v-if="userRole === 'Director' && request.status === 'Pending Director Approval'" class="border-t pt-3 mt-3">
+                <p class="text-xs text-gray-500 italic">
+                  ℹ️ Additional approval options (Restrictions, More Info) are available at Compliance level
+                </p>
               </div>
             </div>
           </div>
@@ -842,6 +900,24 @@
         </div>
       </div>
     </div>
+
+    <!-- Conversion Modals -->
+    <ConvertToEngagementModal
+      v-if="!request?.is_prospect"
+      :show="showConvertModal"
+      :request="request"
+      @cancel="showConvertModal = false"
+      @converted="handleConverted"
+    />
+
+    <ProspectConversionModal
+      v-if="request?.is_prospect"
+      :show="showConvertModal"
+      :request="request"
+      :prospect="prospectData"
+      @cancel="showConvertModal = false"
+      @converted="handleProspectConverted"
+    />
   </div>
 </template>
 
@@ -850,6 +926,8 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import FileUpload from '@/components/FileUpload.vue'
+import ConvertToEngagementModal from '@/components/engagement/ConvertToEngagementModal.vue'
+import ProspectConversionModal from '@/components/engagement/ProspectConversionModal.vue'
 import api from '@/services/api'
 
 const route = useRoute()
@@ -860,6 +938,7 @@ const request = ref<any>(null)
 const loading = ref(true)
 const validationLoading = ref(true)
 const actionLoading = ref(false)
+const exporting = ref(false)
 const showRejectModal = ref(false)
 const showRestrictionsModal = ref(false)
 const showInfoModal = ref(false)
@@ -880,6 +959,8 @@ const showUploadModal = ref(false)
 const showPreviousCOI = ref(false)
 const showServiceConflict = ref(false)
 const resubmitting = ref(false)
+const showConvertModal = ref(false)
+const prospectData = ref<any>(null)
 
 const validationChecks = ref({
   clientExists: false,
@@ -965,7 +1046,11 @@ async function loadRequest() {
         
         // Handle new format with ruleRecommendations
         if (matchesData.duplicates) {
-          duplicationMatches.value = matchesData.duplicates || []
+          // New format: duplicates is an object with matches array inside
+          const dupData = matchesData.duplicates
+          duplicationMatches.value = Array.isArray(dupData) 
+            ? dupData 
+            : (dupData.matches || [])
           ruleRecommendations.value = matchesData.ruleRecommendations || []
         } else if (Array.isArray(matchesData)) {
           // Old format - just duplicates
@@ -1325,6 +1410,12 @@ const canDeleteDraft = computed(() => {
   return String(request.value.requester_id) === String(userId) || ['Admin', 'Super Admin'].includes(role || '')
 })
 
+const canConvertToEngagement = computed(() => {
+  return request.value?.stage === 'Proposal' 
+    && (request.value?.status === 'Approved' || request.value?.status === 'Active')
+    && ['Requester', 'Director', 'Admin', 'Super Admin'].includes(authStore.user?.role || '')
+})
+
 async function deleteDraft() {
   if (!request.value || !canDeleteDraft.value) return
   
@@ -1346,6 +1437,49 @@ async function deleteDraft() {
   }
 }
 
+async function handleConvertToEngagement() {
+  if (request.value?.is_prospect) {
+    // Fetch prospect data
+    try {
+      const response = await api.get(`/prospects/${request.value.prospect_id}`)
+      prospectData.value = response.data
+    } catch (error) {
+      console.error('Error fetching prospect:', error)
+    }
+  }
+  showConvertModal.value = true
+}
+
+async function handleConverted(result: any) {
+  showConvertModal.value = false
+  
+  // Show success message
+  alert(`Proposal successfully converted to engagement.\n\nNew Request: ${result.new_request.request_id}`)
+  
+  // Navigate to new engagement or stay
+  const action = confirm('View new engagement request?')
+  if (action) {
+    router.push(`/coi/requests/${result.new_request.id}`)
+  } else {
+    await loadRequest()
+  }
+}
+
+async function handleProspectConverted(result: any) {
+  showConvertModal.value = false
+  
+  // Show success message
+  alert(`Engagement created and client creation request submitted to PRMS Admin.\n\nNew Request: ${result.new_request.request_id}`)
+  
+  // Navigate to new engagement or stay
+  const action = confirm('View new engagement request?')
+  if (action) {
+    router.push(`/coi/requests/${result.new_request.id}`)
+  } else {
+    await loadRequest()
+  }
+}
+
 // Resubmit a rejected request (converts to Draft for editing)
 async function resubmitRequest() {
   if (!canResubmit.value) return
@@ -1364,6 +1498,38 @@ async function resubmitRequest() {
     alert(error.response?.data?.error || 'Failed to resubmit request. Please try again.')
   } finally {
     resubmitting.value = false
+  }
+}
+
+// Export Global COI Form Excel
+async function exportGlobalCOIForm() {
+  if (!request.value || !request.value.international_operations) {
+    alert('Global COI Form export is only available for requests with international operations')
+    return
+  }
+  
+  exporting.value = true
+  try {
+    const response = await api.get(`/global/export-excel/${request.value.id}`, {
+      responseType: 'blob'
+    })
+    
+    // Create download link
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `Global_COI_Form_${request.value.request_id}_${new Date().toISOString().split('T')[0]}.xlsx`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+    
+    alert('Global COI Form exported successfully!')
+  } catch (error: any) {
+    console.error('Failed to export:', error)
+    alert(error.response?.data?.error || 'Failed to export Global COI Form')
+  } finally {
+    exporting.value = false
   }
 }
 

@@ -101,6 +101,152 @@
       </div>
     </div>
 
+    <!-- Group Structure Verification Section (Research Required) -->
+    <div v-if="request.group_structure === 'research_required' || request.requires_compliance_verification" class="mb-4">
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <div class="flex-1">
+            <h4 class="font-semibold text-amber-800">Group Structure Verification Required</h4>
+            <p class="text-sm text-amber-700 mt-1">
+              Requester indicated they were unsure of group structure. 
+              Please verify parent company relationships before approval.
+            </p>
+            <p class="text-xs text-amber-600 mt-2 italic">
+              Reference: IESBA Code Section 290.13 - "Audit client" includes parent, 
+              subsidiaries, and affiliates. Independence requirements apply to entire group.
+            </p>
+          </div>
+        </div>
+        
+        <!-- Verification Form -->
+        <div class="mt-4 pt-4 border-t border-amber-200 space-y-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Verified Group Structure</label>
+            <select 
+              v-model="verificationData.group_structure" 
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            >
+              <option value="">Select verification result...</option>
+              <option value="standalone">Confirmed Standalone Entity</option>
+              <option value="has_parent">Part of Corporate Group</option>
+            </select>
+          </div>
+          
+          <div v-if="verificationData.group_structure === 'has_parent'">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Parent Company Name</label>
+            <input 
+              v-model="verificationData.parent_company"
+              type="text"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              placeholder="Enter verified parent company name..."
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Verification Source</label>
+            <select 
+              v-model="verificationData.verification_source"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            >
+              <option value="">Select source...</option>
+              <option value="prms">PRMS Database</option>
+              <option value="bdo_global">BDO Global Database</option>
+              <option value="public_records">Public Records / Commercial Registry</option>
+              <option value="client_confirmation">Client Confirmation</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Verification Notes</label>
+            <textarea 
+              v-model="verificationData.verification_notes"
+              rows="2"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              placeholder="Document the verification process..."
+            ></textarea>
+          </div>
+          
+          <button 
+            @click="handleSaveVerification"
+            :disabled="!canSaveVerification"
+            class="w-full px-4 py-2 text-sm font-medium rounded-md transition-colors"
+            :class="canSaveVerification 
+              ? 'bg-amber-600 text-white hover:bg-amber-700' 
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+          >
+            Save Verification & Re-check Conflicts
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group Conflicts Display -->
+    <div v-if="groupConflicts.length > 0" class="mb-4">
+      <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <div class="flex-1">
+            <h4 class="font-semibold text-red-800">Group Independence Conflicts Detected</h4>
+            <p class="text-sm text-red-700 mt-1">
+              {{ groupConflicts.length }} potential conflict(s) found within the corporate group.
+            </p>
+          </div>
+        </div>
+        
+        <div class="mt-4 space-y-3">
+          <div 
+            v-for="(conflict, idx) in groupConflicts" 
+            :key="idx"
+            class="bg-white border border-red-200 rounded-lg p-3"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium text-gray-900">{{ conflict.entity_name }}</span>
+              <span 
+                class="px-2 py-0.5 text-xs font-medium rounded"
+                :class="conflict.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'"
+              >
+                {{ conflict.severity }}
+              </span>
+            </div>
+            <div class="text-xs text-gray-600 space-y-1">
+              <p><strong>Relationship:</strong> {{ conflict.relationship_path }}</p>
+              <p><strong>Existing Service:</strong> {{ conflict.existing_service }}</p>
+              <p v-if="conflict.conflicting_engagement_code">
+                <strong>Engagement:</strong> {{ conflict.conflicting_engagement_code }}
+              </p>
+              <p><strong>Issue:</strong> {{ conflict.reason }}</p>
+              <p v-if="conflict.conflicting_engagement_end_date" class="mt-2 pt-2 border-t border-gray-200">
+                <strong>Conflict Ends:</strong> {{ formatDate(conflict.conflicting_engagement_end_date) }}
+                <span class="block text-gray-500 mt-0.5 italic">
+                  Partner/Compliance to decide if request can proceed after this date.
+                </span>
+              </p>
+            </div>
+            <div class="mt-3 flex gap-2">
+              <button 
+                @click="handleClearConflictFlag(conflict)"
+                class="px-3 py-1 text-xs font-medium bg-amber-100 text-amber-800 rounded hover:bg-amber-200 transition-colors"
+              >
+                Mark as False Positive
+              </button>
+              <button 
+                v-if="conflict.conflicting_engagement_code"
+                @click="handleViewEngagement(conflict)"
+                class="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                View Engagement
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Compliance Checks List -->
     <div v-if="complianceChecks.length > 0" class="mb-4">
       <h4 class="text-sm font-medium text-gray-700 mb-2">Compliance Checks</h4>
@@ -176,6 +322,33 @@
         Approve
       </button>
 
+      <!-- Approve with Restrictions Button (Compliance Only) -->
+      <button 
+        @click="handleApproveWithRestrictions"
+        :disabled="!canApprove"
+        :title="!canApprove ? 'Re-evaluation required before approval' : 'Approve with conditions'"
+        class="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+        :class="canApprove 
+          ? 'bg-yellow-600 text-white hover:bg-yellow-700' 
+          : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+      >
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+        Approve with Restrictions
+      </button>
+
+      <!-- Need More Info Button (Compliance Only) -->
+      <button 
+        @click="handleRequestInfo"
+        class="flex-1 inline-flex items-center justify-center px-4 py-2 border border-blue-500 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm"
+      >
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Need More Info
+      </button>
+
       <!-- Reject Button -->
       <button 
         @click="handleReject"
@@ -186,25 +359,30 @@
         </svg>
         Reject
       </button>
-
-      <!-- Request Info Button -->
-      <button 
-        @click="handleRequestInfo"
-        class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
-      >
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        Request Info
-      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, reactive } from 'vue'
 import type { COIRequest, ComplianceCheck } from '@/stores/coiRequests'
 import api from '@/services/api'
+
+interface GroupConflict {
+  type: string
+  severity: string
+  entity_name: string
+  entity_parent?: string
+  relationship_path: string
+  existing_service: string
+  requested_service: string
+  regulation: string
+  reason: string
+  action: string
+  conflicting_engagement_id?: number
+  conflicting_engagement_code?: string
+  conflicting_engagement_end_date?: string
+}
 
 const props = defineProps<{
   request: COIRequest
@@ -212,6 +390,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'approve'): void
+  (e: 'approve-with-restrictions'): void
   (e: 'reject'): void
   (e: 'request-info'): void
   (e: 'updated', request: COIRequest): void
@@ -222,6 +401,14 @@ const complianceStatus = ref<'stale' | 're-running' | 'fresh' | 'error'>('fresh'
 const errorMessage = ref<string | null>(null)
 const showRuleChangeDetails = ref(false)
 const showFreshBanner = ref(false)
+
+// Verification form state
+const verificationData = reactive({
+  group_structure: '',
+  parent_company: '',
+  verification_source: '',
+  verification_notes: ''
+})
 
 // Computed
 const complianceChecks = computed<ComplianceCheck[]>(() => {
@@ -238,6 +425,26 @@ const complianceChecks = computed<ComplianceCheck[]>(() => {
 
 const canApprove = computed(() => {
   return complianceStatus.value === 'fresh' && !props.request.requires_re_evaluation
+})
+
+// Parse group conflicts from JSON
+const groupConflicts = computed<GroupConflict[]>(() => {
+  if (!props.request.group_conflicts_detected) return []
+  if (typeof props.request.group_conflicts_detected === 'string') {
+    try {
+      return JSON.parse(props.request.group_conflicts_detected)
+    } catch {
+      return []
+    }
+  }
+  return props.request.group_conflicts_detected
+})
+
+// Can save verification (required fields filled)
+const canSaveVerification = computed(() => {
+  if (!verificationData.group_structure) return false
+  if (verificationData.group_structure === 'has_parent' && !verificationData.parent_company.trim()) return false
+  return true
 })
 
 const bannerClass = computed(() => {
@@ -321,12 +528,85 @@ function handleApprove() {
   emit('approve')
 }
 
+function handleApproveWithRestrictions() {
+  if (!canApprove.value) return
+  emit('approve-with-restrictions')
+}
+
 function handleReject() {
   emit('reject')
 }
 
 function handleRequestInfo() {
   emit('request-info')
+}
+
+// Handle saving group structure verification
+async function handleSaveVerification() {
+  if (!canSaveVerification.value) return
+  
+  try {
+    const response = await api.post(`/coi/requests/${props.request.id}/verify-group-structure`, {
+      group_structure: verificationData.group_structure,
+      parent_company: verificationData.parent_company,
+      verification_source: verificationData.verification_source,
+      verification_notes: verificationData.verification_notes
+    })
+    
+    if (response.data.success) {
+      // Update the request with verified data
+      emit('updated', {
+        ...props.request,
+        group_structure: verificationData.group_structure,
+        parent_company: verificationData.parent_company || props.request.parent_company,
+        requires_compliance_verification: 0,
+        group_conflicts_detected: response.data.conflicts ? JSON.stringify(response.data.conflicts) : null,
+        parent_company_verified_by: response.data.verified_by,
+        parent_company_verified_at: new Date().toISOString()
+      })
+      
+      // Reset form
+      verificationData.group_structure = ''
+      verificationData.parent_company = ''
+      verificationData.verification_source = ''
+      verificationData.verification_notes = ''
+    }
+  } catch (error: any) {
+    console.error('Error saving verification:', error)
+    errorMessage.value = error.response?.data?.error || 'Failed to save verification'
+  }
+}
+
+// Handle clearing a false positive conflict flag
+async function handleClearConflictFlag(conflict: GroupConflict) {
+  const notes = prompt('Please provide a reason for marking this as a false positive:')
+  if (!notes) return
+  
+  try {
+    const response = await api.post(`/coi/requests/${props.request.id}/clear-conflict-flag`, {
+      conflict_entity: conflict.entity_name,
+      notes
+    })
+    
+    if (response.data.success) {
+      // Update the request with cleared conflicts
+      emit('updated', {
+        ...props.request,
+        group_conflicts_detected: response.data.remaining_conflicts ? JSON.stringify(response.data.remaining_conflicts) : null,
+        requires_compliance_verification: response.data.remaining_conflicts?.length > 0 ? 1 : 0
+      })
+    }
+  } catch (error: any) {
+    console.error('Error clearing conflict flag:', error)
+    errorMessage.value = error.response?.data?.error || 'Failed to clear conflict flag'
+  }
+}
+
+// Handle viewing conflicting engagement
+function handleViewEngagement(conflict: GroupConflict) {
+  if (conflict.conflicting_engagement_id) {
+    window.open(`/coi/request/${conflict.conflicting_engagement_id}`, '_blank')
+  }
 }
 </script>
 

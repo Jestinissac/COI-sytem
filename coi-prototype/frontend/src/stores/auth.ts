@@ -16,6 +16,7 @@ export interface User {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const token = ref<string | null>(localStorage.getItem('token'))
+  const refreshToken = ref<string | null>(localStorage.getItem('refreshToken'))
   const systemAccess = ref<string[]>([])
   const edition = ref<'standard' | 'pro'>('standard')
   const features = ref<string[]>([])
@@ -33,11 +34,15 @@ export const useAuthStore = defineStore('auth', () => {
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:26',message:'Frontend login response received',data:{userId:response.data.user?.id,role:response.data.user?.role,email:response.data.user?.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
       // #endregion
-      token.value = response.data.token
+      
+      // Store both access and refresh tokens
+      token.value = response.data.token || response.data.accessToken
+      refreshToken.value = response.data.refreshToken
       user.value = response.data.user
       systemAccess.value = response.data.systemAccess || []
       
       localStorage.setItem('token', token.value)
+      localStorage.setItem('refreshToken', refreshToken.value)
       api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
       
       // Load edition and features after successful login
@@ -60,12 +65,57 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
+  async function logout() {
+    // Call backend to revoke refresh token
+    try {
+      if (refreshToken.value) {
+        await api.post('/auth/logout', { refreshToken: refreshToken.value })
+      }
+    } catch (error) {
+      console.error('Logout API call failed:', error)
+      // Continue with local logout even if API call fails
+    }
+    
+    // Clear local state
     user.value = null
     token.value = null
+    refreshToken.value = null
     systemAccess.value = []
     localStorage.removeItem('token')
+    localStorage.removeItem('refreshToken')
     delete api.defaults.headers.common['Authorization']
+  }
+
+  async function refreshAccessToken() {
+    if (!refreshToken.value) {
+      logout()
+      return { success: false, error: 'No refresh token available' }
+    }
+
+    try {
+      // Don't include Authorization header for refresh request
+      const currentAuth = api.defaults.headers.common['Authorization']
+      delete api.defaults.headers.common['Authorization']
+      
+      const response = await api.post('/auth/refresh', { refreshToken: refreshToken.value })
+      
+      // Update tokens with new ones (token rotation)
+      token.value = response.data.token || response.data.accessToken
+      refreshToken.value = response.data.refreshToken
+      user.value = response.data.user
+      systemAccess.value = response.data.systemAccess || []
+      
+      localStorage.setItem('token', token.value)
+      localStorage.setItem('refreshToken', refreshToken.value)
+      api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
+      
+      console.log('✅ Token refreshed successfully')
+      return { success: true }
+    } catch (error: any) {
+      console.error('Token refresh failed:', error.response?.data || error)
+      logout()
+      return { success: false, error: error.response?.data?.error || 'Token refresh failed' }
+    }
   }
 
   async function checkAuth() {
@@ -139,6 +189,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     token,
+    refreshToken,
     systemAccess,
     edition,
     features,
@@ -147,6 +198,7 @@ export const useAuthStore = defineStore('auth', () => {
     isStandard,
     login,
     logout,
+    refreshAccessToken,
     checkAuth,
     loadEdition,
     updateEdition

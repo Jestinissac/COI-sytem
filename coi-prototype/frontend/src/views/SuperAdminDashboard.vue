@@ -5,6 +5,24 @@
       <h1 class="text-xl font-semibold text-gray-900">System Administration</h1>
       <div class="flex items-center gap-3">
         <router-link
+          to="/coi/entity-codes"
+          class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+          </svg>
+          Entity Codes
+        </router-link>
+        <router-link
+          to="/coi/service-catalog"
+          class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          Service Catalog
+        </router-link>
+        <router-link
           v-if="authStore.isPro"
           to="/coi/form-builder"
           class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2"
@@ -50,6 +68,13 @@
             class="px-4 py-3 text-sm font-medium"
           >
             User Management
+          </button>
+          <button 
+            @click="activeTab = 'perspectives'"
+            :class="activeTab === 'perspectives' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'"
+            class="px-4 py-3 text-sm font-medium"
+          >
+            Role Perspectives
           </button>
           <button 
             @click="activeTab = 'config'"
@@ -153,6 +178,204 @@
 
         <div class="flex items-center justify-between px-4 py-3 border-t">
           <div class="text-sm text-gray-500">Showing {{ filteredUsers.length }} of {{ users.length }} users</div>
+        </div>
+      </div>
+
+      <!-- Role Perspectives Tab -->
+      <div v-if="activeTab === 'perspectives'" class="p-4">
+        <div class="mb-6">
+          <h3 class="font-medium text-gray-900 mb-2">View as Role</h3>
+          <p class="text-sm text-gray-500 mb-4">Switch between role perspectives to see what each user type experiences</p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="role in roleOptions"
+              :key="role.value"
+              @click="selectedPerspective = role.value"
+              :class="selectedPerspective === role.value ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+              class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+            >
+              {{ role.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Perspective Content -->
+        <div class="border rounded-lg p-4 bg-gray-50">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="font-medium text-gray-900">
+              {{ getRolePerspectiveTitle(selectedPerspective) }}
+            </h4>
+            <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+              Preview Mode
+            </span>
+          </div>
+
+          <!-- Requester Perspective -->
+          <div v-if="selectedPerspective === 'Requester'" class="space-y-4">
+            <div class="grid grid-cols-4 gap-4">
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold">{{ requesterStats.total }}</div>
+                <div class="text-xs text-gray-500">Total Requests</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-yellow-600">{{ requesterStats.pending }}</div>
+                <div class="text-xs text-gray-500">In Progress</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-green-600">{{ requesterStats.approved }}</div>
+                <div class="text-xs text-gray-500">Approved</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-gray-500">{{ requesterStats.drafts }}</div>
+                <div class="text-xs text-gray-500">Drafts</div>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600">
+              Requesters can create COI requests, track their status, send proposals, and record client responses.
+            </p>
+          </div>
+
+          <!-- Director Perspective -->
+          <div v-if="selectedPerspective === 'Director'" class="space-y-4">
+            <div class="grid grid-cols-4 gap-4">
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-orange-600">{{ directorStats.pendingApproval }}</div>
+                <div class="text-xs text-gray-500">Pending Approval</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-blue-600">{{ directorStats.teamRequests }}</div>
+                <div class="text-xs text-gray-500">Team Requests</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-green-600">{{ directorStats.approved }}</div>
+                <div class="text-xs text-gray-500">Approved</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-purple-600">{{ directorStats.tracking }}</div>
+                <div class="text-xs text-gray-500">In Tracking</div>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600">
+              Directors approve team requests and can track proposals/engagements for their entire team.
+            </p>
+          </div>
+
+          <!-- Compliance Perspective -->
+          <div v-if="selectedPerspective === 'Compliance'" class="space-y-4">
+            <div class="grid grid-cols-4 gap-4">
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-blue-600">{{ complianceStats.pending }}</div>
+                <div class="text-xs text-gray-500">Pending Review</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-red-600">{{ complianceStats.conflicts }}</div>
+                <div class="text-xs text-gray-500">Conflicts</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-yellow-600">{{ complianceStats.duplications }}</div>
+                <div class="text-xs text-gray-500">Duplications</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-amber-600">{{ complianceStats.stale }}</div>
+                <div class="text-xs text-gray-500">Stale Requests</div>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600">
+              Compliance reviews requests for conflicts, manages business rules, and monitors pipeline health.
+            </p>
+          </div>
+
+          <!-- Partner Perspective -->
+          <div v-if="selectedPerspective === 'Partner'" class="space-y-4">
+            <div class="grid grid-cols-4 gap-4">
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-purple-600">{{ partnerStats.pendingApproval }}</div>
+                <div class="text-xs text-gray-500">Pending Approval</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-green-600">{{ partnerStats.active }}</div>
+                <div class="text-xs text-gray-500">Active Engagements</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-red-600">{{ partnerStats.redFlags }}</div>
+                <div class="text-xs text-gray-500">Red Flags</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-orange-600">{{ partnerStats.expiring }}</div>
+                <div class="text-xs text-gray-500">Expiring Soon</div>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600">
+              Partners provide final approval, monitor engagement status, and track expiring engagements.
+            </p>
+          </div>
+
+          <!-- Finance Perspective -->
+          <div v-if="selectedPerspective === 'Finance'" class="space-y-4">
+            <div class="grid grid-cols-4 gap-4">
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-indigo-600">{{ financeStats.pendingCodes }}</div>
+                <div class="text-xs text-gray-500">Pending Codes</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-green-600">{{ financeStats.generated }}</div>
+                <div class="text-xs text-gray-500">Codes Generated</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-gray-600">{{ financeStats.total }}</div>
+                <div class="text-xs text-gray-500">Total This Year</div>
+              </div>
+              <div class="bg-white p-3 rounded border">
+                <div class="text-xl font-bold text-blue-600">{{ financeStats.active }}</div>
+                <div class="text-xs text-gray-500">Active Engagements</div>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600">
+              Finance generates engagement codes and manages financial parameters for approved requests.
+            </p>
+          </div>
+        </div>
+
+        <!-- Quick Access Links -->
+        <div class="mt-6">
+          <h4 class="font-medium text-gray-900 mb-3">Quick Access</h4>
+          <div class="flex flex-wrap gap-2">
+            <router-link 
+              v-if="selectedPerspective === 'Requester'"
+              to="/coi/requester"
+              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+            >
+              Open Requester Dashboard →
+            </router-link>
+            <router-link 
+              v-if="selectedPerspective === 'Director'"
+              to="/coi/director"
+              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+            >
+              Open Director Dashboard →
+            </router-link>
+            <router-link 
+              v-if="selectedPerspective === 'Compliance'"
+              to="/coi/compliance"
+              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+            >
+              Open Compliance Dashboard →
+            </router-link>
+            <router-link 
+              v-if="selectedPerspective === 'Partner'"
+              to="/coi/partner"
+              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+            >
+              Open Partner Dashboard →
+            </router-link>
+            <router-link 
+              v-if="selectedPerspective === 'Finance'"
+              to="/coi/finance"
+              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+            >
+              Open Finance Dashboard →
+            </router-link>
+          </div>
         </div>
       </div>
 
@@ -433,6 +656,63 @@ const editingUser = ref<any>(null)
 
 const users = ref<any[]>([])
 const auditLogsList = ref<any[]>([])
+
+// Role Perspectives
+const selectedPerspective = ref('Requester')
+const roleOptions = [
+  { value: 'Requester', label: 'Requester' },
+  { value: 'Director', label: 'Director' },
+  { value: 'Compliance', label: 'Compliance' },
+  { value: 'Partner', label: 'Partner' },
+  { value: 'Finance', label: 'Finance' }
+]
+
+function getRolePerspectiveTitle(role: string) {
+  const titles: Record<string, string> = {
+    'Requester': 'Requester Dashboard Overview',
+    'Director': 'Director Dashboard Overview',
+    'Compliance': 'Compliance Dashboard Overview',
+    'Partner': 'Partner Dashboard Overview',
+    'Finance': 'Finance Dashboard Overview'
+  }
+  return titles[role] || 'Dashboard Overview'
+}
+
+// Role-specific stats computed properties
+const requesterStats = computed(() => ({
+  total: coiStore.requests.length,
+  pending: coiStore.requests.filter(r => r.status.includes('Pending')).length,
+  approved: coiStore.requests.filter(r => r.status === 'Approved' || r.status === 'Active').length,
+  drafts: coiStore.requests.filter(r => r.status === 'Draft').length
+}))
+
+const directorStats = computed(() => ({
+  pendingApproval: coiStore.requests.filter(r => r.status === 'Pending Director Approval').length,
+  teamRequests: coiStore.requests.length, // All visible requests
+  approved: coiStore.requests.filter(r => r.director_approval_status === 'Approved').length,
+  tracking: coiStore.requests.filter(r => ['Approved', 'Active', 'Lapsed'].includes(r.status)).length
+}))
+
+const complianceStats = computed(() => ({
+  pending: coiStore.requests.filter(r => r.status === 'Pending Compliance').length,
+  conflicts: coiStore.requests.filter(r => r.duplication_matches && r.status === 'Pending Compliance').length,
+  duplications: coiStore.requests.filter(r => r.duplication_matches).length,
+  stale: coiStore.requests.filter(r => r.requires_re_evaluation && r.status === 'Pending Compliance').length
+}))
+
+const partnerStats = computed(() => ({
+  pendingApproval: coiStore.requests.filter(r => r.status === 'Pending Partner').length,
+  active: coiStore.requests.filter(r => r.status === 'Active').length,
+  redFlags: coiStore.requests.filter(r => r.duplication_matches).length,
+  expiring: coiStore.requests.filter(r => r.status === 'Active' && r.days_in_monitoring && r.days_in_monitoring >= 20).length
+}))
+
+const financeStats = computed(() => ({
+  pendingCodes: coiStore.requests.filter(r => r.status === 'Pending Finance' && !r.engagement_code).length,
+  generated: coiStore.requests.filter(r => r.engagement_code).length,
+  total: coiStore.requests.filter(r => r.engagement_code).length,
+  active: coiStore.requests.filter(r => r.status === 'Active').length
+}))
 
 const totalUsers = computed(() => users.value.length)
 const activeUsers = computed(() => users.value.filter(u => u.active).length)

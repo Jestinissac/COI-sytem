@@ -57,9 +57,9 @@
         <div class="flex-1">
           <!-- Overview Tab -->
           <div v-if="activeTab === 'overview'" class="space-y-6">
-            <!-- Stats Cards -->
+            <!-- Stats Cards - Clickable -->
             <div class="grid grid-cols-4 gap-4">
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'pending'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-purple-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Pending Approval</p>
@@ -72,7 +72,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'status'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Active Proposals</p>
@@ -85,7 +85,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'engagements'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-green-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Active Engagements</p>
@@ -98,7 +98,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'redflags'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-red-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Red Flags</p>
@@ -248,12 +248,116 @@
             </div>
           </div>
 
-          <!-- Engagements Tab -->
+          <!-- Engagement Status Tab (Monitoring) -->
+          <div v-if="activeTab === 'status'" class="space-y-6">
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-4 gap-4">
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="text-2xl font-bold text-gray-900">{{ approvedByMe.length }}</div>
+                <div class="text-sm text-gray-500">Total Approved</div>
+              </div>
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="text-2xl font-bold text-green-600">{{ approvedByMe.filter(r => r.client_response_status === 'Accepted').length }}</div>
+                <div class="text-sm text-gray-500">Client Signed</div>
+              </div>
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="text-2xl font-bold text-amber-600">{{ approvedByMe.filter(r => !r.client_response_status && r.status !== 'Lapsed').length }}</div>
+                <div class="text-sm text-gray-500">Awaiting Response</div>
+              </div>
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="text-2xl font-bold text-gray-500">{{ approvedByMe.filter(r => r.status === 'Lapsed').length }}</div>
+                <div class="text-sm text-gray-500">Lapsed</div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900">Engagement Status</h2>
+                <p class="text-sm text-gray-500 mt-1">Proposals you approved - track their current status</p>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approved Date</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Response</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eng. Code</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr v-for="request in approvedByMe" :key="request.id" class="hover:bg-gray-50">
+                      <td class="px-6 py-4">
+                        <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ request.client_name || 'Not specified' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ request.service_type || 'General' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-500">{{ formatDate(request.partner_approval_date || request.updated_at) }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span 
+                          :class="getClientResponseClass(request.client_response_status || (request.status === 'Lapsed' ? 'Lapsed' : 'Awaiting'))"
+                          class="px-2.5 py-1 text-xs font-semibold rounded-full"
+                        >
+                          {{ getClientResponseLabel(request) }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600 font-mono">{{ request.engagement_code || '-' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                          View →
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="approvedByMe.length === 0">
+                      <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                        No approved engagements found
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- All History Tab (Enhanced with filters) -->
           <div v-if="activeTab === 'engagements'" class="space-y-6">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 class="font-semibold text-gray-900">All Engagements</h2>
+                <div>
+                  <h2 class="font-semibold text-gray-900">All Proposals & Engagements History</h2>
+                  <p class="text-sm text-gray-500 mt-1">Complete historical view including cancelled and lapsed requests</p>
+                </div>
                 <div class="flex items-center gap-2">
+                  <select v-model="historyStatusFilter" class="text-sm border border-gray-300 rounded-md px-3 py-1.5">
+                    <option value="all">All Status</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Pending Director Approval">Pending Director</option>
+                    <option value="Pending Compliance">Pending Compliance</option>
+                    <option value="Pending Partner">Pending Partner</option>
+                    <option value="Pending Finance">Pending Finance</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Active">Active</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Lapsed">Lapsed</option>
+                  </select>
+                  <input 
+                    v-model="historyDateFilter" 
+                    type="date" 
+                    class="text-sm border border-gray-300 rounded-md px-3 py-1.5"
+                    placeholder="From date"
+                  />
                   <button
                     @click="printRequestReport(null)"
                     class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50"
@@ -261,15 +365,24 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                     </svg>
-                    Print All
+                    Print
                   </button>
-                  <button class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50">
+                  <button @click="exportToExcel" class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                     Export
                   </button>
                 </div>
+              </div>
+
+              <!-- Summary stats -->
+              <div class="px-6 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-6 text-sm">
+                <span class="text-gray-600">Total: <strong>{{ filteredHistory.length }}</strong></span>
+                <span class="text-green-600">Active: <strong>{{ filteredHistory.filter(r => r.status === 'Active').length }}</strong></span>
+                <span class="text-blue-600">Approved: <strong>{{ filteredHistory.filter(r => r.status === 'Approved').length }}</strong></span>
+                <span class="text-red-600">Rejected: <strong>{{ filteredHistory.filter(r => r.status === 'Rejected').length }}</strong></span>
+                <span class="text-gray-500">Lapsed: <strong>{{ filteredHistory.filter(r => r.status === 'Lapsed').length }}</strong></span>
               </div>
 
               <div class="overflow-x-auto">
@@ -280,12 +393,13 @@
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eng. Code</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-for="request in allEngagements" :key="request.id" class="hover:bg-gray-50">
+                    <tr v-for="request in filteredHistory" :key="request.id" class="hover:bg-gray-50">
                       <td class="px-6 py-4">
                         <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
                       </td>
@@ -299,6 +413,9 @@
                         <span :class="getStatusClass(request.status)" class="px-2 py-1 text-xs font-medium rounded">
                           {{ request.status }}
                         </span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-500">{{ formatDate(request.created_at) }}</span>
                       </td>
                       <td class="px-6 py-4">
                         <span class="text-sm text-gray-600 font-mono">{{ request.engagement_code || '-' }}</span>
@@ -320,13 +437,389 @@
                         </div>
                       </td>
                     </tr>
-                    <tr v-if="allEngagements.length === 0">
-                      <td colspan="6" class="px-6 py-8 text-center text-gray-500">
-                        No engagements found
+                    <tr v-if="filteredHistory.length === 0">
+                      <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                        No requests found matching filters
                       </td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+
+              <!-- Pagination info -->
+              <div class="px-6 py-4 border-t border-gray-200">
+                <p class="text-sm text-gray-500">
+                  Showing {{ filteredHistory.length }} of {{ allRequestsHistory.length }} total requests
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- COI Decisions Tab -->
+          <div v-if="activeTab === 'decisions'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h2 class="font-semibold text-gray-900">COI Decisions</h2>
+                  <p class="text-sm text-gray-500 mt-1">All approval and rejection decisions with reasons</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <select v-model="decisionFilter" class="text-sm border border-gray-300 rounded-md px-3 py-1.5">
+                    <option value="all">All Decisions</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Approved with Restrictions">With Restrictions</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Compliance Decision</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partner Decision</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Restrictions/Reason</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr v-for="request in filteredDecisions" :key="request.id" class="hover:bg-gray-50">
+                      <td class="px-6 py-4">
+                        <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ request.client_name || 'Not specified' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ request.service_type || 'General' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span :class="getDecisionBadgeClass(request.compliance_approval_status || 'Pending')" class="px-2 py-1 text-xs font-medium rounded border">
+                          {{ request.compliance_approval_status || 'Pending' }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span :class="getDecisionBadgeClass(request.partner_approval_status || request.status)" class="px-2 py-1 text-xs font-medium rounded border">
+                          {{ request.partner_approval_status || request.status }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span v-if="request.compliance_restrictions || request.partner_restrictions || request.rejection_reason" class="text-sm text-gray-600 max-w-xs truncate block" :title="request.compliance_restrictions || request.partner_restrictions || request.rejection_reason">
+                          {{ request.compliance_restrictions || request.partner_restrictions || request.rejection_reason || '-' }}
+                        </span>
+                        <span v-else class="text-sm text-gray-400">-</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-500">{{ formatDate(request.partner_approval_date || request.compliance_approval_date || request.updated_at) }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                          View →
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="filteredDecisions.length === 0">
+                      <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                        No decisions found
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Engagement Letters Tab -->
+          <div v-if="activeTab === 'letters'" class="space-y-6">
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-4 gap-4">
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="text-2xl font-bold text-gray-900">{{ engagementLetters.filter(r => r.proposal_sent_date && !r.client_response_date).length }}</div>
+                <div class="text-sm text-gray-500">Awaiting Response</div>
+              </div>
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="text-2xl font-bold text-green-600">{{ engagementLetters.filter(r => r.client_response_status === 'Accepted').length }}</div>
+                <div class="text-sm text-gray-500">Signed</div>
+              </div>
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="text-2xl font-bold text-amber-600">{{ engagementLetters.filter(r => r.proposal_sent_date && getDaysWaiting(r.proposal_sent_date) >= 20 && !r.client_response_date).length }}</div>
+                <div class="text-sm text-gray-500">Near 30-Day Limit</div>
+              </div>
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="text-2xl font-bold text-blue-600">{{ engagementLetters.filter(r => r.engagement_letter_issued).length }}</div>
+                <div class="text-sm text-gray-500">Letters Issued</div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900">Engagement Letter Status</h2>
+                <p class="text-sm text-gray-500 mt-1">Track proposal lifecycle and client signatures (30-day countdown)</p>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proposal Sent</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Waiting</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Letter Status</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eng. Code</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr v-for="request in engagementLetters" :key="request.id" class="hover:bg-gray-50">
+                      <td class="px-6 py-4">
+                        <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ request.client_name || 'Not specified' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ request.service_type || 'General' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-500">{{ request.proposal_sent_date ? formatDate(request.proposal_sent_date) : 'Not sent' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div v-if="request.proposal_sent_date && !request.client_response_date" class="flex items-center">
+                          <div class="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                            <div 
+                              class="h-2 rounded-full transition-all"
+                              :class="getDaysWaiting(request.proposal_sent_date) >= 25 ? 'bg-red-500' : getDaysWaiting(request.proposal_sent_date) >= 15 ? 'bg-orange-500' : 'bg-green-500'"
+                              :style="`width: ${Math.min(100, (getDaysWaiting(request.proposal_sent_date) / 30) * 100)}%`"
+                            ></div>
+                          </div>
+                          <span class="text-sm font-medium" :class="getDaysWaiting(request.proposal_sent_date) >= 25 ? 'text-red-600' : 'text-gray-600'">
+                            {{ getDaysWaiting(request.proposal_sent_date) }}/30
+                          </span>
+                        </div>
+                        <span v-else-if="request.client_response_date" class="text-sm text-green-600">Complete</span>
+                        <span v-else class="text-sm text-gray-400">-</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span :class="getLetterStatusClass(request)" class="px-2 py-1 text-xs font-medium rounded">
+                          {{ getLetterStatusLabel(request) }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600 font-mono">{{ request.engagement_code || '-' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                          View →
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="engagementLetters.length === 0">
+                      <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                        No engagement letters to track
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Red Flags Tab -->
+          <div v-if="activeTab === 'redflags'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200 bg-red-50">
+                <h2 class="font-semibold text-red-900">Red Flags & Conflicts</h2>
+                <p class="text-sm text-red-700 mt-1">Requests with independence threats, conflicts, or compliance issues</p>
+              </div>
+
+              <div class="divide-y divide-gray-200">
+                <div v-for="request in redFlagRequests" :key="request.id" class="p-6">
+                  <div class="flex items-start justify-between mb-4">
+                    <div>
+                      <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-gray-900">{{ request.request_id }}</span>
+                        <span :class="getStatusClass(request.status)" class="px-2 py-1 text-xs font-medium rounded">
+                          {{ request.status }}
+                        </span>
+                      </div>
+                      <p class="text-sm text-gray-600 mt-1">{{ request.client_name }} • {{ request.service_type }}</p>
+                    </div>
+                    <button @click="viewDetails(request)" class="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700">
+                      Investigate
+                    </button>
+                  </div>
+                  
+                  <div class="space-y-2">
+                    <div 
+                      v-for="(flag, idx) in getRedFlagDetails(request)" 
+                      :key="idx"
+                      class="flex items-start p-3 rounded-lg"
+                      :class="flag.severity === 'HIGH' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'"
+                    >
+                      <div class="flex-shrink-0 mr-3">
+                        <span v-if="flag.severity === 'HIGH'" class="text-red-500">🚨</span>
+                        <span v-else class="text-amber-500">⚠️</span>
+                      </div>
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                          <span class="text-sm font-medium" :class="flag.severity === 'HIGH' ? 'text-red-800' : 'text-amber-800'">
+                            {{ flag.type }}
+                          </span>
+                          <span class="px-1.5 py-0.5 text-xs rounded" :class="flag.severity === 'HIGH' ? 'bg-red-200 text-red-700' : 'bg-amber-200 text-amber-700'">
+                            {{ flag.severity }}
+                          </span>
+                        </div>
+                        <p class="text-sm mt-1" :class="flag.severity === 'HIGH' ? 'text-red-700' : 'text-amber-700'">
+                          {{ flag.message }}
+                        </p>
+                        <p v-if="flag.details" class="text-xs mt-1" :class="flag.severity === 'HIGH' ? 'text-red-600' : 'text-amber-600'">
+                          {{ flag.details }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div v-if="redFlagRequests.length === 0" class="p-8 text-center text-gray-500">
+                  <svg class="w-12 h-12 mx-auto text-green-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <p>No red flags or conflicts detected</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Group Services Tab -->
+          <div v-if="activeTab === 'group'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900">Group-Level Services</h2>
+                <p class="text-sm text-gray-500 mt-1">All services across client groups and parent companies</p>
+              </div>
+
+              <div class="divide-y divide-gray-200">
+                <div v-for="(services, groupName) in groupedServices" :key="groupName" class="p-6">
+                  <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                      <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 class="font-medium text-gray-900">{{ groupName }}</h3>
+                        <p class="text-sm text-gray-500">{{ services.length }} engagement(s)</p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span v-if="services.some(s => hasRedFlags(s))" class="px-2 py-1 text-xs font-medium rounded bg-red-100 text-red-700">
+                        Has Conflicts
+                      </span>
+                      <span class="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-600">
+                        {{ [...new Set(services.map(s => s.service_type))].length }} service type(s)
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div class="ml-13 space-y-2">
+                    <div 
+                      v-for="service in services" 
+                      :key="service.id"
+                      class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div class="flex items-center gap-3">
+                        <span class="text-sm font-medium text-gray-900">{{ service.request_id }}</span>
+                        <span class="text-sm text-gray-600">{{ service.service_type || 'General' }}</span>
+                        <span :class="getStatusClass(service.status)" class="px-2 py-0.5 text-xs font-medium rounded">
+                          {{ service.status }}
+                        </span>
+                      </div>
+                      <button @click="viewDetails(service)" class="text-blue-600 hover:text-blue-800 text-sm">
+                        View →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div v-if="Object.keys(groupedServices).length === 0" class="p-8 text-center text-gray-500">
+                  No group services found
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3-Year Renewals Tab -->
+          <div v-if="activeTab === 'renewals'" class="space-y-6">
+            <!-- Alert Banner -->
+            <div v-if="renewalAlerts.length > 0" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div class="flex items-center">
+                <svg class="w-5 h-5 text-amber-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <span class="text-amber-800 font-medium">{{ renewalAlerts.length }} engagement(s) approaching 3-year renewal</span>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900">3-Year Engagement Renewals</h2>
+                <p class="text-sm text-gray-500 mt-1">Engagements requiring renewal review (alerts at 90, 30, 14, 7 days)</p>
+              </div>
+
+              <div class="divide-y divide-gray-200">
+                <div v-for="request in renewalAlerts" :key="request.id" class="p-6">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <div class="flex items-center gap-3 mb-2">
+                        <span class="text-sm font-bold text-gray-900">{{ request.request_id }}</span>
+                        <span 
+                          class="px-2 py-1 text-xs font-medium rounded"
+                          :class="getDaysUntilRenewal(request) <= 7 ? 'bg-red-100 text-red-700' : getDaysUntilRenewal(request) <= 30 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'"
+                        >
+                          {{ getDaysUntilRenewal(request) }} days until renewal
+                        </span>
+                      </div>
+                      <p class="text-sm text-gray-600">{{ request.client_name }} • {{ request.service_type }}</p>
+                      <div class="mt-3 grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span class="text-gray-500">Engagement Start:</span>
+                          <span class="ml-2 text-gray-900">{{ formatDate(request.engagement_start_date) }}</span>
+                        </div>
+                        <div>
+                          <span class="text-gray-500">Renewal Date:</span>
+                          <span class="ml-2 text-gray-900 font-medium">{{ getRenewalDate(request) }}</span>
+                        </div>
+                        <div>
+                          <span class="text-gray-500">Eng. Code:</span>
+                          <span class="ml-2 text-gray-900 font-mono">{{ request.engagement_code || '-' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                      <button @click="viewDetails(request)" class="px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded hover:bg-amber-700">
+                        Review
+                      </button>
+                      <button class="px-3 py-1.5 border border-amber-300 text-amber-700 text-sm font-medium rounded hover:bg-amber-50">
+                        Initiate Renewal
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div v-if="renewalAlerts.length === 0" class="p-8 text-center text-gray-500">
+                  <svg class="w-12 h-12 mx-auto text-green-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <p>No engagements due for 3-year renewal</p>
+                </div>
               </div>
             </div>
           </div>
@@ -388,6 +881,7 @@ const coiStore = useCOIRequestsStore()
 
 const activeTab = ref('overview')
 const searchQuery = ref('')
+const decisionFilter = ref('all')
 
 const loading = computed(() => coiStore.loading)
 const requests = computed(() => coiStore.requests)
@@ -425,10 +919,71 @@ const ExpiringIcon = {
   }
 }
 
+const StatusIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' })
+    ])
+  }
+}
+
+// Approved by me - requests that this partner approved
+const approvedByMe = computed(() => requests.value.filter(r => 
+  r.partner_approved_by && 
+  (r.status === 'Approved' || r.status === 'Active' || r.status === 'Pending Finance' || r.status === 'Lapsed')
+))
+
+// New Icon Components for additional tabs
+const DecisionsIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' })
+    ])
+  }
+}
+
+const LettersIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' })
+    ])
+  }
+}
+
+const GroupIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' })
+    ])
+  }
+}
+
+const RedFlagIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9' })
+    ])
+  }
+}
+
+const RenewalIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' })
+    ])
+  }
+}
+
 const tabs = computed(() => [
   { id: 'overview', label: 'Overview', icon: OverviewIcon, count: 0, alertColor: '' },
   { id: 'pending', label: 'Pending Approval', icon: PendingIcon, count: pendingApprovals.value.length, alertColor: 'bg-purple-100 text-purple-700' },
-  { id: 'engagements', label: 'All Engagements', icon: EngagementsIcon, count: allEngagements.value.length, alertColor: 'bg-gray-100 text-gray-600' },
+  { id: 'decisions', label: 'COI Decisions', icon: DecisionsIcon, count: coiDecisions.value.length, alertColor: 'bg-green-100 text-green-700' },
+  { id: 'letters', label: 'Engagement Letters', icon: LettersIcon, count: engagementLetters.value.length, alertColor: 'bg-indigo-100 text-indigo-700' },
+  { id: 'redflags', label: 'Red Flags', icon: RedFlagIcon, count: redFlagRequests.value.length, alertColor: 'bg-red-100 text-red-700' },
+  { id: 'group', label: 'Group Services', icon: GroupIcon, count: 0, alertColor: '' },
+  { id: 'renewals', label: '3-Year Renewals', icon: RenewalIcon, count: renewalAlerts.value.length, alertColor: 'bg-amber-100 text-amber-700' },
+  { id: 'status', label: 'Engagement Status', icon: StatusIcon, count: approvedByMe.value.length, alertColor: 'bg-blue-100 text-blue-700' },
+  { id: 'engagements', label: 'All History', icon: EngagementsIcon, count: allRequestsHistory.value.length, alertColor: 'bg-gray-100 text-gray-600' },
   { id: 'expiring', label: 'Expiring Soon', icon: ExpiringIcon, count: expiringSoon.value.length, alertColor: 'bg-orange-100 text-orange-700' }
 ])
 
@@ -446,6 +1001,201 @@ const recentRequests = computed(() => [...requests.value].sort((a, b) =>
 ).slice(0, 5))
 
 const redFlagsCount = computed(() => requests.value.filter(r => hasRedFlags(r)).length)
+
+// NEW: COI Decisions - all requests with compliance or partner decisions
+const coiDecisions = computed(() => requests.value.filter(r => 
+  r.compliance_approval_status || r.partner_approval_status || 
+  ['Approved', 'Approved with Restrictions', 'Rejected', 'Active'].includes(r.status)
+).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()))
+
+// NEW: Engagement Letters - approved requests awaiting or with engagement letters
+const engagementLetters = computed(() => requests.value.filter(r => 
+  ['Approved', 'Active', 'Pending Finance'].includes(r.status) || r.stage === 'Engagement'
+).sort((a, b) => {
+  // Sort by days waiting (proposals sent but not signed first)
+  const aDays = a.proposal_sent_date && !a.client_response_date ? getDaysWaiting(a.proposal_sent_date) : 0
+  const bDays = b.proposal_sent_date && !b.client_response_date ? getDaysWaiting(b.proposal_sent_date) : 0
+  return bDays - aDays
+}))
+
+// NEW: Red Flag Requests - detailed view of requests with flags
+const redFlagRequests = computed(() => requests.value.filter(r => hasRedFlags(r) || hasConflicts(r)))
+
+// NEW: 3-Year Renewal Alerts
+const renewalAlerts = computed(() => requests.value.filter(r => {
+  if (r.status !== 'Active' || !r.engagement_start_date) return false
+  const engagementDate = new Date(r.engagement_start_date)
+  const threeYearsLater = new Date(engagementDate)
+  threeYearsLater.setFullYear(threeYearsLater.getFullYear() + 3)
+  const now = new Date()
+  const daysUntilRenewal = Math.ceil((threeYearsLater.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  return daysUntilRenewal <= 90 && daysUntilRenewal > -30 // Within 90 days before or 30 days after
+}))
+
+// NEW: All Requests History (including cancelled, lapsed, rejected)
+const allRequestsHistory = computed(() => [...requests.value].sort((a, b) => 
+  new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+))
+
+// NEW: Group services by client parent
+const groupedServices = computed(() => {
+  const groups: Record<string, any[]> = {}
+  requests.value.forEach(r => {
+    const parentKey = r.parent_company || r.client_name || 'Unknown'
+    if (!groups[parentKey]) groups[parentKey] = []
+    groups[parentKey].push(r)
+  })
+  return groups
+})
+
+// Filters for history tab
+const historyStatusFilter = ref('all')
+const historyDateFilter = ref('')
+
+const filteredHistory = computed(() => {
+  let filtered = allRequestsHistory.value
+  
+  if (historyStatusFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.status === historyStatusFilter.value)
+  }
+  
+  if (historyDateFilter.value) {
+    const filterDate = new Date(historyDateFilter.value)
+    filtered = filtered.filter(r => new Date(r.created_at) >= filterDate)
+  }
+  
+  return filtered
+})
+
+// Filtered COI Decisions
+const filteredDecisions = computed(() => {
+  if (decisionFilter.value === 'all') return coiDecisions.value
+  return coiDecisions.value.filter(r => {
+    const status = r.partner_approval_status || r.status
+    return status === decisionFilter.value
+  })
+})
+
+// Helper functions for new features
+function getDaysWaiting(dateString: string): number {
+  if (!dateString) return 0
+  const sent = new Date(dateString)
+  const now = new Date()
+  return Math.ceil((now.getTime() - sent.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+function hasConflicts(request: any): boolean {
+  if (!request.duplication_matches) return false
+  try {
+    const matches = typeof request.duplication_matches === 'string' 
+      ? JSON.parse(request.duplication_matches) 
+      : request.duplication_matches
+    
+    // Check for rule recommendations with conflicts
+    const ruleRecs = matches.ruleRecommendations || []
+    return ruleRecs.some((r: any) => r.ruleType === 'conflict' || r.recommendedAction === 'FLAG' || r.recommendedAction === 'REJECT')
+  } catch { 
+    return false 
+  }
+}
+
+function getRedFlagDetails(request: any): any[] {
+  if (!request.duplication_matches) return []
+  try {
+    const matches = typeof request.duplication_matches === 'string' 
+      ? JSON.parse(request.duplication_matches) 
+      : request.duplication_matches
+    
+    const flags: any[] = []
+    
+    // Duplication flags
+    const duplicates = matches.duplicates || []
+    if (Array.isArray(duplicates) && duplicates.length > 0) {
+      duplicates.forEach((d: any) => {
+        flags.push({
+          type: 'Duplication',
+          severity: d.action === 'block' ? 'HIGH' : 'MEDIUM',
+          message: d.reason || 'Similar client detected',
+          details: d.existingEngagement?.client_name || 'Unknown'
+        })
+      })
+    }
+    
+    // Rule recommendation flags
+    const ruleRecs = matches.ruleRecommendations || []
+    ruleRecs.forEach((r: any) => {
+      if (r.recommendedAction === 'FLAG' || r.recommendedAction === 'REJECT') {
+        flags.push({
+          type: r.ruleType === 'conflict' ? 'Service Conflict' : 'Compliance',
+          severity: r.confidence || 'MEDIUM',
+          message: r.reason || r.ruleName,
+          details: r.guidance || ''
+        })
+      }
+    })
+    
+    return flags
+  } catch { 
+    return [] 
+  }
+}
+
+function getDaysUntilRenewal(request: any): number {
+  if (!request.engagement_start_date) return 999
+  const engagementDate = new Date(request.engagement_start_date)
+  const threeYearsLater = new Date(engagementDate)
+  threeYearsLater.setFullYear(threeYearsLater.getFullYear() + 3)
+  const now = new Date()
+  return Math.ceil((threeYearsLater.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+function getRenewalDate(request: any): string {
+  if (!request.engagement_start_date) return 'N/A'
+  const engagementDate = new Date(request.engagement_start_date)
+  const threeYearsLater = new Date(engagementDate)
+  threeYearsLater.setFullYear(threeYearsLater.getFullYear() + 3)
+  return threeYearsLater.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function getDecisionBadgeClass(status: string): string {
+  const classes: Record<string, string> = {
+    'Approved': 'bg-green-100 text-green-800 border-green-300',
+    'Approved with Restrictions': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    'Rejected': 'bg-red-100 text-red-800 border-red-300',
+    'Pending': 'bg-gray-100 text-gray-800 border-gray-300'
+  }
+  return classes[status] || 'bg-gray-100 text-gray-600 border-gray-300'
+}
+
+function getLetterStatusClass(request: any): string {
+  if (request.client_response_status === 'Accepted' || request.engagement_letter_signed) {
+    return 'bg-green-100 text-green-800'
+  }
+  if (request.engagement_letter_issued) {
+    return 'bg-blue-100 text-blue-800'
+  }
+  if (request.proposal_sent_date) {
+    const days = getDaysWaiting(request.proposal_sent_date)
+    if (days >= 25) return 'bg-red-100 text-red-800'
+    if (days >= 15) return 'bg-orange-100 text-orange-800'
+    return 'bg-amber-100 text-amber-800'
+  }
+  return 'bg-gray-100 text-gray-600'
+}
+
+function getLetterStatusLabel(request: any): string {
+  if (request.client_response_status === 'Accepted' || request.engagement_letter_signed) {
+    return '✓ Signed'
+  }
+  if (request.engagement_letter_issued) {
+    return 'Letter Issued'
+  }
+  if (request.proposal_sent_date) {
+    const days = getDaysWaiting(request.proposal_sent_date)
+    return `⏳ ${days} days`
+  }
+  return 'Pending'
+}
 
 const filteredPending = computed(() => {
   if (!searchQuery.value) return pendingApprovals.value
@@ -489,6 +1239,27 @@ function getStatusLabel(status: string) {
     'Pending Finance': 'Finance Review'
   }
   return labels[status] || status
+}
+
+function getClientResponseClass(status: string) {
+  const classes: Record<string, string> = {
+    'Accepted': 'bg-green-100 text-green-700 border border-green-300',
+    'Signed': 'bg-green-100 text-green-700 border border-green-300',
+    'Rejected': 'bg-red-100 text-red-700 border border-red-300',
+    'Lapsed': 'bg-gray-200 text-gray-600 border border-gray-300',
+    'Awaiting': 'bg-amber-100 text-amber-700 border border-amber-300',
+    'Negotiating': 'bg-blue-100 text-blue-700 border border-blue-300'
+  }
+  return classes[status] || 'bg-gray-100 text-gray-600 border border-gray-300'
+}
+
+function getClientResponseLabel(request: any) {
+  if (request.status === 'Lapsed') return 'Lapsed'
+  if (request.client_response_status === 'Accepted') return '✓ Signed'
+  if (request.client_response_status === 'Rejected') return '✗ Rejected'
+  if (request.client_response_status === 'Negotiating') return '⟳ Negotiating'
+  if (request.proposal_sent_date && !request.client_response_date) return '⏳ Awaiting'
+  return 'Pending'
 }
 
 function formatDate(dateString: string) {
@@ -618,6 +1389,56 @@ function printRequestReport(request: any | null) {
   setTimeout(() => {
     printWindow.print()
   }, 250)
+}
+
+function exportToExcel() {
+  const dataToExport = filteredHistory.value
+  
+  if (dataToExport.length === 0) {
+    alert('No data to export')
+    return
+  }
+  
+  // Create CSV content
+  const headers = ['Request ID', 'Client', 'Service Type', 'Status', 'Stage', 'Created Date', 'Engagement Code', 'Partner Decision', 'Compliance Decision', 'Restrictions']
+  
+  const rows = dataToExport.map(r => [
+    r.request_id || '',
+    r.client_name || '',
+    r.service_type || '',
+    r.status || '',
+    r.stage || '',
+    r.created_at ? new Date(r.created_at).toLocaleDateString() : '',
+    r.engagement_code || '',
+    r.partner_approval_status || '',
+    r.compliance_approval_status || '',
+    r.compliance_restrictions || r.partner_restrictions || ''
+  ])
+  
+  // Escape CSV values
+  const escapeCsv = (val: string) => {
+    if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+      return `"${val.replace(/"/g, '""')}"`
+    }
+    return val
+  }
+  
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(cell => escapeCsv(String(cell))).join(','))
+  ].join('\n')
+  
+  // Create and trigger download
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  
+  link.setAttribute('href', url)
+  link.setAttribute('download', `COI_Export_${new Date().toISOString().split('T')[0]}.csv`)
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
 function printTrackingReport() {

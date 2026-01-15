@@ -397,7 +397,10 @@ const MONITORING_CONFIG = {
   engagementExpiryWarningDays: [30, 14, 7, 1],
   staleRequestCheckIntervalHours: 4,
   complianceReviewReminderDays: 3,
-  reportGenerationDayOfMonth: 1
+  reportGenerationDayOfMonth: 1,
+  // 3-year engagement renewal alerts (in days before expiry)
+  engagementRenewalWarningDays: [90, 60, 30, 14, 7],
+  engagementRenewalYears: 3
 }
 
 /**
@@ -493,6 +496,150 @@ export async function checkExpiringEngagements() {
   
   console.log(`📅 Expiring engagement check: ${results.checked} checked, ${results.alertsSent} alerts sent`)
   return results
+}
+
+/**
+ * Check for 3-year engagement renewals
+ * Requirement: "System shall have an automatic alert of the renewal of the Engagement after 3 years"
+ */
+export async function check3YearRenewalAlerts() {
+  const db = getDatabase()
+  const results = {
+    checked: 0,
+    alertsSent: 0,
+    errors: []
+  }
+  
+  try {
+    // Find engagements that are approaching 3-year mark from client acceptance date
+    for (const daysBeforeRenewal of MONITORING_CONFIG.engagementRenewalWarningDays) {
+      // Calculate the target date (3 years from acceptance, minus warning days)
+      const renewalYears = MONITORING_CONFIG.engagementRenewalYears
+      
+      // Find active engagements where:
+      // client_response_date + 3 years - daysBeforeRenewal = today
+      const engagementsNeedingRenewal = db.prepare(`
+        SELECT 
+          r.*,
+          c.client_name,
+          u.name as requester_name,
+          u.email as requester_email,
+          u2.name as partner_name,
+          u2.email as partner_email,
+          DATE(r.client_response_date, '+${renewalYears} years') as renewal_date,
+          CAST(julianday(DATE(r.client_response_date, '+${renewalYears} years')) - julianday('now') AS INTEGER) as days_until_renewal
+        FROM coi_requests r
+        LEFT JOIN clients c ON r.client_id = c.id
+        LEFT JOIN users u ON r.requester_id = u.id
+        LEFT JOIN users u2 ON r.partner_approved_by = u2.id
+        WHERE r.status = 'Active'
+          AND r.client_response_date IS NOT NULL
+          AND r.client_response_status = 'Accepted'
+          AND CAST(julianday(DATE(r.client_response_date, '+${renewalYears} years')) - julianday('now') AS INTEGER) = ?
+          AND (r.renewal_notification_sent IS NULL OR r.renewal_notification_sent NOT LIKE ?)
+      `).all(daysBeforeRenewal, `%${daysBeforeRenewal}d%`)
+      
+      results.checked += engagementsNeedingRenewal.length
+      
+      for (const engagement of engagementsNeedingRenewal) {
+        try {
+          // Notify requester
+          if (engagement.requester_email) {
+            await notifyEngagementRenewal(
+              engagement,
+              { name: engagement.requester_name, email: engagement.requester_email },
+              daysBeforeRenewal
+            )
+          }
+          
+          // Notify partner
+          if (engagement.partner_email) {
+            await notifyEngagementRenewal(
+              engagement,
+              { name: engagement.partner_name, email: engagement.partner_email },
+              daysBeforeRenewal
+            )
+          }
+          
+          // Notify admin users
+          const adminUsers = db.prepare(`
+            SELECT id, name, email FROM users WHERE role = 'Admin' AND is_active = 1
+          `).all()
+          for (const admin of adminUsers) {
+            await notifyEngagementRenewal(engagement, admin, daysBeforeRenewal)
+          }
+          
+          // Mark notification as sent
+          const currentNotifications = engagement.renewal_notification_sent || ''
+          db.prepare(`
+            UPDATE coi_requests 
+            SET renewal_notification_sent = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `).run(`${currentNotifications}${daysBeforeRenewal}d,`, engagement.id)
+          
+          results.alertsSent++
+          
+          logAuditTrail(
+            null,
+            'COI Request',
+            engagement.id,
+            '3-Year Renewal Alert Sent',
+            `Engagement ${engagement.engagement_code || engagement.request_id} renewal in ${daysBeforeRenewal} days. Alert sent.`,
+            { days_until_renewal: daysBeforeRenewal, renewal_date: engagement.renewal_date }
+          )
+        } catch (error) {
+          results.errors.push({ engagement: engagement.request_id, error: error.message })
+          console.error(`Error sending 3-year renewal alert for ${engagement.request_id}:`, error)
+        }
+      }
+    }
+    
+    console.log(`📅 3-Year renewal check: ${results.checked} checked, ${results.alertsSent} alerts sent`)
+    return results
+  } catch (error) {
+    console.error('Error in check3YearRenewalAlerts:', error)
+    return { success: false, error: error.message, ...results }
+  }
+}
+
+/**
+ * Send 3-year renewal notification email
+ */
+async function notifyEngagementRenewal(engagement, recipient, daysUntilRenewal) {
+  const subject = `🔄 Engagement Renewal Required in ${daysUntilRenewal} Days - ${engagement.request_id}`
+  const body = `
+Dear ${recipient.name},
+
+This is a reminder that the following engagement is approaching its 3-year renewal date:
+
+📋 Request ID: ${engagement.request_id}
+🏢 Client: ${engagement.client_name || 'N/A'}
+💼 Service Type: ${engagement.service_type || 'N/A'}
+📌 Engagement Code: ${engagement.engagement_code || 'N/A'}
+📅 Original Acceptance Date: ${engagement.client_response_date ? new Date(engagement.client_response_date).toLocaleDateString() : 'N/A'}
+⏰ Renewal Date: ${engagement.renewal_date || 'N/A'}
+🔔 Days Until Renewal: ${daysUntilRenewal}
+
+ACTION REQUIRED:
+Please review this engagement and initiate the renewal process if the client wishes to continue.
+
+If a renewal is needed, please create a new COI request referencing this engagement.
+
+Best regards,
+COI System
+  `.trim()
+  
+  // Log the notification (actual email would be sent via emailService)
+  console.log(`📧 3-Year Renewal Alert: ${engagement.request_id} -> ${recipient.email} (${daysUntilRenewal} days)`)
+  
+  // In production, this would call the email service
+  try {
+    const { sendEmailNotification } = await import('./emailService.js')
+    await sendEmailNotification(recipient.email, subject, body)
+  } catch (error) {
+    console.log(`[Mock Email] To: ${recipient.email}, Subject: ${subject}`)
+  }
 }
 
 /**
@@ -772,6 +919,27 @@ export async function runScheduledTasks() {
     results.tasks.staleRequests = await checkStaleRequests()
   } catch (error) {
     results.tasks.staleRequests = { error: error.message }
+  }
+  
+  // 3-Year engagement renewal alerts
+  try {
+    results.tasks.renewalAlerts = await check3YearRenewalAlerts()
+  } catch (error) {
+    results.tasks.renewalAlerts = { error: error.message }
+  }
+  
+  // Auto-lapse expired proposals (30 days without client response)
+  try {
+    results.tasks.autoLapse = await checkAndLapseExpiredProposals()
+  } catch (error) {
+    results.tasks.autoLapse = { error: error.message }
+  }
+  
+  // 30-day interval alerts (10, 20, 30 days)
+  try {
+    results.tasks.intervalAlerts = await sendIntervalMonitoringAlerts()
+  } catch (error) {
+    results.tasks.intervalAlerts = { error: error.message }
   }
   
   console.log('✅ Scheduled tasks completed:', JSON.stringify(results.tasks))

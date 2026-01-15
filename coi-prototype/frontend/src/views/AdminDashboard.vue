@@ -57,9 +57,9 @@
         <div class="flex-1">
           <!-- Overview Tab -->
           <div v-if="activeTab === 'overview'" class="space-y-6">
-            <!-- Stats Cards -->
+            <!-- Stats Cards - Clickable -->
             <div class="grid grid-cols-4 gap-4">
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'execution'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Total Requests</p>
@@ -72,7 +72,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'global'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-green-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Active Engagements</p>
@@ -85,7 +85,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'monitoring'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-red-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Monitoring Alerts</p>
@@ -98,7 +98,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'renewals'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-purple-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Renewals Due</p>
@@ -399,6 +399,89 @@
             </div>
           </div>
 
+          <!-- Client Creations Tab -->
+          <div v-if="activeTab === 'client-creations'" class="space-y-6">
+            <PendingClientCreationsPanel @refresh="loadPendingClientCreations" />
+          </div>
+
+          <!-- User Management Tab (Approver Availability) -->
+          <div v-if="activeTab === 'users'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900">Approver Availability Management</h2>
+                <p class="text-sm text-gray-500 mt-1">Manage approver availability for workflow routing</p>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Until</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr v-for="user in approverUsers" :key="user.id" class="hover:bg-gray-50">
+                      <td class="px-6 py-4">
+                        <div class="flex items-center">
+                          <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600 mr-3">
+                            {{ user.name?.charAt(0) || '?' }}
+                          </div>
+                          <div>
+                            <div class="text-sm font-medium text-gray-900">{{ user.name }}</div>
+                            <div class="text-xs text-gray-500">{{ user.email }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-700">{{ user.role }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span 
+                          :class="user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                          class="px-2 py-1 text-xs font-medium rounded"
+                        >
+                          {{ user.is_active ? 'Available' : 'Unavailable' }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span v-if="user.unavailable_until" class="text-sm text-gray-600">
+                          {{ formatDate(user.unavailable_until) }}
+                        </span>
+                        <span v-else-if="!user.is_active" class="text-sm text-gray-400 italic">Indefinite</span>
+                        <span v-else class="text-sm text-gray-400">-</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <button 
+                          v-if="user.is_active"
+                          @click="openAvailabilityModal(user, 'unavailable')"
+                          class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                        >
+                          Mark Unavailable
+                        </button>
+                        <button 
+                          v-else
+                          @click="markUserAvailable(user)"
+                          class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                        >
+                          Mark Available
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="approverUsers.length === 0">
+                      <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        No approver users found
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <!-- Global COI Tab -->
           <div v-if="activeTab === 'global'" class="space-y-6">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -452,6 +535,48 @@
       </div>
     </div>
 
+    <!-- Availability Modal -->
+    <div v-if="showAvailabilityModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Mark {{ selectedUser?.name }} as Unavailable</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+            <select v-model="availabilityForm.reason" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+              <option value="">Select reason...</option>
+              <option value="vacation">Vacation</option>
+              <option value="business_trip">Business Trip</option>
+              <option value="sick_leave">Sick Leave</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Unavailable Until (Optional)</label>
+            <input 
+              v-model="availabilityForm.until" 
+              type="date" 
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            />
+            <p class="text-xs text-gray-500 mt-1">Leave empty for indefinite unavailability</p>
+          </div>
+          <div class="bg-amber-50 border border-amber-200 rounded-md p-3">
+            <p class="text-xs text-amber-700">
+              <strong>Note:</strong> When this user is marked unavailable, requests that would be 
+              routed to them will be escalated to the next available approver or to Admin.
+            </p>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button @click="showAvailabilityModal = false" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+            Cancel
+          </button>
+          <button @click="submitAvailabilityChange" class="px-4 py-2 text-sm text-white bg-red-600 rounded-md hover:bg-red-700">
+            Mark Unavailable
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Response Modal -->
     <div v-if="showResponseModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
@@ -488,6 +613,7 @@
 import { ref, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
+import PendingClientCreationsPanel from '@/components/admin/PendingClientCreationsPanel.vue'
 import api from '@/services/api'
 
 const router = useRouter()
@@ -498,6 +624,14 @@ const showResponseModal = ref(false)
 const selectedRequest = ref<any>(null)
 const responseType = ref('')
 const responseNotes = ref('')
+
+// User availability management
+const showAvailabilityModal = ref(false)
+const selectedUser = ref<any>(null)
+const availabilityForm = ref({
+  reason: '',
+  until: ''
+})
 
 const requests = computed(() => coiStore.requests)
 
@@ -550,6 +684,14 @@ const GlobalIcon = {
   }
 }
 
+const ClientCreationsIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' })
+    ])
+  }
+}
+
 // Stats
 const totalRequests = computed(() => requests.value.length)
 const activeEngagements = computed(() => requests.value.filter(r => r.status === 'Active').length)
@@ -582,11 +724,27 @@ const allRenewals = computed(() => [...renewal30Day.value, ...renewal60Day.value
 // Global engagements
 const globalEngagements = computed(() => requests.value.filter(r => r.international_operations))
 
+// Client creation requests
+const pendingClientCreations = ref(0)
+
+const UserIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' })
+    ])
+  }
+}
+
+// Approver users (Directors, Compliance, Partners, Finance)
+const approverUsers = ref<any[]>([])
+
 const tabs = computed(() => [
   { id: 'overview', label: 'Overview', icon: OverviewIcon, count: 0, alertColor: '' },
   { id: 'execution', label: 'Execution Queue', icon: ExecutionIcon, count: executionQueue.value.length, alertColor: 'bg-blue-100 text-blue-700' },
   { id: 'monitoring', label: 'Monitoring', icon: MonitoringIcon, count: alertCount.value, alertColor: alertCount.value > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600' },
   { id: 'renewals', label: '3-Year Renewals', icon: RenewalIcon, count: renewalsDue.value, alertColor: 'bg-purple-100 text-purple-700' },
+  { id: 'users', label: 'User Management', icon: UserIcon, count: approverUsers.value.filter(u => !u.is_active).length, alertColor: approverUsers.value.filter(u => !u.is_active).length > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600' },
+  { id: 'client-creations', label: 'Client Creations', icon: ClientCreationsIcon, count: pendingClientCreations.value, alertColor: pendingClientCreations.value > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600' },
   { id: 'isqm', label: 'ISQM Forms', icon: ISQMIcon, count: 0, alertColor: '' },
   { id: 'global', label: 'Global COI', icon: GlobalIcon, count: globalEngagements.value.length, alertColor: 'bg-gray-100 text-gray-600' }
 ])
@@ -700,16 +858,60 @@ function exportToExcel() {
 
 onMounted(() => {
   coiStore.fetchRequests()
+  loadPendingClientCreations()
+  loadApproverUsers()
 })
-</script>
 
-    'Status': item.global_clearance_status
-  }))
-  console.log('Exporting to Excel:', data)
-  // Implementation would generate actual Excel file
+async function loadPendingClientCreations() {
+  try {
+    const response = await api.get('/prospect-client-creation/pending')
+    pendingClientCreations.value = response.data.length
+  } catch (error) {
+    console.error('Error loading pending client creations:', error)
+  }
 }
 
-onMounted(() => {
-  coiStore.fetchRequests()
-})
+async function loadApproverUsers() {
+  try {
+    const response = await api.get('/users/approvers')
+    approverUsers.value = response.data
+  } catch (error) {
+    console.error('Error loading approver users:', error)
+  }
+}
+
+function openAvailabilityModal(user: any, action: string) {
+  selectedUser.value = user
+  availabilityForm.value = { reason: '', until: '' }
+  showAvailabilityModal.value = true
+}
+
+async function submitAvailabilityChange() {
+  if (!selectedUser.value) return
+  
+  try {
+    await api.post(`/users/${selectedUser.value.id}/availability`, {
+      is_active: false,
+      unavailable_reason: availabilityForm.value.reason,
+      unavailable_until: availabilityForm.value.until || null
+    })
+    showAvailabilityModal.value = false
+    loadApproverUsers()
+  } catch (error) {
+    console.error('Error updating user availability:', error)
+  }
+}
+
+async function markUserAvailable(user: any) {
+  try {
+    await api.post(`/users/${user.id}/availability`, {
+      is_active: true,
+      unavailable_reason: null,
+      unavailable_until: null
+    })
+    loadApproverUsers()
+  } catch (error) {
+    console.error('Error updating user availability:', error)
+  }
+}
 </script>

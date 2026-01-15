@@ -15,7 +15,9 @@ export function applyDataSegregation(req, res, next) {
     req.query.department = user.department
     req.query.include_team = true
   } else if (user.role === 'Compliance') {
-    req.query.exclude_commercial = true
+    // Meeting Requirement 2026-01-12: Compliance sees all services excluding costs/fees
+    req.query.exclude_commercial = true // Excludes financial_parameters (costs/fees)
+    req.query.include_all_services = true // Includes all service information
   }
   // Super Admin has no restrictions
 

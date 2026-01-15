@@ -46,9 +46,9 @@
         <div class="flex-1">
           <!-- Overview Tab -->
           <div v-if="activeTab === 'overview'" class="space-y-6">
-            <!-- Stats Cards -->
+            <!-- Stats Cards - Clickable -->
             <div class="grid grid-cols-4 gap-4">
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'pending'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Pending Review</p>
@@ -61,7 +61,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'conflicts'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-red-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Conflicts Flagged</p>
@@ -74,7 +74,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'duplications'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-yellow-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Duplications</p>
@@ -87,7 +87,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'pipeline'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-purple-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Global Clearance</p>
@@ -271,12 +271,26 @@
                         <span class="text-sm text-gray-500">{{ formatDate(request.created_at || '') }}</span>
                       </td>
                       <td class="px-6 py-4">
-                        <button 
-                          @click="viewDetails(request)" 
-                          class="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
-                        >
-                          Review
-                        </button>
+                        <div class="flex items-center gap-2">
+                          <button 
+                            @click="viewDetails(request)" 
+                            class="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Review
+                          </button>
+                          <button 
+                            v-if="request.international_operations"
+                            @click="exportGlobalCOIForm(request)"
+                            :disabled="exportingRequestId === request.id"
+                            class="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                            title="Export Global COI Form"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            {{ exportingRequestId === request.id ? 'Exporting...' : 'Export' }}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -288,6 +302,117 @@
                 <p class="text-sm text-gray-500">
                   Showing {{ filteredRequests.length }} of {{ pendingRequests.length }} requests
                 </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pipeline Health Tab -->
+          <div v-if="activeTab === 'pipeline'" class="space-y-6">
+            <!-- Pipeline Funnel Stats -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 class="font-semibold text-gray-900 mb-4">Proposal Pipeline</h2>
+              <div class="grid grid-cols-6 gap-4">
+                <div class="text-center p-4 bg-blue-50 rounded-lg">
+                  <div class="text-3xl font-bold text-blue-600">{{ pipelineStats.totalApproved }}</div>
+                  <div class="text-sm text-gray-600 mt-1">Total Approved</div>
+                </div>
+                <div class="text-center p-4 bg-indigo-50 rounded-lg">
+                  <div class="text-3xl font-bold text-indigo-600">{{ pipelineStats.proposalsSent }}</div>
+                  <div class="text-sm text-gray-600 mt-1">Proposals Sent</div>
+                </div>
+                <div class="text-center p-4 bg-amber-50 rounded-lg">
+                  <div class="text-3xl font-bold text-amber-600">{{ pipelineStats.awaitingResponse }}</div>
+                  <div class="text-sm text-gray-600 mt-1">Awaiting Response</div>
+                </div>
+                <div class="text-center p-4 bg-green-50 rounded-lg">
+                  <div class="text-3xl font-bold text-green-600">{{ pipelineStats.clientSigned }}</div>
+                  <div class="text-sm text-gray-600 mt-1">Client Signed</div>
+                </div>
+                <div class="text-center p-4 bg-red-50 rounded-lg">
+                  <div class="text-3xl font-bold text-red-600">{{ pipelineStats.clientRejected }}</div>
+                  <div class="text-sm text-gray-600 mt-1">Client Rejected</div>
+                </div>
+                <div class="text-center p-4 bg-gray-100 rounded-lg">
+                  <div class="text-3xl font-bold text-gray-600">{{ pipelineStats.lapsed }}</div>
+                  <div class="text-sm text-gray-600 mt-1">Lapsed (30-day)</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Engagement Health -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 class="font-semibold text-gray-900 mb-4">Engagement Health</h2>
+              <div class="grid grid-cols-3 gap-4">
+                <div class="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-3xl font-bold text-green-600">{{ pipelineStats.activeEngagements }}</div>
+                      <div class="text-sm text-gray-600 mt-1">Active Engagements</div>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                      <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-3xl font-bold text-amber-600">{{ upcomingRenewalsCount }}</div>
+                      <div class="text-sm text-gray-600 mt-1">Upcoming Renewals (90 days)</div>
+                    </div>
+                    <div class="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                      <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-3xl font-bold text-purple-600">{{ conversionRate }}%</div>
+                      <div class="text-sm text-gray-600 mt-1">Conversion Rate</div>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                      <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Proposals Approaching Lapse -->
+            <div v-if="approachingLapse.length > 0" class="bg-white rounded-lg shadow-sm border border-amber-200">
+              <div class="px-6 py-4 border-b border-amber-200 bg-amber-50">
+                <h2 class="font-semibold text-amber-800">⚠ Proposals Approaching 30-Day Lapse</h2>
+                <p class="text-sm text-amber-700 mt-1">These proposals need urgent follow-up</p>
+              </div>
+              <div class="p-4">
+                <div class="space-y-3">
+                  <div 
+                    v-for="request in approachingLapse" 
+                    :key="request.id"
+                    class="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200"
+                  >
+                    <div>
+                      <p class="font-medium text-gray-900">{{ request.request_id }}</p>
+                      <p class="text-sm text-gray-600">{{ request.client_name }} • {{ request.service_type }}</p>
+                    </div>
+                    <div class="text-right">
+                      <span class="text-amber-700 font-medium">{{ getDaysRemaining(request) }} days left</span>
+                      <button 
+                        @click="viewDetails(request)"
+                        class="block mt-1 text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        View →
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -571,6 +696,7 @@
             <ComplianceActionPanel 
               :request="selectedRequest"
               @approve="handleApprove"
+              @approve-with-restrictions="handleApproveWithRestrictions"
               @reject="handleReject"
               @request-info="handleRequestInfo"
               @updated="handleRequestUpdated"
@@ -596,6 +722,22 @@
       </div>
     </div>
   </div>
+
+  <!-- Restrictions Modal -->
+  <RestrictionsModal 
+    :show="showRestrictionsModal"
+    :request="selectedRequest"
+    @approve="handleRestrictionsApproved"
+    @cancel="showRestrictionsModal = false"
+  />
+
+  <!-- Info Request Modal -->
+  <InfoRequestModal 
+    :show="showInfoRequestModal"
+    :request="selectedRequest"
+    @requested="handleInfoRequested"
+    @cancel="showInfoRequestModal = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -604,6 +746,8 @@ import { useRouter } from 'vue-router'
 import { useCOIRequestsStore, type COIRequest } from '@/stores/coiRequests'
 import RuleBuilder from '@/components/RuleBuilder.vue'
 import ComplianceActionPanel from '@/components/compliance/ComplianceActionPanel.vue'
+import RestrictionsModal from '@/components/compliance/RestrictionsModal.vue'
+import InfoRequestModal from '@/components/compliance/InfoRequestModal.vue'
 import api from '@/services/api'
 
 const router = useRouter()
@@ -612,6 +756,9 @@ const coiStore = useCOIRequestsStore()
 // Modal state for reviewing requests
 const showReviewModal = ref(false)
 const selectedRequest = ref<COIRequest | null>(null)
+const exportingRequestId = ref<number | null>(null)
+const showRestrictionsModal = ref(false)
+const showInfoRequestModal = ref(false)
 
 const activeTab = ref('overview')
 const searchQuery = ref('')
@@ -695,6 +842,45 @@ const staleCount = computed(() => {
   return requests.value.filter(r => r.requires_re_evaluation && r.status === 'Pending Compliance').length
 })
 
+// Pipeline health computed properties
+const upcomingRenewalsCount = computed(() => {
+  return requests.value.filter(r => {
+    if (r.status !== 'Active' || !r.client_response_date) return false
+    const startDate = new Date(r.engagement_start_date || r.client_response_date)
+    const renewalDate = new Date(startDate)
+    renewalDate.setFullYear(renewalDate.getFullYear() + 3)
+    const now = new Date()
+    const daysUntilRenewal = Math.floor((renewalDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    return daysUntilRenewal <= 90 && daysUntilRenewal > 0
+  }).length
+})
+
+const conversionRate = computed(() => {
+  const sent = pipelineStats.value.proposalsSent
+  const signed = pipelineStats.value.clientSigned
+  if (sent === 0) return 0
+  return Math.round((signed / sent) * 100)
+})
+
+const approachingLapse = computed(() => {
+  return requests.value.filter(r => {
+    if (!r.proposal_sent_date || r.client_response_date || r.status === 'Lapsed') return false
+    const sent = new Date(r.proposal_sent_date)
+    const now = new Date()
+    const daysElapsed = Math.floor((now.getTime() - sent.getTime()) / (1000 * 60 * 60 * 24))
+    return daysElapsed >= 20 && daysElapsed < 30
+  }).sort((a, b) => new Date(a.proposal_sent_date!).getTime() - new Date(b.proposal_sent_date!).getTime())
+})
+
+function getDaysRemaining(request: any): number {
+  if (!request.proposal_sent_date) return 0
+  const sent = new Date(request.proposal_sent_date)
+  const lapsed = new Date(sent)
+  lapsed.setDate(lapsed.getDate() + 30)
+  const now = new Date()
+  return Math.max(0, Math.floor((lapsed.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+}
+
 const staleRequests = computed(() => {
   return requests.value.filter(r => r.requires_re_evaluation && r.status === 'Pending Compliance')
 })
@@ -743,9 +929,32 @@ const conflictMatrix = computed(() => {
   return Array.from(clientMap.values()).slice(0, 5)
 })
 
+const PipelineIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' })
+    ])
+  }
+}
+
+// Pipeline health stats
+const pipelineStats = computed(() => {
+  const approved = requests.value.filter(r => ['Approved', 'Active', 'Lapsed'].includes(r.status))
+  return {
+    totalApproved: approved.length,
+    proposalsSent: approved.filter(r => r.proposal_sent_date).length,
+    awaitingResponse: approved.filter(r => r.proposal_sent_date && !r.client_response_date && r.status !== 'Lapsed').length,
+    clientSigned: approved.filter(r => r.client_response_status === 'Accepted').length,
+    clientRejected: approved.filter(r => r.client_response_status === 'Rejected').length,
+    lapsed: approved.filter(r => r.status === 'Lapsed').length,
+    activeEngagements: requests.value.filter(r => r.status === 'Active').length
+  }
+})
+
 const tabs = computed(() => [
   { id: 'overview', label: 'Overview', icon: OverviewIcon, count: 0, alertColor: '' },
   { id: 'pending', label: 'Pending Review', icon: PendingIcon, count: pendingRequests.value.length, alertColor: 'bg-blue-100 text-blue-700' },
+  { id: 'pipeline', label: 'Pipeline Health', icon: PipelineIcon, count: 0, alertColor: '' },
   { id: 'stale', label: 'Stale Requests', icon: StaleIcon, count: staleCount.value, alertColor: 'bg-amber-100 text-amber-700' },
   { id: 'conflicts', label: 'Conflicts', icon: ConflictIcon, count: conflictsCount.value, alertColor: 'bg-red-100 text-red-700' },
   { id: 'duplications', label: 'Duplications', icon: DuplicateIcon, count: duplicationsCount.value, alertColor: 'bg-yellow-100 text-yellow-700' },
@@ -1019,6 +1228,16 @@ async function handleApprove() {
   }
 }
 
+function handleApproveWithRestrictions() {
+  showRestrictionsModal.value = true
+}
+
+async function handleRestrictionsApproved() {
+  showRestrictionsModal.value = false
+  await coiStore.fetchRequests()
+  closeReviewModal()
+}
+
 async function handleReject() {
   if (!selectedRequest.value) return
   const reason = prompt('Please provide a reason for rejection:')
@@ -1034,7 +1253,17 @@ async function handleReject() {
   }
 }
 
-async function handleRequestInfo() {
+function handleRequestInfo() {
+  showInfoRequestModal.value = true
+}
+
+async function handleInfoRequested() {
+  showInfoRequestModal.value = false
+  await coiStore.fetchRequests()
+  closeReviewModal()
+}
+
+async function handleRequestInfoOld() {
   if (!selectedRequest.value) return
   const question = prompt('What additional information do you need?')
   if (!question) return
@@ -1056,6 +1285,38 @@ function handleRequestUpdated(updatedRequest: COIRequest) {
   }
   // Refresh the list
   coiStore.fetchRequests()
+}
+
+// Export Global COI Form Excel
+async function exportGlobalCOIForm(request: any) {
+  if (!request.international_operations) {
+    alert('Global COI Form export is only available for requests with international operations')
+    return
+  }
+  
+  exportingRequestId.value = request.id
+  try {
+    const response = await api.get(`/global/export-excel/${request.id}`, {
+      responseType: 'blob'
+    })
+    
+    // Create download link
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `Global_COI_Form_${request.request_id}_${new Date().toISOString().split('T')[0]}.xlsx`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+    
+    alert('Global COI Form exported successfully!')
+  } catch (error: any) {
+    console.error('Failed to export:', error)
+    alert(error.response?.data?.error || 'Failed to export Global COI Form')
+  } finally {
+    exportingRequestId.value = null
+  }
 }
 
 onMounted(() => {

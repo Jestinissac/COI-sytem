@@ -69,11 +69,11 @@ export const useCOIRequestsStore = defineStore('coiRequests', () => {
     }
   }
 
-  async function submitRequest(id: number) {
+  async function submitRequest(id: number, payload?: { duplicate_justification?: string }) {
     loading.value = true
     error.value = null
     try {
-      const response = await api.post(`/coi/requests/${id}/submit`)
+      const response = await api.post(`/coi/requests/${id}/submit`, payload || {})
       await fetchRequests()
       return response.data
     } catch (err: any) {

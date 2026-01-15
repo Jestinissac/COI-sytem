@@ -9,6 +9,37 @@
  * - Any other services that need to resolve field values
  */
 
+import { getDatabase } from '../database/init.js'
+
+/**
+ * Helper: Get existing engagements for a client
+ * Used for computing has_existing_statutory_audit, has_previous_engagements, etc.
+ */
+function getClientExistingEngagements(clientId, excludeRequestId = null) {
+  if (!clientId) return []
+  
+  try {
+    const db = getDatabase()
+    let query = `
+      SELECT id, request_id, service_type, status, pie_status
+      FROM coi_requests 
+      WHERE client_id = ? 
+      AND status IN ('Approved', 'Active', 'Pending Director Approval', 'Pending Compliance', 'Pending Partner')
+    `
+    const params = [clientId]
+    
+    if (excludeRequestId) {
+      query += ' AND id != ?'
+      params.push(excludeRequestId)
+    }
+    
+    return db.prepare(query).all(...params)
+  } catch (error) {
+    console.error('Error getting client existing engagements:', error)
+    return []
+  }
+}
+
 /**
  * Helper: Calculate days between two dates
  */
@@ -187,6 +218,65 @@ const FieldMappingService = {
       case 'service_description':
         return requestData.service_description || null
 
+      // ============================================
+      // SMART COMPUTED FIELDS FOR IESBA RULES
+      // These check existing engagements for real threats
+      // ============================================
+      
+      case 'has_existing_statutory_audit':
+        // Check if client already has a statutory audit engagement
+        const engagementsForStatutory = getClientExistingEngagements(requestData.client_id, requestData.id)
+        return engagementsForStatutory.some(e => 
+          e.service_type && 
+          (e.service_type.toLowerCase().includes('statutory audit') ||
+           e.service_type.toLowerCase() === 'external audit')
+        ) ? 'Yes' : 'No'
+
+      case 'has_existing_internal_audit':
+        // Check if client already has an internal audit engagement
+        const engagementsForInternal = getClientExistingEngagements(requestData.client_id, requestData.id)
+        return engagementsForInternal.some(e => 
+          e.service_type && e.service_type.toLowerCase().includes('internal audit')
+        ) ? 'Yes' : 'No'
+
+      case 'has_existing_audit_engagement':
+        // Check if client has ANY audit engagement (statutory, internal, external)
+        const engagementsForAudit = getClientExistingEngagements(requestData.client_id, requestData.id)
+        return engagementsForAudit.some(e => 
+          e.service_type && e.service_type.toLowerCase().includes('audit')
+        ) ? 'Yes' : 'No'
+
+      case 'has_previous_engagements':
+        // Check if client has any previous engagements
+        const engagementsForPrevious = getClientExistingEngagements(requestData.client_id, requestData.id)
+        return engagementsForPrevious.length > 0 ? 'Yes' : 'No'
+
+      case 'previous_engagement_count':
+        // Count of previous engagements for this client
+        const engagementsForCount = getClientExistingEngagements(requestData.client_id, requestData.id)
+        return engagementsForCount.length
+
+      case 'existing_service_types':
+        // Comma-separated list of existing service types for this client
+        const engagementsForTypes = getClientExistingEngagements(requestData.client_id, requestData.id)
+        return engagementsForTypes.map(e => e.service_type).filter(Boolean).join(',')
+
+      case 'is_audit_service':
+        // Check if current service is an audit service
+        const svcType = requestData.service_type || ''
+        return svcType.toLowerCase().includes('audit') ? 'Yes' : 'No'
+
+      case 'is_statutory_audit':
+        // Check if current service is specifically statutory audit
+        const svcTypeStatutory = requestData.service_type || ''
+        return (svcTypeStatutory.toLowerCase().includes('statutory audit') ||
+                svcTypeStatutory.toLowerCase() === 'external audit') ? 'Yes' : 'No'
+
+      case 'is_internal_audit':
+        // Check if current service is internal audit
+        const svcTypeInternal = requestData.service_type || ''
+        return svcTypeInternal.toLowerCase().includes('internal audit') ? 'Yes' : 'No'
+
       default:
         // Check custom_fields JSON if field not found
         if (requestData.custom_fields) {
@@ -246,7 +336,17 @@ const FieldMappingService = {
       'pie_status',
       'service_type',
       'service_category',
-      'service_description'
+      'service_description',
+      // Smart IESBA fields
+      'has_existing_statutory_audit',
+      'has_existing_internal_audit',
+      'has_existing_audit_engagement',
+      'has_previous_engagements',
+      'previous_engagement_count',
+      'existing_service_types',
+      'is_audit_service',
+      'is_statutory_audit',
+      'is_internal_audit'
     ]
 
     const enhanced = { ...requestData }

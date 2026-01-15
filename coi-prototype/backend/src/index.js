@@ -14,6 +14,20 @@ import globalRoutes from './routes/global.routes.js'
 import executionRoutes from './routes/execution.routes.js'
 import configRoutes from './routes/config.routes.js'
 import changeManagementRoutes from './routes/changeManagement.routes.js'
+import prospectRoutes from './routes/prospect.routes.js'
+import engagementRoutes from './routes/engagement.routes.js'
+import serviceCatalogRoutes from './routes/serviceCatalog.routes.js'
+import entityCodesRoutes from './routes/entityCodes.routes.js'
+import reportsRoutes from './routes/reports.routes.js'
+import prospectClientCreationRoutes from './routes/prospectClientCreation.routes.js'
+import complianceRoutes from './routes/compliance.routes.js'
+import countriesRoutes from './routes/countries.routes.js'
+import { 
+  updateMonitoringDays, 
+  checkAndLapseExpiredProposals, 
+  sendIntervalMonitoringAlerts,
+  check3YearRenewalAlerts 
+} from './services/monitoringService.js'
 
 dotenv.config()
 
@@ -82,6 +96,14 @@ app.use('/api/global', globalRoutes)
 app.use('/api/execution', executionRoutes)
 app.use('/api/config', configRoutes)
 app.use('/api/change-management', changeManagementRoutes)
+app.use('/api/prospects', prospectRoutes)
+app.use('/api/engagement', engagementRoutes)
+app.use('/api/service-catalog', serviceCatalogRoutes)
+app.use('/api/entity-codes', entityCodesRoutes)
+app.use('/api/countries', countriesRoutes)
+app.use('/api/reports', reportsRoutes)
+app.use('/api/prospect-client-creation', prospectClientCreationRoutes)
+app.use('/api/compliance', complianceRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'COI Prototype API' })
@@ -89,6 +111,70 @@ app.get('/api/health', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
+  
+  // ========================================
+  // AUTOMATED MONITORING SCHEDULER
+  // ========================================
+  
+  console.log('🔄 Starting automated monitoring scheduler...')
+  
+  // Run immediately on startup
+  setTimeout(async () => {
+    console.log('📊 Running initial monitoring check...')
+    try {
+      // Update monitoring days for all active proposals
+      const monitoringResult = updateMonitoringDays()
+      console.log('  ✓ Monitoring days updated')
+      
+      // Check and lapse expired proposals (30-day rule)
+      const lapseResult = await checkAndLapseExpiredProposals()
+      if (lapseResult.lapsed > 0) {
+        console.log(`  ⚠️ Lapsed ${lapseResult.lapsed} expired proposals: ${lapseResult.requestIds.join(', ')}`)
+      } else {
+        console.log('  ✓ No proposals to lapse')
+      }
+      
+      // Send interval alerts (every 10 days)
+      const alertResult = await sendIntervalMonitoringAlerts()
+      console.log(`  ✓ Monitoring alerts: ${alertResult.alertsSent || 0} sent`)
+      
+      // Check 3-year renewal alerts
+      const renewalResult = await check3YearRenewalAlerts()
+      console.log(`  ✓ Renewal alerts: ${renewalResult.alertsSent || 0} sent`)
+      
+    } catch (error) {
+      console.error('❌ Error in initial monitoring check:', error.message)
+    }
+  }, 5000) // Run 5 seconds after startup
+  
+  // Schedule recurring checks every hour
+  const MONITORING_INTERVAL_MS = 60 * 60 * 1000 // 1 hour
+  
+  setInterval(async () => {
+    const timestamp = new Date().toISOString()
+    console.log(`\n[${timestamp}] 🔄 Running scheduled monitoring check...`)
+    
+    try {
+      // Update monitoring days
+      updateMonitoringDays()
+      
+      // Check and lapse expired proposals
+      const lapseResult = await checkAndLapseExpiredProposals()
+      if (lapseResult.lapsed > 0) {
+        console.log(`  ⚠️ Auto-lapsed ${lapseResult.lapsed} proposals`)
+      }
+      
+      // Send interval alerts
+      await sendIntervalMonitoringAlerts()
+      
+      // Check renewal alerts
+      await check3YearRenewalAlerts()
+      
+      console.log(`  ✓ Monitoring check completed`)
+    } catch (error) {
+      console.error('❌ Scheduled monitoring error:', error.message)
+    }
+  }, MONITORING_INTERVAL_MS)
+  
+  console.log(`✅ Monitoring scheduler active (runs every hour)`)
 })
-
-

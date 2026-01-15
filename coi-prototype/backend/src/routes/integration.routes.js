@@ -1,6 +1,7 @@
 import express from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import { getClients, validateEngagementCode, getEngagementCodes, createProject } from '../controllers/integrationController.js'
+import { getServiceTypes, getServiceSubCategories } from '../controllers/serviceTypeController.js'
 import { getDatabase } from '../database/init.js'
 
 const router = express.Router()
@@ -11,6 +12,8 @@ router.get('/clients', getClients)
 router.get('/validate-engagement-code/:code', validateEngagementCode)
 router.get('/engagement-codes', getEngagementCodes)
 router.post('/projects', createProject)
+router.get('/service-types', getServiceTypes)
+router.get('/service-types/:serviceType/sub-categories', getServiceSubCategories)
 
 // HRMS/PRMS Data Sources for LC/NC
 router.get('/hrms/user-data', async (req, res) => {

@@ -157,20 +157,26 @@
                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select designation...</option>
-                    <option>Director</option>
                     <option>Partner</option>
-                    <option>Manager</option>
+                    <option>Senior Director</option>
+                    <option>Director</option>
+                    <option>Associate Director</option>
                     <option>Senior Manager</option>
+                    <option>Manager</option>
+                    <option>Assistant Manager</option>
                   </select>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Entity <span class="text-red-500">*</span></label>
                   <select 
                     v-model="formData.entity"
+                    @change="onEntityChange"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select entity...</option>
-                    <option>BDO Al Nisf & Partners</option>
+                    <option v-for="entity in entities" :key="entity.id" :value="entity.entity_name">
+                      {{ entity.entity_display_name || entity.entity_name }}
+                    </option>
                   </select>
                 </div>
               </div>
@@ -284,7 +290,7 @@
                     >
                       <option :value="null">Search or select client...</option>
                       <option v-for="client in clients" :key="client.id" :value="client.id">
-                        {{ client.name }} ({{ client.code }})
+                        {{ client.client_name || client.name }} ({{ client.client_code || client.code || '' }})
                       </option>
                     </select>
                     <button 
@@ -315,9 +321,21 @@
                     >
                       <option value="">Select...</option>
                       <option>W.L.L.</option>
-                      <option>K.S.C.</option>
+                      <option>W.L.L. Holding</option>
                       <option>K.S.C.C.</option>
-                      <option>Sole Proprietorship</option>
+                      <option>K.S.C.C. (Holding)</option>
+                      <option>K.S.C.P.</option>
+                      <option>K.S.C.P. (Holding)</option>
+                      <option>S.C.P. (Holding)</option>
+                      <option>S.P.C.</option>
+                      <option>S.P.C. Holding</option>
+                      <option>Portfolio</option>
+                      <option>Fund</option>
+                      <option>Scheme</option>
+                      <option>Joint Venture Company</option>
+                      <option>Solidarity Company</option>
+                      <option>Simple Rec. Company</option>
+                      <option>Shares Rec. Company</option>
                     </select>
                   </div>
                   <div>
@@ -327,14 +345,32 @@
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select...</option>
-                      <option>CBK</option>
-                      <option>CMA</option>
-                      <option>None</option>
+                      <option>MOCI</option>
+                      <option>MOCI & CMA</option>
+                      <option>MOCI & CBK</option>
+                      <option>MOCI, CMA & CBK</option>
+                      <option>MOCI & Boursa</option>
+                      <option>Governmental Authority</option>
                     </select>
                   </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+                    <select 
+                      v-model="formData.client_status"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select...</option>
+                      <option>N/A</option>
+                      <option>Listed</option>
+                      <option>Licensed</option>
+                      <option>Listed & Licensed</option>
+                      <option>OTC</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Location</label>
                     <select 
@@ -343,9 +379,7 @@
                     >
                       <option value="">Select...</option>
                       <option>State of Kuwait</option>
-                      <option>UAE</option>
-                      <option>Saudi Arabia</option>
-                      <option>Other</option>
+                      <option>Other Country</option>
                     </select>
                   </div>
                   <div>
@@ -355,9 +389,10 @@
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select...</option>
-                      <option>Existing Client</option>
                       <option>New Client</option>
-                      <option>Referral</option>
+                      <option>Current Client</option>
+                      <option>Potential Client</option>
+                      <option>Old Client</option>
                     </select>
                   </div>
                 </div>
@@ -376,7 +411,69 @@
                   </div>
                 </div>
 
-                <div>
+                <!-- Group Structure Verification (Required for PIE/Audit) -->
+                <div v-if="showGroupStructureSection" class="col-span-2">
+                  <div class="border border-blue-200 bg-blue-50 rounded-lg p-4">
+                    <label class="block text-sm font-semibold text-gray-900 mb-2">
+                      Corporate Group Structure
+                      <span class="text-red-500">*</span>
+                    </label>
+                    <p class="text-xs text-gray-600 mb-3">
+                      Does this client belong to a larger corporate group or holding company?
+                    </p>
+                    
+                    <div class="space-y-2">
+                      <label class="flex items-center p-3 bg-white border-2 rounded-lg cursor-pointer transition-all"
+                             :class="formData.group_structure === 'standalone' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'">
+                        <input type="radio" v-model="formData.group_structure" value="standalone" 
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
+                        <div class="ml-3">
+                          <span class="text-sm font-medium text-gray-900">Standalone Entity</span>
+                          <p class="text-xs text-gray-500">Not part of a larger group</p>
+                        </div>
+                      </label>
+                      
+                      <label class="flex items-center p-3 bg-white border-2 rounded-lg cursor-pointer transition-all"
+                             :class="formData.group_structure === 'has_parent' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'">
+                        <input type="radio" v-model="formData.group_structure" value="has_parent" 
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
+                        <div class="ml-3">
+                          <span class="text-sm font-medium text-gray-900">Part of Corporate Group</span>
+                          <p class="text-xs text-gray-500">This entity has a parent or holding company</p>
+                        </div>
+                      </label>
+                      
+                      <label class="flex items-center p-3 bg-white border-2 border-amber-200 rounded-lg cursor-pointer transition-all"
+                             :class="formData.group_structure === 'research_required' ? 'border-amber-500 bg-amber-50' : 'hover:border-amber-300'">
+                        <input type="radio" v-model="formData.group_structure" value="research_required" 
+                               class="w-4 h-4 text-amber-600 border-gray-300 focus:ring-amber-500"/>
+                        <div class="ml-3 flex-1">
+                          <span class="text-sm font-medium text-gray-900">Not Sure</span>
+                          <p class="text-xs text-gray-500">Compliance will verify during review</p>
+                        </div>
+                        <span class="px-2 py-1 text-xs bg-amber-100 text-amber-800 rounded">May delay approval</span>
+                      </label>
+                    </div>
+                    
+                    <!-- Parent Company Input (shown when has_parent selected) -->
+                    <div v-if="formData.group_structure === 'has_parent'" class="mt-4 pt-4 border-t border-blue-200">
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                        Parent Company Name <span class="text-red-500">*</span>
+                      </label>
+                      <input
+                        v-model="formData.parent_company"
+                        type="text"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., ABC Holdings, XYZ Group Ltd..."
+                        required
+                      />
+                      <p class="text-xs text-gray-500 mt-1">Enter the name of the immediate parent or holding company</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Simple Parent Company field (for non-PIE/non-Audit) -->
+                <div v-else>
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Parent Company (if any)</label>
                   <input
                     v-model="formData.parent_company"
@@ -404,34 +501,61 @@
             <div class="p-6 space-y-6">
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Type <span class="text-red-500">*</span></label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Category <span class="text-red-500">*</span></label>
                   <select 
-                    v-model="formData.service_type"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    v-model="formData.service_category"
+                    @change="onServiceCategoryChange"
+                    :disabled="loadingServices || !formData.entity"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                   >
-                    <option value="">Select service type...</option>
-                    <option>Statutory Audit</option>
-                    <option>Internal Audit</option>
-                    <option>Tax Advisory</option>
-                    <option>Tax Compliance</option>
-                    <option>Management Consulting</option>
-                    <option>Due Diligence</option>
-                    <option>Valuation</option>
-                    <option>Other Advisory</option>
+                    <option value="">{{ loadingServices ? 'Loading services...' : (formData.entity ? 'Select category...' : 'Select entity first') }}</option>
+                    <option 
+                      v-for="category in serviceTypes" 
+                      :key="category.category" 
+                      :value="category.category"
+                    >
+                      {{ category.category }}
+                    </option>
                   </select>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Category</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Type <span class="text-red-500">*</span></label>
                   <select 
-                    v-model="formData.service_category"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    v-model="formData.service_type"
+                    @change="onServiceTypeChange"
+                    :disabled="loadingServices || !formData.entity || !formData.service_category"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                   >
-                    <option value="">Select category...</option>
-                    <option>Audit & Assurance</option>
-                    <option>Advisory</option>
-                    <option>Tax</option>
-                    <option>Other Regulated</option>
+                    <option value="">{{ formData.service_category ? 'Select service type...' : 'Select category first' }}</option>
+                    <option 
+                      v-for="service in filteredServicesByCategory" 
+                      :key="service.value || service"
+                      :value="service.value || service"
+                    >
+                      {{ service.label || service }}
+                    </option>
                   </select>
+                </div>
+              </div>
+
+              <!-- Sub-category (shown for Business/Asset Valuation with 3 radio options) -->
+              <div v-if="availableSubCategories.length > 0" class="space-y-3">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Service Sub-Category <span class="text-red-500">*</span></label>
+                <div class="grid grid-cols-3 gap-4">
+                  <label 
+                    v-for="subCat in availableSubCategories" 
+                    :key="subCat"
+                    class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition-colors"
+                    :class="formData.service_sub_category === subCat ? 'bg-blue-50 border-blue-500' : ''"
+                  >
+                    <input
+                      type="radio"
+                      :value="subCat"
+                      v-model="formData.service_sub_category"
+                      class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span class="ml-2 text-sm text-gray-700 font-medium">{{ subCat }}</span>
+                  </label>
                 </div>
               </div>
 
@@ -546,31 +670,19 @@
                   />
                   <span class="ml-2 text-sm text-gray-700">Client has international operations</span>
                 </label>
+                <p class="mt-2 text-xs text-gray-500 ml-6">
+                  If checked, you'll need to complete the Global COI Form below for submission to BDO Global COI Portal.
+                </p>
               </div>
 
-              <div v-if="formData.international_operations" class="space-y-4 pl-6 border-l-2 border-blue-200">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Foreign Subsidiaries</label>
-                  <textarea
-                    v-model="formData.foreign_subsidiaries"
-                    rows="3"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="List countries and subsidiaries..."
-                  ></textarea>
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Global Clearance Status</label>
-                  <select 
-                    v-model="formData.global_clearance_status"
-                    class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option>Not Required</option>
-                    <option>Pending</option>
-                    <option>Approved</option>
-                    <option>Rejected</option>
-                  </select>
-                </div>
+              <!-- Global COI Form Card (shown when international_operations is true) -->
+              <div v-if="formData.international_operations" class="mt-6">
+                <InternationalOperationsForm
+                  :request-id="formData.id"
+                  :initial-data="globalCOIFormData"
+                  :countries="countries"
+                  @update:data="handleGlobalCOIFormUpdate"
+                />
               </div>
             </div>
           </section>
@@ -628,6 +740,72 @@
       @confirm="handleSubmit"
       @close="showConfirmModal = false"
     />
+    
+    <!-- Duplicate Justification Modal -->
+    <div v-if="showJustificationModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+        <div class="p-6 border-b border-gray-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+              <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900">Duplicate Detected</h3>
+          </div>
+        </div>
+        
+        <div class="p-6 space-y-4">
+          <p class="text-sm text-gray-600">
+            A proposal or engagement already exists for this client/service combination. 
+            To proceed, please provide a business justification.
+          </p>
+          
+          <!-- Show detected duplicates -->
+          <div v-if="detectedDuplicates.length > 0" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <p class="text-sm font-medium text-amber-800 mb-2">Existing records found:</p>
+            <ul class="text-sm text-amber-700 space-y-1">
+              <li v-for="(dup, idx) in detectedDuplicates" :key="idx" class="flex items-start gap-2">
+                <span class="text-amber-500">•</span>
+                <span>{{ dup.client_name || dup.entity_name }} - {{ dup.service_type || dup.type }} ({{ dup.status }})</span>
+              </li>
+            </ul>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Business Justification <span class="text-red-500">*</span>
+            </label>
+            <textarea
+              v-model="duplicateJustification"
+              rows="4"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              placeholder="Explain why this submission should proceed despite the existing record..."
+            ></textarea>
+            <p class="mt-1 text-xs text-gray-500">
+              This justification will be reviewed by Compliance and attached to the request.
+            </p>
+          </div>
+        </div>
+        
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+          <button
+            @click="showJustificationModal = false; duplicateJustification = ''"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="submitWithJustification"
+            :disabled="!duplicateJustification.trim() || loading"
+            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            <span v-if="loading">Submitting...</span>
+            <span v-else>Submit with Justification</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -640,12 +818,13 @@ import { useAuthStore } from '@/stores/auth'
 import ToastContainer from '@/components/ui/ToastContainer.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import FileUpload from '@/components/FileUpload.vue'
+import InternationalOperationsForm from '@/components/coi/InternationalOperationsForm.vue'
 import api from '@/services/api'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()
 const authStore = useAuthStore()
-const { success, error: showError, info } = useToast()
+const { success, error: showError, warning, info } = useToast()
 
 const loading = ref(false)
 const showConfirmModal = ref(false)
@@ -656,6 +835,11 @@ const clients = ref<any[]>([])
 const selectedClientCode = ref('')
 const directorName = ref('')
 const allUsers = ref<any[]>([])
+const entities = ref<any[]>([])
+const serviceTypes = ref<any[]>([])
+const countries = ref<any[]>([])
+const serviceSubCategories = ref<any>({}) // Store sub-categories by service type
+const loadingServices = ref(false)
 
 // Computed properties for user role
 const isTeamMember = computed(() => {
@@ -664,6 +848,39 @@ const isTeamMember = computed(() => {
 
 const isDirector = computed(() => {
   return authStore.user?.role === 'Director'
+})
+
+// Get services filtered by selected category
+const filteredServicesByCategory = computed(() => {
+  if (!formData.value.service_category || !serviceTypes.value.length) {
+    return []
+  }
+  const selectedCategory = serviceTypes.value.find((cat: any) => cat.category === formData.value.service_category)
+  if (!selectedCategory) {
+    return []
+  }
+  return selectedCategory.services || []
+})
+
+// Get available sub-categories for selected service type
+// For Business/Asset Valuation: Acquisition, Capital Increase, Financial Facilities
+const availableSubCategories = computed(() => {
+  if (!formData.value.service_type) {
+    return []
+  }
+  const serviceName = formData.value.service_type
+  // Check if it's Business/Asset Valuation service
+  if ((serviceName.includes('Business') && serviceName.includes('Valuation')) || 
+      (serviceName.includes('Asset') && serviceName.includes('Valuation')) ||
+      serviceName === 'Business / Asset Valuation Services') {
+    // Return the 3 sub-categories for Business/Asset Valuation
+    return ['Acquisition', 'Capital Increase', 'Financial Facilities']
+  }
+  // For other services, use the sub-categories from the API
+  if (serviceSubCategories.value && serviceSubCategories.value[serviceName]) {
+    return serviceSubCategories.value[serviceName] || []
+  }
+  return []
 })
 
 // Form data with defaults
@@ -681,19 +898,84 @@ const formData = ref({
   client_location: 'State of Kuwait',
   relationship_with_client: '',
   regulated_body: '',
+  client_status: '',
   pie_status: 'No',
+  group_structure: '',  // 'standalone', 'has_parent', 'research_required'
   parent_company: '',
   service_type: '',
   service_category: '',
+  service_sub_category: '',
   service_description: '',
   requested_service_period_start: '',
   requested_service_period_end: '',
   full_ownership_structure: '',
   related_affiliated_entities: '',
   international_operations: false,
+  country_code: '',
   foreign_subsidiaries: '',
-  global_clearance_status: 'Not Required'
+  global_clearance_status: 'Not Required',
+  global_coi_form_data: null as any
 })
+
+// Global COI Form data (for international operations)
+const globalCOIFormData = ref<any>(null)
+
+// Handle Global COI Form updates
+function handleGlobalCOIFormUpdate(data: any) {
+  globalCOIFormData.value = data
+  formData.value.global_coi_form_data = data
+}
+
+// Auto-populate Global COI Form from main form data
+function populateGlobalCOIForm() {
+  if (!formData.value.international_operations) {
+    return
+  }
+  
+  // Get selected client data if available
+  let selectedClient: any = null
+  if (formData.value.client_id) {
+    selectedClient = clients.value.find((c: any) => c.id === formData.value.client_id)
+  }
+  
+  // Map main form data to Global COI Form structure
+  const mappedData: any = {
+    clientName: formData.value.client_name || selectedClient?.client_name || '',
+    ultimateParentCompany: formData.value.parent_company || '',
+    location: formData.value.client_location || selectedClient?.location || 'State of Kuwait',
+    clientType: formData.value.relationship_with_client === 'Existing Client' ? 'Existing' : 
+                formData.value.relationship_with_client === 'Potential Client' ? 'Potential' : 
+                formData.value.relationship_with_client || '',
+    clientIsPIE: formData.value.pie_status === 'Yes' ? 'Yes' : 
+                 formData.value.pie_status === 'No' ? 'No' : '',
+    servicesDetails: formData.value.service_description || '',
+    natureOfEngagement: formData.value.service_type || '',
+    industrySector: selectedClient?.industry || formData.value.industry || '',
+    website: selectedClient?.website || formData.value.website || '',
+    engagementInvolvesAnotherParty: formData.value.related_affiliated_entities ? 'Yes' : 'No',
+    countries: []
+  }
+  
+  // Parse foreign_subsidiaries or country_code into countries array
+  if (formData.value.country_code) {
+    mappedData.countries.push({
+      country_code: formData.value.country_code,
+      entityName: formData.value.foreign_subsidiaries || ''
+    })
+  } else if (formData.value.foreign_subsidiaries) {
+    // If we have foreign_subsidiaries but no country_code, add a placeholder
+    mappedData.countries.push({
+      country_code: '',
+      entityName: formData.value.foreign_subsidiaries
+    })
+  }
+  
+  // Update globalCOIFormData
+  globalCOIFormData.value = mappedData
+  formData.value.global_coi_form_data = mappedData
+  
+  console.log('[Frontend] Auto-populated Global COI Form from main form data:', mappedData)
+}
 
 const sections = [
   { id: 'section-1', number: 1, label: 'Requestor Info' },
@@ -738,6 +1020,35 @@ const isFormValid = computed(() => {
          isSectionComplete('section-4')
 })
 
+// Determines if the group structure verification section should be shown
+// Required for PIE clients and Audit engagements (IESBA 290.13)
+const showGroupStructureSection = computed(() => {
+  return formData.pie_status === 'Yes' || isAuditServiceType(formData.service_type)
+})
+
+// Helper function to check if a service type is an audit service
+function isAuditServiceType(serviceType: string): boolean {
+  if (!serviceType) return false
+  
+  const auditServices = [
+    'Statutory Audit', 'External Audit', 'Group Audit', 'IFRS Audit',
+    'Audit', 'Assurance', 'Financial Statement Audit',
+    'Limited Review', 'Agreed Upon Procedures'
+  ]
+  
+  // Exact match
+  if (auditServices.includes(serviceType)) return true
+  
+  // Contains 'Audit' but not 'Internal Audit'
+  const lower = serviceType.toLowerCase()
+  if (lower.includes('audit') && !lower.includes('internal')) return true
+  
+  // Contains 'Assurance'
+  if (lower.includes('assurance')) return true
+  
+  return false
+}
+
 // Scroll to section
 function scrollToSection(sectionId: string) {
   const element = document.getElementById(sectionId)
@@ -751,8 +1062,8 @@ function scrollToSection(sectionId: string) {
 function onClientSelect() {
   const client = clients.value.find(c => c.id === formData.value.client_id)
   if (client) {
-    selectedClientCode.value = client.code
-    formData.value.client_name = client.name
+    selectedClientCode.value = client.client_code || client.code || ''
+    formData.value.client_name = client.client_name || client.name || ''
   } else {
     selectedClientCode.value = ''
     formData.value.client_name = ''
@@ -762,11 +1073,140 @@ function onClientSelect() {
 // Fetch clients
 async function fetchClients() {
   try {
+    console.log('[Frontend] Fetching clients...')
     const response = await api.get('/integration/clients')
-    clients.value = response.data
-  } catch (err) {
+    clients.value = response.data || []
+    console.log('[Frontend] Clients fetched:', clients.value.length, 'clients')
+    if (clients.value.length === 0) {
+      console.warn('[Frontend] No clients returned from API')
+    }
+  } catch (err: any) {
     console.error('Failed to fetch clients:', err)
+    console.error('Error response:', err.response?.data)
+    console.error('Error status:', err.response?.status)
+    clients.value = []
   }
+}
+
+// Fetch entity codes
+async function fetchEntities() {
+  try {
+    const response = await api.get('/entity-codes')
+    entities.value = response.data.filter((e: any) => e.is_active)
+    
+    // Set default entity if none selected
+    if (!formData.entity && entities.value.length > 0) {
+      const defaultEntity = entities.value.find((e: any) => e.is_default) || entities.value[0]
+      formData.entity = defaultEntity.entity_name
+      onEntityChange()
+    }
+  } catch (err) {
+    console.error('Failed to fetch entities:', err)
+  }
+}
+
+// Fetch countries (master data)
+async function fetchCountries() {
+  try {
+    const response = await api.get('/countries')
+    countries.value = response.data
+  } catch (err) {
+    console.error('Failed to fetch countries:', err)
+  }
+}
+
+// Fetch service types filtered by entity
+async function fetchServiceTypes() {
+  console.log('[Frontend] fetchServiceTypes called, entity:', formData.value.entity)
+  if (!formData.value.entity) {
+    console.log('[Frontend] No entity, returning early')
+    serviceTypes.value = []
+    serviceSubCategories.value = {}
+    return
+  }
+  
+  loadingServices.value = true
+  console.log('[Frontend] Starting API call...')
+  console.log('[Frontend] formData.value.entity:', formData.value.entity)
+  console.log('[Frontend] entities.value:', entities.value)
+  try {
+    // Find entity code - try to match by entity_name first
+    let entityCode = entities.value.find((e: any) => e.entity_name === formData.value.entity)?.entity_code
+    
+    // If not found, try to find by exact match or partial match
+    if (!entityCode && entities.value.length > 0) {
+      // Try first entity as fallback
+      entityCode = entities.value[0]?.entity_code
+      console.log('[Frontend] Using fallback entity code:', entityCode)
+    }
+    
+    const params: any = {}
+    
+    if (entityCode) {
+      params.entity = entityCode
+      console.log('[Frontend] Using entity code:', entityCode)
+    } else {
+      console.warn('[Frontend] No entity code found, calling API without entity param')
+    }
+    
+    // Use Kuwait list by default (39 services), only use global list if international_operations is true
+    // This ensures Kuwait list is used for regular requests
+    if (formData.value.international_operations) {
+      params.international = 'true'
+    } else {
+      // Explicitly set to false to ensure Kuwait list is returned
+      params.international = 'false'
+    }
+    
+    console.log('[Frontend] API params:', params)
+    console.log('[Frontend] international_operations value:', formData.value.international_operations)
+    const response = await api.get('/integration/service-types', { params })
+    console.log('[Frontend] Service types response:', response.data)
+    console.log('[Frontend] Service types array:', response.data?.serviceTypes)
+    console.log('[Frontend] Service types length:', response.data?.serviceTypes?.length)
+    console.log('[Frontend] Categories:', response.data?.serviceTypes?.map((c: any) => c.category))
+    serviceTypes.value = response.data.serviceTypes || []
+    serviceSubCategories.value = response.data.subCategories || {}
+    console.log('[Frontend] serviceTypes.value after assignment:', serviceTypes.value.length)
+  } catch (err: any) {
+    console.error('Failed to fetch service types:', err)
+    console.error('Error response:', err.response)
+    console.error('Error data:', err.response?.data)
+    console.error('Error status:', err.response?.status)
+    console.error('Error message:', err.message)
+    serviceTypes.value = []
+    serviceSubCategories.value = {}
+  } finally {
+    loadingServices.value = false
+  }
+}
+
+// Handle service category change
+function onServiceCategoryChange() {
+  // Clear service type and sub-category when category changes
+  formData.value.service_type = ''
+  formData.value.service_sub_category = ''
+}
+
+// Handle service type change
+function onServiceTypeChange() {
+  // Auto-populate category from the selected service type if not already set
+  if (formData.value.service_type && !formData.value.service_category) {
+    const serviceCategory = serviceTypes.value.find((cat: any) => 
+      cat.services.some((s: any) => (s.value || s) === formData.value.service_type)
+    )
+    if (serviceCategory) {
+      formData.value.service_category = serviceCategory.category
+    }
+  }
+  
+  // Clear sub-category when service type changes
+  formData.value.service_sub_category = ''
+}
+
+// Handle entity change
+function onEntityChange() {
+  fetchServiceTypes()
 }
 
 // Auto-save functionality
@@ -794,7 +1234,11 @@ function loadFromLocalStorage(): boolean {
   if (saved) {
     try {
       const parsed = JSON.parse(saved)
+      // Force international_operations to false by default (for Kuwait list)
+      // Only keep it true if user explicitly checked the checkbox
+      parsed.international_operations = false
       formData.value = { ...formData.value, ...parsed }
+      console.log('[Frontend] Loaded from localStorage, set international_operations to false')
       return true
     } catch {
       return false
@@ -822,25 +1266,97 @@ async function handleSaveDraft() {
   }
 }
 
+// Duplicate justification state
+const showJustificationModal = ref(false)
+const duplicateJustification = ref('')
+const detectedDuplicates = ref<any[]>([])
+const pendingRequestId = ref<number | null>(null)
+
 // Handle submit
 async function handleSubmit() {
   showConfirmModal.value = false
   loading.value = true
   try {
     const result = await coiStore.createRequest(formData.value)
-    const submitResult = await coiStore.submitRequest(result.id)
+    pendingRequestId.value = result.id
     
-    if (submitResult && submitResult.duplicates && submitResult.duplicates.length > 0) {
+    // Try to submit with justification if provided
+    const submitPayload = duplicateJustification.value 
+      ? { duplicate_justification: duplicateJustification.value }
+      : undefined
+    
+    const submitResult = await coiStore.submitRequest(result.id, submitPayload)
+    
+    // Check for duplicates - handle both array and object formats
+    const dupes = submitResult?.duplicates
+    const hasDuplicates = Array.isArray(dupes) 
+      ? dupes.length > 0 
+      : (dupes?.matches?.length > 0 || dupes?.recommendations?.length > 0)
+    
+    if (hasDuplicates) {
       showError('Duplication detected! Please review.')
+    } else if (submitResult?.flagged) {
+      // Request was flagged for group conflicts - show warning but still success
+      warning('Request submitted but flagged for Compliance review due to potential group conflicts. You will be notified once the review is complete.')
+      clearLocalStorage()
+      stopAutoSave()
+      duplicateJustification.value = ''
+      
+      setTimeout(() => {
+        router.push('/coi/requester')
+      }, 2000)
     } else {
       success('Request submitted successfully!')
       clearLocalStorage()
       stopAutoSave()
+      duplicateJustification.value = ''
       
       setTimeout(() => {
         router.push('/coi/requester')
       }, 1500)
     }
+  } catch (err: any) {
+    // Check if this is a duplicate blocking error
+    if (err.response?.data?.requiresJustification) {
+      // Handle both array and object formats for duplicates
+      const dupes = err.response.data.duplicates
+      detectedDuplicates.value = Array.isArray(dupes) 
+        ? dupes 
+        : (dupes?.matches || [])
+      showJustificationModal.value = true
+      loading.value = false
+      return
+    }
+    showError(err.response?.data?.error || err.message || 'Failed to submit request')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Submit with justification
+async function submitWithJustification() {
+  if (!duplicateJustification.value.trim()) {
+    showError('Please provide a justification')
+    return
+  }
+  
+  showJustificationModal.value = false
+  loading.value = true
+  
+  try {
+    const submitResult = await coiStore.submitRequest(
+      pendingRequestId.value!, 
+      { duplicate_justification: duplicateJustification.value }
+    )
+    
+    success('Request submitted with justification!')
+    clearLocalStorage()
+    stopAutoSave()
+    duplicateJustification.value = ''
+    
+    setTimeout(() => {
+      router.push('/coi/requester')
+    }, 1500)
   } catch (err: any) {
     showError(err.response?.data?.error || err.message || 'Failed to submit request')
   } finally {
@@ -892,10 +1408,107 @@ function handleFileError(error: string) {
   showError(error)
 }
 
+// Watch international_operations to refetch services and populate Global COI Form
+watch(() => formData.value.international_operations, (newValue) => {
+  if (formData.value.entity) {
+    fetchServiceTypes()
+  }
+  
+  // When international_operations is checked, auto-populate Global COI Form
+  if (newValue) {
+    populateGlobalCOIForm()
+  }
+})
+
+// Watch entity to fetch service types when entity is selected or changes
+watch(() => formData.value.entity, (newEntity, oldEntity) => {
+  if (newEntity && newEntity !== oldEntity) {
+    console.log('[Frontend] Entity changed to:', newEntity, 'fetching service types...')
+    // Small delay to ensure entities list is loaded
+    setTimeout(() => {
+      fetchServiceTypes()
+    }, 100)
+  }
+})
+
+// Watch main form fields to auto-update Global COI Form when international_operations is enabled
+watch([
+  () => formData.value.client_name,
+  () => formData.value.parent_company,
+  () => formData.value.client_location,
+  () => formData.value.relationship_with_client,
+  () => formData.value.pie_status,
+  () => formData.value.service_description,
+  () => formData.value.service_type,
+  () => formData.value.country_code,
+  () => formData.value.foreign_subsidiaries
+], () => {
+  // Only auto-update if international_operations is enabled
+  if (formData.value.international_operations) {
+    populateGlobalCOIForm()
+  }
+}, { deep: true })
+
+// Watch main form fields to auto-update Global COI Form when international_operations is enabled
+watch([
+  () => formData.value.client_name,
+  () => formData.value.parent_company,
+  () => formData.value.client_location,
+  () => formData.value.relationship_with_client,
+  () => formData.value.pie_status,
+  () => formData.value.service_description,
+  () => formData.value.service_type,
+  () => formData.value.country_code,
+  () => formData.value.foreign_subsidiaries
+], () => {
+  // Only auto-update if international_operations is enabled
+  if (formData.value.international_operations) {
+    populateGlobalCOIForm()
+  }
+}, { deep: true })
+
 // Lifecycle
 onMounted(async () => {
-  await fetchClients()
-  await fetchDirectorName()
+  console.log('[Frontend] onMounted called, formData.value.entity:', formData.value.entity)
+  
+  try {
+    await fetchClients()
+    await fetchCountries()
+  } catch (e) {
+    console.error('Failed to fetch clients:', e)
+  }
+  
+  try {
+    await fetchEntities()
+  } catch (e) {
+    console.error('Failed to fetch entities:', e)
+  }
+  
+  try {
+    await fetchDirectorName()
+  } catch (e) {
+    console.error('Failed to fetch director name:', e)
+  }
+  
+  // Force international_operations to false by default (for Kuwait list)
+  // This ensures Kuwait list (6 categories) loads instead of global list (27 categories)
+  formData.value.international_operations = false
+  console.log('[Frontend] Set international_operations to false by default for Kuwait list')
+  
+  // Fetch service types if entity is already set (even if entities failed to load)
+  console.log('[Frontend] Checking if should fetch service types, formData.value.entity:', formData.value.entity)
+  // Always try to fetch service types - entity might be set by default
+  if (formData.value.entity) {
+    console.log('[Frontend] Entity is set, calling fetchServiceTypes')
+    try {
+      await fetchServiceTypes()
+    } catch (e) {
+      console.error('Failed to fetch service types:', e)
+    }
+  } else {
+    console.log('[Frontend] Entity is NOT set, will fetch after entity is selected')
+    // Watch for entity changes to fetch service types
+  }
   
   // Check if editing existing draft
   const editRequestData = localStorage.getItem('coi-edit-request')
@@ -916,7 +1529,9 @@ onMounted(async () => {
         client_location: request.client_location || 'State of Kuwait',
         relationship_with_client: request.relationship_with_client || '',
         regulated_body: request.regulated_body || '',
+        client_status: request.client_status || '',
         pie_status: request.pie_status || 'No',
+        group_structure: request.group_structure || '',
         parent_company: request.parent_company || '',
         service_type: request.service_type || '',
         service_category: request.service_category || '',
@@ -925,7 +1540,7 @@ onMounted(async () => {
         requested_service_period_end: request.requested_service_period_end || '',
         full_ownership_structure: request.full_ownership_structure || '',
         related_affiliated_entities: request.related_affiliated_entities || '',
-        international_operations: request.international_operations === 1 || request.international_operations === true,
+        international_operations: request.international_operations === 1 || request.international_operations === true || false,
         foreign_subsidiaries: request.foreign_subsidiaries || '',
         global_clearance_status: request.global_clearance_status || 'Not Required'
       }

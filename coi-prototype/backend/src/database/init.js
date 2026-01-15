@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
@@ -102,6 +102,222 @@ export async function initDatabase() {
       if (!error.message.includes('duplicate column')) {
         // Column already exists, that's fine
       }
+    }
+  }
+
+  // Meeting Changes 2026-01-12: Add new columns for service sub-categories, rejection options, and compliance visibility
+  const meetingChangesColumns = [
+    { name: 'service_sub_category', def: 'VARCHAR(100)' },
+    { name: 'rejection_category', def: 'VARCHAR(50)' }, // For additional rejection options
+    { name: 'compliance_visible', def: 'BOOLEAN DEFAULT 1' }, // For requirement 7: compliance visibility
+    { name: 'is_prospect', def: 'BOOLEAN DEFAULT 0' }, // Track if request is for a prospect
+    { name: 'prospect_id', def: 'INTEGER' }, // Link to prospects table
+    { name: 'prms_client_id', def: 'VARCHAR(50)' }, // Link to PRMS client if exists (for prospect linking)
+    { name: 'prospect_converted_at', def: 'DATETIME' } // When prospect was converted to full client
+  ]
+  
+  for (const col of meetingChangesColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        // Column already exists, that's fine
+      }
+    }
+  }
+
+  // Create prospects table if it doesn't exist
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS prospects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        prospect_name VARCHAR(255) NOT NULL,
+        commercial_registration VARCHAR(100),
+        industry VARCHAR(100),
+        nature_of_business TEXT,
+        client_id INTEGER,
+        group_level_services TEXT,
+        prms_client_code VARCHAR(50),
+        prms_synced BOOLEAN DEFAULT 0,
+        prms_sync_date DATETIME,
+        status VARCHAR(50) DEFAULT 'Active' CHECK (status IN ('Active', 'Converted', 'Inactive')),
+        converted_to_client_id INTEGER,
+        converted_date DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients(id),
+        FOREIGN KEY (converted_to_client_id) REFERENCES clients(id)
+      )
+    `)
+    console.log('✅ Created prospects table')
+    
+    // Create indexes
+    db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_client ON prospects(client_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_status ON prospects(status)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_prms_code ON prospects(prms_client_code)')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.error('Error creating prospects table:', error.message)
+    }
+  }
+
+  // Create service_type_categories table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS service_type_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_service_type VARCHAR(100) NOT NULL,
+        sub_category VARCHAR(100) NOT NULL,
+        display_order INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(parent_service_type, sub_category)
+      )
+    `)
+    console.log('✅ Created service_type_categories table')
+    
+    // Insert Business/Asset Valuation sub-categories
+    const subCategories = [
+      ['Business Valuation', 'Acquisition', 1],
+      ['Business Valuation', 'Capital Increase', 2],
+      ['Business Valuation', 'Financial Facilities', 3],
+      ['Asset Valuation', 'Acquisition', 1],
+      ['Asset Valuation', 'Capital Increase', 2],
+      ['Asset Valuation', 'Financial Facilities', 3]
+    ]
+    
+    for (const [parent, sub, order] of subCategories) {
+      try {
+        db.exec(`
+          INSERT OR IGNORE INTO service_type_categories (parent_service_type, sub_category, display_order)
+          VALUES ('${parent}', '${sub}', ${order})
+        `)
+      } catch (error) {
+        // Ignore duplicate errors
+      }
+    }
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.error('Error creating service_type_categories table:', error.message)
+    }
+  }
+
+  // Create proposal_engagement_conversions table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS proposal_engagement_conversions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_proposal_request_id INTEGER NOT NULL,
+        new_engagement_request_id INTEGER,
+        conversion_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        converted_by INTEGER,
+        conversion_reason TEXT,
+        status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Completed', 'Failed')),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (original_proposal_request_id) REFERENCES coi_requests(id),
+        FOREIGN KEY (new_engagement_request_id) REFERENCES coi_requests(id),
+        FOREIGN KEY (converted_by) REFERENCES users(id)
+      )
+    `)
+    console.log('✅ Created proposal_engagement_conversions table')
+    
+    db.exec('CREATE INDEX IF NOT EXISTS idx_conversions_original ON proposal_engagement_conversions(original_proposal_request_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_conversions_new ON proposal_engagement_conversions(new_engagement_request_id)')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.error('Error creating proposal_engagement_conversions table:', error.message)
+    }
+  }
+
+  // Create prospect_client_creation_requests table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS prospect_client_creation_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        prospect_id INTEGER NOT NULL,
+        coi_request_id INTEGER NOT NULL,
+        requester_id INTEGER NOT NULL,
+        client_name VARCHAR(255) NOT NULL,
+        legal_form VARCHAR(100),
+        industry VARCHAR(100),
+        regulatory_body VARCHAR(100),
+        parent_company VARCHAR(255),
+        contact_details TEXT,
+        physical_address TEXT,
+        billing_address TEXT,
+        description TEXT,
+        status VARCHAR(50) DEFAULT 'Pending',
+        submitted_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        reviewed_by INTEGER,
+        reviewed_date DATETIME,
+        completion_notes TEXT,
+        created_client_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (prospect_id) REFERENCES prospects(id),
+        FOREIGN KEY (coi_request_id) REFERENCES coi_requests(id),
+        FOREIGN KEY (requester_id) REFERENCES users(id),
+        FOREIGN KEY (reviewed_by) REFERENCES users(id),
+        FOREIGN KEY (created_client_id) REFERENCES clients(id)
+      )
+    `)
+    console.log('✅ prospect_client_creation_requests table ensured')
+    
+    db.exec('CREATE INDEX IF NOT EXISTS idx_client_creation_prospect ON prospect_client_creation_requests(prospect_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_client_creation_coi ON prospect_client_creation_requests(coi_request_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_client_creation_status ON prospect_client_creation_requests(status)')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.error('Error creating prospect_client_creation_requests table:', error.message)
+    }
+  }
+
+  // Service Catalog System Migration 2026-01-13
+  // Create tables without foreign key constraints (FKs can be added later if needed)
+  try {
+    const migrationPath = join(__dirname, '../../../database/migrations/20260113_service_catalog.sql')
+    const migration = readFileSync(migrationPath, 'utf-8')
+    
+    // Split by semicolons and execute each statement
+    const statements = migration
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && !s.startsWith('--'))
+    
+    let successCount = 0
+    let errorCount = 0
+    
+    statements.forEach(statement => {
+      try {
+        db.exec(statement)
+        successCount++
+      } catch (error) {
+        // Ignore errors for existing tables/indexes
+        if (error.message.includes('already exists')) {
+          successCount++
+        } else {
+          errorCount++
+          // Only log unexpected errors
+          if (!error.message.includes('no such table') || error.message.includes('main.entity_codes')) {
+            // This is expected if table doesn't exist yet - the CREATE TABLE should create it
+            // But if we get "no such table: main.entity_codes" on CREATE TABLE, that's a real error
+            if (!statement.toUpperCase().includes('CREATE TABLE')) {
+              console.error('Service catalog migration error:', error.message.substring(0, 100))
+            }
+          }
+        }
+      }
+    })
+    
+    if (successCount > 0) {
+      console.log(`✅ Service catalog tables initialized (${successCount} statements succeeded)`)
+    } else if (errorCount > 0) {
+      console.log(`⚠️  Service catalog migration: ${successCount} succeeded, ${errorCount} failed`)
+    }
+  } catch (error) {
+    if (!error.message.includes('ENOENT')) {
+      console.log('Service catalog migration:', error.message)
     }
   }
 
@@ -400,6 +616,7 @@ export async function initDatabase() {
         { field_id: 'client_location', db_column: 'client_location', is_custom: 0, data_type: 'text' },
         { field_id: 'relationship_with_client', db_column: 'relationship_with_client', is_custom: 0, data_type: 'text' },
         { field_id: 'regulated_body', db_column: 'regulated_body', is_custom: 0, data_type: 'text' },
+        { field_id: 'client_status', db_column: 'client_status', is_custom: 0, data_type: 'text' },
         { field_id: 'pie_status', db_column: 'pie_status', is_custom: 0, data_type: 'text' },
         { field_id: 'parent_company', db_column: 'parent_company', is_custom: 0, data_type: 'text' },
         { field_id: 'service_type', db_column: 'service_type', is_custom: 0, data_type: 'text' },
@@ -528,13 +745,39 @@ export async function initDatabase() {
     }
   }
 
+  // Create refresh_tokens table for JWT refresh token management
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        revoked BOOLEAN DEFAULT 0,
+        revoked_at DATETIME,
+        replaced_by_token TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at)')
+    console.log('✅ refresh_tokens table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.error('Error creating refresh_tokens table:', error.message)
+    }
+  }
+
   // Add monitoring columns to coi_requests if not present
   const monitoringColumns = [
     { name: 'engagement_end_date', def: 'DATE' },
     { name: 'expiry_notification_sent', def: 'TEXT' },
     { name: 'compliance_reminder_sent', def: 'DATETIME' },
     { name: 'stale_notification_sent', def: 'DATETIME' },
-    { name: 'interval_alerts_sent', def: 'TEXT' }
+    { name: 'interval_alerts_sent', def: 'TEXT' },
+    { name: 'renewal_notification_sent', def: 'TEXT' }  // For 3-year renewal alerts
   ]
   
   for (const col of monitoringColumns) {
@@ -559,6 +802,142 @@ export async function initDatabase() {
     } catch (error) {
       // Column exists, ignore
     }
+  }
+
+  // Add duplicate justification columns for override tracking
+  const duplicateJustificationColumns = [
+    { name: 'duplicate_justification', def: 'TEXT' },
+    { name: 'duplicate_override_by', def: 'INTEGER' },
+    { name: 'duplicate_override_date', def: 'DATETIME' }
+  ]
+  
+  for (const col of duplicateJustificationColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      // Column exists, ignore
+    }
+  }
+
+  // Add group structure verification columns for parent company mapping (IESBA 290.13)
+  const groupStructureColumns = [
+    { name: 'group_structure', def: "TEXT CHECK(group_structure IN ('standalone', 'has_parent', 'research_required'))" },
+    { name: 'parent_company_verified_by', def: 'INTEGER REFERENCES users(id)' },
+    { name: 'parent_company_verified_at', def: 'DATETIME' },
+    { name: 'group_conflicts_detected', def: 'TEXT' },  // JSON array of detected conflicts
+    { name: 'requires_compliance_verification', def: 'INTEGER DEFAULT 0' }
+  ]
+  
+  for (const col of groupStructureColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      // Column exists, ignore
+    }
+  }
+
+  // Add approver availability columns to users table
+  const approverAvailabilityColumns = [
+    { name: 'unavailable_reason', def: 'TEXT' },
+    { name: 'unavailable_until', def: 'DATE' }
+  ]
+  
+  for (const col of approverAvailabilityColumns) {
+    try {
+      db.exec(`ALTER TABLE users ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to users`)
+    } catch (error) {
+      // Column exists, ignore
+    }
+  }
+
+  // Create dismissed_resolved_conflicts table for tracking dismissed conflict resolution items
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS dismissed_resolved_conflicts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id INTEGER NOT NULL,
+        dismissed_by INTEGER NOT NULL,
+        dismissed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        reason TEXT,
+        FOREIGN KEY (request_id) REFERENCES coi_requests(id),
+        FOREIGN KEY (dismissed_by) REFERENCES users(id)
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_dismissed_conflicts_request ON dismissed_resolved_conflicts(request_id)')
+    console.log('✅ dismissed_resolved_conflicts table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.error('Error creating dismissed_resolved_conflicts table:', error.message)
+    }
+  }
+
+  // Backfill group_structure based on existing parent_company values
+  try {
+    const result = db.prepare(`
+      UPDATE coi_requests 
+      SET group_structure = CASE 
+        WHEN parent_company IS NOT NULL AND parent_company != '' THEN 'has_parent'
+        ELSE NULL
+      END
+      WHERE group_structure IS NULL
+    `).run()
+    if (result.changes > 0) {
+      console.log(`✅ Backfilled group_structure for ${result.changes} existing requests`)
+    }
+  } catch (error) {
+    // Ignore errors during backfill
+  }
+  
+  // Seed Entity Codes
+  try {
+    const { seedEntityCodes } = await import('../scripts/seedEntityCodes.js')
+    seedEntityCodes()
+  } catch (error) {
+    console.log('Note: Entity codes seeding skipped (may already exist)')
+  }
+
+  // Seed Service Catalogs (Kuwait Local + Global)
+  try {
+    // Seed Kuwait Local Service Catalog first (39 services from COI Template)
+    const { seedKuwaitServiceCatalog } = await import('../scripts/seedKuwaitServiceCatalog.js')
+    seedKuwaitServiceCatalog()
+    
+    // Then seed Global Service Catalog (177+ services from Global COI Form)
+    const { seedGlobalServiceCatalog } = await import('../scripts/seedGlobalServiceCatalog.js')
+    seedGlobalServiceCatalog()
+  } catch (error) {
+    console.log('Note: Service catalog seeding skipped (may already exist)')
+  }
+
+  // Create countries table and seed
+  try {
+    const countriesMigrationPath = join(__dirname, '../../../database/migrations/20260115_countries.sql')
+    if (existsSync(countriesMigrationPath)) {
+      const countriesMigration = readFileSync(countriesMigrationPath, 'utf-8')
+      const statements = countriesMigration
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && !s.startsWith('--'))
+      
+      statements.forEach(statement => {
+        try {
+          db.exec(statement)
+        } catch (error) {
+          if (!error.message.includes('already exists')) {
+            console.error('Countries migration error:', error.message)
+          }
+        }
+      })
+      
+      // Seed countries
+      const { seedCountries } = await import('../scripts/seedCountries.js')
+      seedCountries()
+    }
+  } catch (error) {
+    console.log('Note: Countries migration/seeding skipped (may already exist)')
   }
   
   // Seed IESBA rules (Pro Version)

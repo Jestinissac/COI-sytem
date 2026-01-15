@@ -1,5 +1,13 @@
 import jwt from 'jsonwebtoken'
 import { getDatabase } from '../database/init.js'
+import { 
+  generateAccessToken, 
+  generateRefreshToken, 
+  storeRefreshToken,
+  verifyRefreshToken,
+  revokeRefreshToken,
+  revokeAllUserTokens
+} from '../utils/tokenUtils.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'prototype-secret'
 
@@ -41,12 +49,15 @@ export async function login(req, res) {
     systemAccess = ['COI']
   }
 
-  // Generate token
-  const token = jwt.sign(
-    { userId: user.id, role: user.role },
-    JWT_SECRET,
-    { expiresIn: '24h' }
-  )
+  // Generate access token (short-lived) and refresh token (long-lived)
+  const accessToken = generateAccessToken(user.id, user.role)
+  const refreshToken = generateRefreshToken()
+  
+  // Store refresh token in database
+  const stored = storeRefreshToken(user.id, refreshToken)
+  if (!stored) {
+    return res.status(500).json({ error: 'Failed to generate session tokens' })
+  }
 
   // Return user without password
   const { password_hash, ...userWithoutPassword } = user
@@ -56,7 +67,9 @@ export async function login(req, res) {
   // #endregion
 
   res.json({
-    token,
+    token: accessToken, // Keep 'token' for backward compatibility
+    accessToken,
+    refreshToken,
     user: {
       ...userWithoutPassword,
       system_access: systemAccess
@@ -252,6 +265,97 @@ export async function getAuditLogs(req, res) {
   res.json({ logs, total })
 }
 
+/**
+ * Refresh access token using refresh token
+ */
+export async function refreshAccessToken(req, res) {
+  const { refreshToken } = req.body
+  
+  if (!refreshToken) {
+    return res.status(400).json({ error: 'Refresh token required' })
+  }
+  
+  // Verify refresh token
+  const verification = verifyRefreshToken(refreshToken)
+  
+  if (!verification.valid) {
+    return res.status(401).json({ error: verification.error })
+  }
+  
+  // Generate new access token
+  const newAccessToken = generateAccessToken(verification.userId, verification.role)
+  
+  // Optional: Implement refresh token rotation for better security
+  // Generate new refresh token and revoke the old one
+  const newRefreshToken = generateRefreshToken()
+  const stored = storeRefreshToken(verification.userId, newRefreshToken)
+  
+  if (stored) {
+    // Revoke old refresh token and link it to the new one
+    revokeRefreshToken(refreshToken, newRefreshToken)
+  }
+  
+  // Get user data
+  const db = getDatabase()
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(verification.userId)
+  
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' })
+  }
+  
+  let systemAccess = []
+  try {
+    systemAccess = user.system_access ? JSON.parse(user.system_access) : ['COI']
+  } catch (e) {
+    systemAccess = ['COI']
+  }
+  
+  const { password_hash, ...userWithoutPassword } = user
+  
+  res.json({
+    token: newAccessToken, // Keep 'token' for backward compatibility
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken, // Return new refresh token (rotation)
+    user: {
+      ...userWithoutPassword,
+      system_access: systemAccess
+    },
+    systemAccess
+  })
+}
+
+/**
+ * Logout and revoke refresh token
+ */
+export async function logout(req, res) {
+  const { refreshToken } = req.body
+  
+  if (refreshToken) {
+    revokeRefreshToken(refreshToken)
+  }
+  
+  res.json({ message: 'Logged out successfully' })
+}
+
+/**
+ * Logout from all devices (revoke all refresh tokens)
+ */
+export async function logoutAll(req, res) {
+  const userId = req.userId // From auth middleware
+  
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' })
+  }
+  
+  const revoked = revokeAllUserTokens(userId)
+  
+  if (revoked) {
+    res.json({ message: 'Logged out from all devices successfully' })
+  } else {
+    res.status(500).json({ error: 'Failed to logout from all devices' })
+  }
+}
+
 // Helper function to log audit actions
 export function logAuditAction(userId, action, entityType, entityId, details, ipAddress) {
   const db = getDatabase()
@@ -272,3 +376,89 @@ export function logAuditAction(userId, action, entityType, entityId, details, ip
   }
 }
 
+
+// ========================================
+// APPROVER AVAILABILITY MANAGEMENT
+// ========================================
+
+/**
+ * Get all approver users (Directors, Compliance, Partners, Finance)
+ */
+export async function getApproverUsers(req, res) {
+  try {
+    const db = getDatabase()
+    
+    const approvers = db.prepare(`
+      SELECT id, name, email, role, is_active, unavailable_reason, unavailable_until
+      FROM users
+      WHERE role IN ('Director', 'Compliance', 'Partner', 'Finance')
+      ORDER BY role, name
+    `).all()
+    
+    res.json(approvers)
+  } catch (error) {
+    console.error('Error fetching approver users:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Update user availability status
+ */
+export async function updateUserAvailability(req, res) {
+  try {
+    const db = getDatabase()
+    const { id } = req.params
+    const { is_active, unavailable_reason, unavailable_until } = req.body
+    const adminId = req.userId
+    
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id)
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    
+    // Don't allow changing availability of Admin/Super Admin users
+    if (['Admin', 'Super Admin'].includes(user.role)) {
+      return res.status(403).json({ error: 'Cannot change availability of Admin users' })
+    }
+    
+    db.prepare(`
+      UPDATE users
+      SET is_active = ?,
+          unavailable_reason = ?,
+          unavailable_until = ?
+      WHERE id = ?
+    `).run(
+      is_active ? 1 : 0,
+      unavailable_reason || null,
+      unavailable_until || null,
+      id
+    )
+    
+    // Log the action
+    logAuditAction(
+      adminId,
+      is_active ? 'USER_MARKED_AVAILABLE' : 'USER_MARKED_UNAVAILABLE',
+      'user',
+      id,
+      {
+        user_name: user.name,
+        user_role: user.role,
+        reason: unavailable_reason,
+        until: unavailable_until
+      },
+      req.ip
+    )
+    
+    console.log(`[Availability] User ${user.name} (${user.role}) marked as ${is_active ? 'available' : 'unavailable'} by admin ${adminId}`)
+    
+    res.json({
+      success: true,
+      user_id: id,
+      is_active: is_active ? 1 : 0
+    })
+  } catch (error) {
+    console.error('Error updating user availability:', error)
+    res.status(500).json({ error: error.message })
+  }
+}

@@ -420,7 +420,52 @@ function calculateSimilarity(str1, str2) {
     return 85
   }
 
-  // Levenshtein distance
+  // ========================================
+  // FIX: Handle numeric identifier patterns
+  // ========================================
+  // Detect if names differ primarily by numeric codes (e.g., "Client 021 Company" vs "Client 019 Company")
+  // These should be treated as DIFFERENT entities, not similar ones
+  
+  // Extract numeric patterns from both strings
+  const nums1 = expanded1.match(/\d+/g) || []
+  const nums2 = expanded2.match(/\d+/g) || []
+  
+  // Remove numbers to get the "template" of the name
+  const template1 = expanded1.replace(/\d+/g, '###')
+  const template2 = expanded2.replace(/\d+/g, '###')
+  
+  // If templates are identical but numbers differ, these are distinct entities
+  if (template1 === template2 && nums1.length > 0 && nums2.length > 0) {
+    // Check if any corresponding numbers differ
+    const numsDiffer = nums1.some((n, i) => nums2[i] && n !== nums2[i])
+    if (numsDiffer) {
+      // Names follow same pattern but have different identifiers
+      // Return 0% to completely ignore these matches (no service conflict checks)
+      return 0 // Completely different entities - do not match
+    }
+  }
+  
+  // Also check for sequential/similar numeric patterns that indicate distinct entities
+  // e.g., "ABC-001" vs "ABC-002" or "Project 15" vs "Project 16"
+  if (nums1.length > 0 && nums2.length > 0) {
+    // Get non-numeric parts
+    const textOnly1 = expanded1.replace(/\d+/g, '').replace(/\s+/g, ' ').trim()
+    const textOnly2 = expanded2.replace(/\d+/g, '').replace(/\s+/g, ' ').trim()
+    
+    // If text parts are very similar (>90%) but numbers differ, treat as distinct
+    if (textOnly1 && textOnly2) {
+      const textDistance = levenshteinDistance(textOnly1, textOnly2)
+      const maxTextLen = Math.max(textOnly1.length, textOnly2.length)
+      const textSimilarity = maxTextLen > 0 ? ((maxTextLen - textDistance) / maxTextLen) * 100 : 0
+      
+      if (textSimilarity > 90 && nums1.join('') !== nums2.join('')) {
+        // Same naming convention, different ID numbers = different entities
+        return 0 // Completely different entities - do not match
+      }
+    }
+  }
+
+  // Standard Levenshtein distance for other cases
   const distance = levenshteinDistance(expanded1, expanded2)
   const maxLength = Math.max(expanded1.length, expanded2.length)
   
@@ -507,3 +552,216 @@ function getMatchReason(score) {
   }
   return 'Low similarity'
 }
+
+// ========================================
+// GROUP CONFLICT DETECTION (IESBA 290.13)
+// ========================================
+// Detects conflicts across parent/subsidiary relationships
+
+const AUDIT_SERVICES = ['Statutory Audit', 'External Audit', 'Group Audit', 'IFRS Audit', 'Audit', 'Assurance', 'Financial Statement Audit', 'Limited Review', 'Agreed Upon Procedures']
+const PROHIBITED_SERVICES = ['Tax Advocacy', 'Bookkeeping', 'Management Functions', 'Management Consulting']
+const ADVISORY_SERVICES = ['Management Consulting', 'Business Advisory', 'Strategy Consulting']
+
+function isAuditServiceType(serviceType) {
+  if (!serviceType) return false
+  
+  // Exact match
+  if (AUDIT_SERVICES.includes(serviceType)) return true
+  
+  // Contains 'Audit' but not 'Internal Audit'
+  const lower = serviceType.toLowerCase()
+  if (lower.includes('audit') && !lower.includes('internal')) return true
+  
+  // Contains 'Assurance' 
+  if (lower.includes('assurance')) return true
+  
+  return false
+}
+
+/**
+ * Check for group/parent company conflicts
+ * 
+ * @param {number} requestId - The COI request ID to check
+ * @returns {Object} - { conflicts: [], warnings: [] }
+ */
+export async function checkGroupConflicts(requestId) {
+  const db = getDatabase()
+  const request = db.prepare(`
+    SELECT * FROM coi_requests WHERE id = ?
+  `).get(requestId)
+  
+  if (!request || !request.parent_company) {
+    return { conflicts: [], warnings: [] }
+  }
+  
+  const conflicts = []
+  const warnings = []
+  
+  // Phase 1: Find all entities related to this parent company (direct siblings)
+  const directSiblings = findEntitiesWithParent(request.parent_company, requestId, db)
+  
+  // Phase 2: Find entities where THIS client is listed as parent (children)
+  const children = findEntitiesWithParent(request.client_name, requestId, db)
+  
+  // Phase 3: Multi-level - Find grandparent relationships (fuzzy matching)
+  const multiLevel = findMultiLevelRelationships(request.parent_company, requestId, db)
+  
+  // Combine and evaluate all relationships for independence conflicts
+  const allRelated = [...directSiblings, ...children, ...multiLevel]
+  
+  for (const related of allRelated) {
+    const conflict = evaluateIndependenceConflict(
+      request.service_type,
+      related.service_type,
+      related.pie_status,
+      request.pie_status
+    )
+    
+    if (conflict) {
+      conflicts.push({
+        type: 'GROUP_INDEPENDENCE_VIOLATION',
+        severity: conflict.severity,
+        entity_name: related.client_name,
+        entity_parent: related.parent_company,
+        relationship_path: related.relationship_path,
+        existing_service: related.service_type,
+        requested_service: request.service_type,
+        regulation: 'IESBA 290.13',
+        reason: conflict.reason,
+        action: conflict.action,
+        // Track when conflicting engagement ends (for dashboard/reports)
+        conflicting_engagement_id: related.id,
+        conflicting_engagement_code: related.engagement_code || related.request_id,
+        conflicting_engagement_end_date: related.requested_service_period_end || null
+      })
+    }
+  }
+  
+  return { conflicts, warnings }
+}
+
+/**
+ * Find entities with the same parent company
+ */
+function findEntitiesWithParent(parentName, excludeRequestId, db) {
+  if (!parentName) return []
+  
+  // Phase 1: Exact text match (fast)
+  let matches = db.prepare(`
+    SELECT * FROM coi_requests
+    WHERE parent_company = ?
+    AND status IN ('Approved', 'Active', 'Pending Finance', 'Pending Partner')
+    AND id != ?
+  `).all(parentName, excludeRequestId)
+  
+  // Phase 2: Fuzzy match (catches variations like "Google Inc" vs "Google LLC")
+  const allPotential = db.prepare(`
+    SELECT * FROM coi_requests
+    WHERE parent_company IS NOT NULL
+    AND status IN ('Approved', 'Active', 'Pending Finance', 'Pending Partner')
+    AND id != ?
+  `).all(excludeRequestId)
+  
+  for (const potential of allPotential) {
+    const similarity = calculateSimilarity(parentName, potential.parent_company)
+    if (similarity >= 85 && !matches.find(m => m.id === potential.id)) {
+      matches.push({
+        ...potential,
+        match_type: 'fuzzy',
+        similarity_score: similarity
+      })
+    }
+  }
+  
+  return matches.map(m => ({ 
+    ...m, 
+    relationship_path: `${parentName} → ${m.client_name}` 
+  }))
+}
+
+/**
+ * Find multi-level relationships (grandparent/cousin detection)
+ * Uses in-memory fuzzy filtering to catch spelling variations
+ */
+function findMultiLevelRelationships(parentName, excludeRequestId, db) {
+  const multiLevel = []
+  
+  // Load all active entities for in-memory fuzzy filtering
+  // For prototype with <1000 rows, this is faster than multiple fuzzy SQL queries
+  const allEntities = db.prepare(`
+    SELECT * FROM coi_requests
+    WHERE parent_company IS NOT NULL
+    AND status IN ('Approved', 'Active', 'Pending Finance', 'Pending Partner')
+  `).all()
+  
+  // Fuzzy find grandparents (entities whose client_name matches the input parentName)
+  const potentialGrandparents = allEntities.filter(e => 
+    calculateSimilarity(e.client_name, parentName) >= 85
+  )
+  
+  for (const gp of potentialGrandparents) {
+    // Found a grandparent (e.g., 'ABC MENA' matches input 'ABC MENA Holdings')
+    
+    // Find all siblings at the grandparent level (Aunts/Uncles)
+    const gpSiblings = findEntitiesWithParent(gp.parent_company, excludeRequestId, db)
+    
+    multiLevel.push(...gpSiblings.map(s => ({
+      ...s,
+      relationship_path: `${gp.parent_company} → ${gp.client_name} (Grandparent) → ${s.client_name}`,
+      match_type: 'fuzzy_grandparent',
+      similarity_score: calculateSimilarity(gp.client_name, parentName)
+    })))
+  }
+  
+  return multiLevel
+}
+
+/**
+ * Evaluate if there's an independence conflict between services
+ */
+function evaluateIndependenceConflict(requestedService, existingService, existingPIE, requestedPIE) {
+  const isRequestedAudit = isAuditServiceType(requestedService)
+  const isExistingAudit = isAuditServiceType(existingService)
+  const isRequestedProhibited = PROHIBITED_SERVICES.some(s => requestedService?.includes(s))
+  const isExistingProhibited = PROHIBITED_SERVICES.some(s => existingService?.includes(s))
+  const isExistingAdvisory = ADVISORY_SERVICES.some(s => existingService?.includes(s))
+  
+  // IESBA 290: Cannot provide prohibited services to audit client group
+  if (isExistingAudit && isRequestedProhibited) {
+    return {
+      severity: 'CRITICAL',
+      action: 'BLOCK',
+      reason: `Cannot provide ${requestedService} to group where entity has active audit engagement`
+    }
+  }
+  
+  // Advisory → Audit requires Compliance/Partner review
+  if (isRequestedAudit && isExistingAdvisory) {
+    return {
+      severity: 'CRITICAL',
+      action: 'BLOCK',
+      reason: `Cannot accept audit engagement when group entity has ${existingService} - review required`
+    }
+  }
+  
+  if (isRequestedAudit && isExistingProhibited) {
+    return {
+      severity: 'CRITICAL',
+      action: 'BLOCK',
+      reason: `Cannot accept audit engagement when group entity has ${existingService} engagement`
+    }
+  }
+  
+  // PIE restrictions extend to group
+  if ((existingPIE === 'Yes' || requestedPIE === 'Yes') && isExistingAudit && isRequestedProhibited) {
+    return {
+      severity: 'CRITICAL',
+      action: 'BLOCK',
+      reason: 'PIE independence rules apply to entire corporate group'
+    }
+  }
+  
+  return null
+}
+
+export { calculateSimilarity }

@@ -5,6 +5,27 @@ import { createRenewalTracking } from '../services/monitoringService.js';
 
 const db = getDatabase();
 
+// Helper function to check if user can update a request
+// Requester can update own requests, Director can update own + team requests
+function canUserUpdateRequest(userId, userRole, userDept, request) {
+  // User is the requester
+  if (String(request.requester_id) === String(userId)) {
+    return true
+  }
+  
+  // Director can update team requests (same department)
+  if (userRole === 'Director' && request.department === userDept) {
+    return true
+  }
+  
+  // Admin/Super Admin can update any request
+  if (userRole === 'Admin' || userRole === 'Super Admin') {
+    return true
+  }
+  
+  return false
+}
+
 // Get execution tracking for a COI request
 export async function getExecutionTracking(req, res) {
   const { requestId } = req.params
@@ -56,9 +77,22 @@ export async function prepareProposal(req, res) {
 export async function sendProposal(req, res) {
   const { requestId } = req.params
   const userId = req.user?.id
+  const userRole = req.user?.role
+  const userDept = req.user?.department
   const { sent_to, include_disclaimer } = req.body
   
   try {
+    // Get request to check authorization
+    const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(requestId)
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    // Check authorization
+    if (!canUserUpdateRequest(userId, userRole, userDept, request)) {
+      return res.status(403).json({ error: 'Not authorized to update this request' })
+    }
+    
     db.prepare(`
       UPDATE execution_tracking SET
         proposal_sent_date = datetime('now'),
@@ -78,7 +112,7 @@ export async function sendProposal(req, res) {
     `).run(requestId)
     
     // Get request details for notification
-    const request = db.prepare(`
+    const requestDetails = db.prepare(`
       SELECT r.*, c.client_name FROM coi_requests r
       JOIN clients c ON r.client_id = c.id
       WHERE r.id = ?
@@ -88,8 +122,8 @@ export async function sendProposal(req, res) {
     if (include_disclaimer) {
       sendEmail(
         [sent_to],
-        `Proposal for Services - ${request.request_id}`,
-        `Dear Client,\n\nPlease find attached our proposal for ${request.service_type} services.\n\nIMPORTANT DISCLAIMER: This proposal is valid for 30 days from the date of issue. If no response is received within this period, the proposal will automatically lapse.\n\nPlease sign and return the proposal at your earliest convenience.\n\nBest regards,\nBDO Al Nisf & Partners`
+        `Proposal for Services - ${requestDetails.request_id}`,
+        `Dear Client,\n\nPlease find attached our proposal for ${requestDetails.service_type} services.\n\nIMPORTANT DISCLAIMER: This proposal is valid for 30 days from the date of issue. If no response is received within this period, the proposal will automatically lapse.\n\nPlease sign and return the proposal at your earliest convenience.\n\nBest regards,\nBDO Al Nisf & Partners`
       )
     }
     
@@ -104,9 +138,22 @@ export async function sendProposal(req, res) {
 export async function recordFollowUp(req, res) {
   const { requestId } = req.params
   const userId = req.user?.id
+  const userRole = req.user?.role
+  const userDept = req.user?.department
   const { follow_up_number, notes } = req.body
   
   try {
+    // Get request to check authorization
+    const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(requestId)
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    // Check authorization
+    if (!canUserUpdateRequest(userId, userRole, userDept, request)) {
+      return res.status(403).json({ error: 'Not authorized to update this request' })
+    }
+    
     const field = `follow_up_${follow_up_number}_date`
     
     db.prepare(`
@@ -129,18 +176,47 @@ export async function recordFollowUp(req, res) {
 export async function recordClientResponse(req, res) {
   const { requestId } = req.params
   const userId = req.user?.id
+  const userRole = req.user?.role
+  const userDept = req.user?.department
   const { response_type, notes } = req.body
   
   try {
-    db.prepare(`
-      UPDATE execution_tracking SET
-        client_response_received = datetime('now'),
-        client_response_type = ?,
-        admin_notes = COALESCE(admin_notes, '') || '\n' || datetime('now') || ': Client Response - ' || ? || ' - ' || ?,
-        updated_by = ?,
-        updated_at = datetime('now')
-      WHERE coi_request_id = ?
-    `).run(response_type, response_type, notes || '', userId, requestId)
+    // Get request to check authorization
+    const existingRequest = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(requestId)
+    if (!existingRequest) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    // Check authorization
+    if (!canUserUpdateRequest(userId, userRole, userDept, existingRequest)) {
+      return res.status(403).json({ error: 'Not authorized to update this request' })
+    }
+    
+    // Check if execution_tracking record exists, create if not
+    const existingTracking = db.prepare('SELECT id FROM execution_tracking WHERE coi_request_id = ?').get(requestId)
+    
+    if (existingTracking) {
+      db.prepare(`
+        UPDATE execution_tracking SET
+          client_response_received = datetime('now'),
+          client_response_type = ?,
+          admin_notes = COALESCE(admin_notes, '') || '\n' || datetime('now') || ': Client Response - ' || ? || ' - ' || ?,
+          updated_by = ?,
+          updated_at = datetime('now')
+        WHERE coi_request_id = ?
+      `).run(response_type, response_type, notes || '', userId, requestId)
+    } else {
+      // Create execution_tracking record
+      db.prepare(`
+        INSERT INTO execution_tracking (
+          coi_request_id, 
+          client_response_received, 
+          client_response_type, 
+          admin_notes, 
+          updated_by
+        ) VALUES (?, datetime('now'), ?, ?, ?)
+      `).run(requestId, response_type, `${new Date().toISOString()}: Client Response - ${response_type} - ${notes || ''}`, userId)
+    }
     
     // Update main request table
     db.prepare(`

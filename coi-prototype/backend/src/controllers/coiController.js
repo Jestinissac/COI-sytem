@@ -1,14 +1,15 @@
 import { getDatabase } from '../database/init.js'
 import { getFilteredRequests } from '../middleware/dataSegregation.js'
-import { checkDuplication } from '../services/duplicationCheckService.js'
+import { checkDuplication, checkGroupConflicts } from '../services/duplicationCheckService.js'
 import { sendApprovalNotification, sendRejectionNotification, sendEngagementCodeNotification, sendProposalExecutedNotification } from '../services/notificationService.js'
-import { notifyRequestSubmitted, notifyDirectorApprovalRequired, notifyComplianceReviewRequired } from '../services/emailService.js'
+import { notifyRequestSubmitted, notifyDirectorApprovalRequired, notifyComplianceReviewRequired, notifyGroupConflictFlagged } from '../services/emailService.js'
 import { generateEngagementCode as generateCode } from '../services/engagementCodeService.js'
 import { updateMonitoringDays, getApproachingLimitRequests, getExceededLimitRequests } from '../services/monitoringService.js'
 import { evaluateRules } from '../services/businessRulesEngine.js'
 import FieldMappingService from '../services/fieldMappingService.js'
 import { parseRecommendations, logComplianceDecision } from '../services/auditTrailService.js'
 import { getUserById } from '../utils/userUtils.js'
+import { validateGroupStructure, GroupStructureValidationError } from '../validators/groupStructureValidator.js'
 
 const db = getDatabase()
 
@@ -146,10 +147,12 @@ export async function getRequestById(req, res) {
       signatories
     }
     
-    // Exclude commercial data for Compliance role
+    // Data segregation: Remove commercial data (costs/fees) for Compliance role
+    // Meeting Requirement 2026-01-12: All services (excluding costs/fees) should be visible to Compliance team
     if (user.role === 'Compliance') {
+      // Remove financial parameters (costs/fees) but keep all service information
       delete response.financial_parameters
-      delete response.engagement_code
+      // Note: All service information (service_type, service_description, service_category, etc.) remains visible
       // Note: total_fees may not be in request object, but if it exists, exclude it
       if (response.total_fees !== undefined) {
         delete response.total_fees
@@ -168,11 +171,15 @@ export async function createRequest(req, res) {
     const user = getUserById(req.userId)
     const data = req.body
 
-    // Generate request ID
+    // Generate request ID - use MAX to avoid duplicates
     const year = new Date().getFullYear()
-    const countResult = db.prepare('SELECT COUNT(*) as count FROM coi_requests WHERE request_id LIKE ?').get(`COI-${year}-%`)
-    const count = (countResult && countResult.count !== undefined) ? countResult.count : 0
-    const requestId = `COI-${year}-${String(count + 1).padStart(3, '0')}`
+    const maxResult = db.prepare(`
+      SELECT MAX(CAST(SUBSTR(request_id, 10) AS INTEGER)) as max_num 
+      FROM coi_requests 
+      WHERE request_id LIKE ?
+    `).get(`COI-${year}-%`)
+    const maxNum = maxResult?.max_num || 0
+    const requestId = `COI-${year}-${String(maxNum + 1).padStart(3, '0')}`
 
     // Get field mappings
     const fieldMappings = getFieldMappings()
@@ -210,13 +217,13 @@ export async function createRequest(req, res) {
         request_id, client_id, requester_id, department,
         requestor_name, designation, entity, line_of_service,
         requested_document, language,
-        parent_company, client_location, relationship_with_client, client_type,
+        parent_company, client_location, relationship_with_client, client_type, client_status,
         service_type, service_description, requested_service_period_start, requested_service_period_end,
         full_ownership_structure, pie_status, related_affiliated_entities,
         international_operations, foreign_subsidiaries, global_clearance_status,
         custom_fields, form_version,
         status, stage
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       requestId, 
       standardData.client_id || data.client_id || null, 
@@ -232,6 +239,7 @@ export async function createRequest(req, res) {
       standardData.client_location || data.client_location || '', 
       standardData.relationship_with_client || data.relationship_with_client || '', 
       standardData.client_type || data.client_type || '',
+      standardData.client_status || data.client_status || '',
       standardData.service_type || data.service_type || '', 
       standardData.service_description || data.service_description || '', 
       standardData.requested_service_period_start || data.requested_service_period_start || null, 
@@ -305,6 +313,48 @@ export async function submitRequest(req, res) {
       return res.status(403).json({ error: 'Access denied' })
     }
 
+    // ========================================
+    // FLOOD PREVENTION: Check if user already has pending request for this client
+    // ========================================
+    const existingPending = db.prepare(`
+      SELECT id, request_id FROM coi_requests 
+      WHERE requester_id = ? 
+      AND client_id = ?
+      AND status IN ('Draft', 'Pending Director Approval', 'Pending Compliance', 'Pending Partner', 'Pending Finance')
+      AND id != ?
+    `).get(user.id, request.client_id, req.params.id)
+
+    if (existingPending) {
+      return res.status(400).json({
+        error: 'You already have a pending request for this client. Please complete or withdraw that request first.',
+        existing_request_id: existingPending.id,
+        existing_request_code: existingPending.request_id
+      })
+    }
+
+    // ========================================
+    // GROUP STRUCTURE VALIDATION (IESBA 290.13)
+    // ========================================
+    try {
+      const validatedData = validateGroupStructure(request)
+      // Update request with any modifications (e.g., requires_compliance_verification flag)
+      if (validatedData.requires_compliance_verification) {
+        db.prepare(`
+          UPDATE coi_requests SET requires_compliance_verification = 1 WHERE id = ?
+        `).run(req.params.id)
+      }
+    } catch (validationError) {
+      if (validationError instanceof GroupStructureValidationError) {
+        return res.status(400).json({
+          error: validationError.message,
+          field: validationError.field,
+          code: validationError.code,
+          requiresGroupStructure: true
+        })
+      }
+      throw validationError
+    }
+
     // Check duplication with service type conflict detection
     const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(request.client_id)
     if (!client) {
@@ -317,6 +367,35 @@ export async function submitRequest(req, res) {
       request.pie_status === 'Yes',  // Pass PIE status for stricter rules
       request  // Pro: Pass full request data for Red Lines and IESBA Matrix
     )
+    
+    // ========================================
+    // DUPLICATE BLOCKING WITH JUSTIFICATION
+    // ========================================
+    // If critical duplicates found and no justification provided, block submission
+    const { duplicate_justification } = req.body || {}
+    const criticalDuplicates = duplicates?.filter(d => d.action === 'block') || []
+    
+    if (criticalDuplicates.length > 0 && !duplicate_justification) {
+      return res.status(400).json({
+        error: 'Critical duplicate detected. Justification required to proceed.',
+        requiresJustification: true,
+        duplicates: criticalDuplicates,
+        message: 'A proposal or engagement already exists for this client/service. Please provide a business justification explaining why this submission should proceed.'
+      })
+    }
+    
+    // If justification provided, save it to the request
+    if (duplicate_justification) {
+      db.prepare(`
+        UPDATE coi_requests 
+        SET duplicate_justification = ?,
+            duplicate_override_by = ?,
+            duplicate_override_date = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(duplicate_justification, user.id, req.params.id)
+      
+      console.log(`[Duplicate Override] Request ${request.request_id} - User ${user.name} provided justification: "${duplicate_justification.substring(0, 100)}..."`)
+    }
     
     // Evaluate business rules
     // Use FieldMappingService to prepare request data with all computed fields
@@ -355,10 +434,49 @@ export async function submitRequest(req, res) {
     }
     // If hasBlockRecommendation or hasRequireApproval, status is already 'Pending Compliance' (set above)
 
-    // Update status with all recommendations
-    db.prepare('UPDATE coi_requests SET status = ?, duplication_matches = ? WHERE id = ?').run(
+    // ========================================
+    // PROSPECT TAGGING (Requirement 3)
+    // ========================================
+    // Business Rule: ALL proposals are prospects (regardless of client existence in PRMS)
+    // If engagement_type is 'Proposal', tag as prospect and check PRMS for client linkage
+    let isProspect = false
+    let prmsClientId = null
+    
+    if (request.requested_document === 'Proposal' || request.engagement_type === 'Proposal') {
+      isProspect = true
+      
+      // Check if client exists in PRMS (for group-level services linkage)
+      // Use client_code to check against PRMS
+      if (client.client_code) {
+        try {
+          // Mock PRMS check: Check if client exists in our clients table with a code
+          const prmsClient = db.prepare('SELECT id, client_code FROM clients WHERE client_code = ?').get(client.client_code)
+          if (prmsClient) {
+            prmsClientId = prmsClient.client_code
+            console.log(`[Prospect] Request ${request.request_id} - Prospect linked to existing PRMS client: ${prmsClientId}`)
+          } else {
+            console.log(`[Prospect] Request ${request.request_id} - Prospect is standalone (no PRMS match)`)
+          }
+        } catch (error) {
+          console.error('Error checking PRMS client:', error)
+          // If PRMS check fails, continue without linking (standalone prospect)
+        }
+      }
+    }
+
+    // Update status with all recommendations and prospect information
+    db.prepare(`
+      UPDATE coi_requests 
+      SET status = ?, 
+          duplication_matches = ?,
+          is_prospect = ?,
+          prms_client_id = ?
+      WHERE id = ?
+    `).run(
       newStatus,
       JSON.stringify(allRecommendations),
+      isProspect ? 1 : 0,
+      prmsClientId,
       req.params.id
     )
 
@@ -446,6 +564,13 @@ export async function approveRequest(req, res) {
     // Get approval type and restrictions from request body
     const { approval_type, restrictions, comments } = req.body
     const approvalStatus = approval_type || 'Approved' // 'Approved', 'Approved with Restrictions'
+
+    // Role-based validation: Directors can only Approve or Reject (not "Approved with Restrictions")
+    if (user.role === 'Director' && approvalStatus === 'Approved with Restrictions') {
+      return res.status(403).json({ 
+        error: 'Directors can only approve or reject requests. Additional options (Restrictions, More Info) are available to Compliance and Partner roles.' 
+      })
+    }
 
     let updateField = ''
     let nextStatus = ''
@@ -591,19 +716,26 @@ export async function requestMoreInfo(req, res) {
       return res.status(404).json({ error: 'Request not found' })
     }
 
+    // Role-based validation: Directors cannot request more info (Compliance/Partner only)
+    if (user.role === 'Director') {
+      return res.status(403).json({ 
+        error: 'Directors can only approve or reject requests. The "Need More Info" option is available to Compliance and Partner roles only.' 
+      })
+    }
+
     const { info_required, comments } = req.body
     
     let updateField, notesField
     
-    if (user.role === 'Director' && request.status === 'Pending Director Approval') {
-      updateField = 'director_approval_status'
-      notesField = 'director_approval_notes'
-    } else if (user.role === 'Compliance' && request.status === 'Pending Compliance') {
+    if (user.role === 'Compliance' && request.status === 'Pending Compliance') {
       updateField = 'compliance_review_status'
       notesField = 'compliance_review_notes'
     } else if (user.role === 'Partner' && request.status === 'Pending Partner') {
       updateField = 'partner_approval_status'
       notesField = 'partner_approval_notes'
+    } else if (user.role === 'Finance' && request.status === 'Pending Finance') {
+      updateField = 'finance_approval_status'
+      notesField = 'finance_approval_notes'
     } else {
       return res.status(400).json({ error: 'Invalid action for current status' })
     }
@@ -629,21 +761,51 @@ export async function requestMoreInfo(req, res) {
 export async function rejectRequest(req, res) {
   try {
     const user = getUserById(req.userId)
-    const { reason, recommendations = [], rejection_type = 'fixable' } = req.body
+    const { reason, recommendations = [], rejection_type = 'fixable', rejection_category } = req.body
     const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
 
+    // Meeting Change 2026-01-12: Additional rejection options for COI level and above
+    // Director level: only approve or reject (no additional options)
+    // Compliance and above: additional rejection categories
+    
+    let validRejectionTypes = ['fixable', 'permanent']
+    let validRejectionCategories = []
+    
+    if (user.role === 'Compliance' || user.role === 'Partner') {
+      // Additional rejection options for COI level and above
+      validRejectionCategories = [
+        'Conflict of Interest',
+        'Insufficient Information',
+        'Regulatory Compliance Issue',
+        'Client Risk Assessment',
+        'Service Type Conflict',
+        'Duplication Detected',
+        'Global Clearance Required',
+        'Other'
+      ]
+    } else if (user.role === 'Director') {
+      // Director level: only approve or reject (no additional categories)
+      validRejectionCategories = []
+    }
+
     // Validate rejection_type
-    const validRejectionTypes = ['fixable', 'permanent']
     const finalRejectionType = validRejectionTypes.includes(rejection_type) ? rejection_type : 'fixable'
+    
+    // Validate rejection_category (only for Compliance and above)
+    const finalRejectionCategory = (user.role === 'Compliance' || user.role === 'Partner') && 
+                                   validRejectionCategories.includes(rejection_category) 
+                                   ? rejection_category 
+                                   : null
 
     db.prepare(`
       UPDATE coi_requests 
       SET status = 'Rejected',
           rejection_reason = ?,
           rejection_type = ?,
+          rejection_category = ?,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(reason || 'No reason provided', finalRejectionType, req.params.id)
+    `).run(reason || 'No reason provided', finalRejectionType, finalRejectionCategory, req.params.id)
     
     // Enhanced audit trail for Compliance rejections
     if (user.role === 'Compliance') {
@@ -660,14 +822,19 @@ export async function rejectRequest(req, res) {
         rejectedRecommendations: rejectedRecommendations.length > 0 ? rejectedRecommendations : allRecommendations,
         justification: reason,
         approvalLevel: 'Compliance',
-        notes: reason
+        notes: reason,
+        rejectionCategory: finalRejectionCategory
       })
     }
     
-    // Send rejection notification with rejection type
-    sendRejectionNotification(req.params.id, user.name, reason || 'No reason provided', finalRejectionType)
+    // Send rejection notification with rejection type and category
+    sendRejectionNotification(req.params.id, user.name, reason || 'No reason provided', finalRejectionType, finalRejectionCategory)
     
-    res.json({ success: true, rejection_type: finalRejectionType })
+    res.json({ 
+      success: true, 
+      rejection_type: finalRejectionType,
+      rejection_category: finalRejectionCategory
+    })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -806,7 +973,21 @@ export async function deleteRequest(req, res) {
       // Table might not exist, ignore
     }
     
-    // 9. Finally, delete the request itself
+    // 9. Delete engagement codes
+    try {
+      db.prepare('DELETE FROM coi_engagement_codes WHERE coi_request_id = ?').run(req.params.id)
+    } catch (err) {
+      // Table might not exist, ignore
+    }
+    
+    // 10. Delete compliance audit log entries
+    try {
+      db.prepare('DELETE FROM compliance_audit_log WHERE coi_request_id = ?').run(req.params.id)
+    } catch (err) {
+      // Table might not exist, ignore
+    }
+    
+    // 11. Finally, delete the request itself
     const result = db.prepare('DELETE FROM coi_requests WHERE id = ?').run(req.params.id)
     
     if (result.changes === 0) {
@@ -1110,5 +1291,376 @@ export async function reEvaluateRequest(req, res) {
   }
 }
 
+/**
+ * Refresh duplicate detection for an existing request
+ * Re-runs the improved fuzzy matching algorithm and updates stored results
+ */
+export async function refreshDuplicates(req, res) {
+  try {
+    const { id } = req.params
+    
+    // Get the request with client info
+    const request = db.prepare(`
+      SELECT r.*, c.client_name, c.client_code
+      FROM coi_requests r
+      LEFT JOIN clients c ON r.client_id = c.id
+      WHERE r.id = ?
+    `).get(id)
+    
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    // Re-run duplicate detection with the improved algorithm
+    const duplicates = await checkDuplication(
+      request.client_name,
+      request.id,
+      request.service_type,
+      request.pie_status === 'Yes',
+      request
+    )
+    
+    // Re-run rule evaluation
+    const requestDataForRules = {
+      ...request,
+      client_name: request.client_name
+    }
+    const ruleEvaluation = evaluateRules(FieldMappingService.prepareForRuleEvaluation(requestDataForRules))
+    
+    // Combine results
+    const allRecommendations = {
+      duplicates: duplicates || [],
+      ruleRecommendations: ruleEvaluation.recommendations || [],
+      totalRulesEvaluated: ruleEvaluation.totalRulesEvaluated || 0,
+      matchedRules: ruleEvaluation.matchedRules || 0,
+      refreshedAt: new Date().toISOString()
+    }
+    
+    // Update the stored results
+    db.prepare(`
+      UPDATE coi_requests 
+      SET duplication_matches = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(JSON.stringify(allRecommendations), id)
+    
+    console.log(`[Refresh Duplicates] Request ${request.request_id}: ${duplicates?.length || 0} matches found (was refreshed)`)
+    
+    res.json({
+      success: true,
+      message: 'Duplicate detection refreshed',
+      duplicatesFound: duplicates?.length || 0,
+      recommendations: allRecommendations
+    })
+  } catch (error) {
+    console.error('Error refreshing duplicates:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
 // getUserById now imported from utils/userUtils.js
 
+// ========================================
+// PROSPECT MANAGEMENT ENDPOINTS (Req 3)
+// ========================================
+
+/**
+ * Get all prospect requests (filtered)
+ */
+export async function getProspectRequests(req, res) {
+  try {
+    const { status, converted, linked_only } = req.query
+    
+    let query = `
+      SELECT cr.*, c.client_name, c.client_code
+      FROM coi_requests cr
+      LEFT JOIN clients c ON cr.client_id = c.id
+      WHERE cr.is_prospect = 1
+    `
+    const params = []
+    
+    if (status) {
+      query += ' AND cr.status = ?'
+      params.push(status)
+    }
+    
+    if (converted === 'true') {
+      query += ' AND cr.prospect_converted_at IS NOT NULL'
+    } else if (converted === 'false') {
+      query += ' AND cr.prospect_converted_at IS NULL'
+    }
+    
+    if (linked_only === 'true') {
+      query += ' AND cr.prms_client_id IS NOT NULL'
+    }
+    
+    query += ' ORDER BY cr.created_at DESC'
+    
+    const prospects = db.prepare(query).all(...params)
+    
+    res.json({ prospects, total: prospects.length })
+  } catch (error) {
+    console.error('Error fetching prospect requests:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Get prospect conversion metrics
+ */
+export async function getProspectConversionMetrics(req, res) {
+  try {
+    const { period = 'month' } = req.query // 'month', 'quarter', 'year'
+    
+    // Calculate date range based on period
+    let dateFilter = ''
+    const now = new Date()
+    if (period === 'month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+      dateFilter = `AND created_at >= '${firstDay}'`
+    } else if (period === 'quarter') {
+      const quarter = Math.floor(now.getMonth() / 3)
+      const firstDay = new Date(now.getFullYear(), quarter * 3, 1).toISOString()
+      dateFilter = `AND created_at >= '${firstDay}'`
+    } else if (period === 'year') {
+      const firstDay = new Date(now.getFullYear(), 0, 1).toISOString()
+      dateFilter = `AND created_at >= '${firstDay}'`
+    }
+    
+    // Total prospects
+    const totalProspects = db.prepare(`
+      SELECT COUNT(*) as count FROM coi_requests 
+      WHERE is_prospect = 1 ${dateFilter}
+    `).get()
+    
+    // Prospects linked to existing PRMS clients
+    const linkedProspects = db.prepare(`
+      SELECT COUNT(*) as count FROM coi_requests 
+      WHERE is_prospect = 1 AND prms_client_id IS NOT NULL ${dateFilter}
+    `).get()
+    
+    // Converted prospects
+    const convertedProspects = db.prepare(`
+      SELECT COUNT(*) as count FROM coi_requests 
+      WHERE is_prospect = 1 AND prospect_converted_at IS NOT NULL ${dateFilter}
+    `).get()
+    
+    // Existing clients (not prospects)
+    const existingClients = db.prepare(`
+      SELECT COUNT(*) as count FROM coi_requests 
+      WHERE is_prospect = 0 ${dateFilter}
+    `).get()
+    
+    // Calculate conversion rate
+    const conversionRate = totalProspects.count > 0 
+      ? ((convertedProspects.count / totalProspects.count) * 100).toFixed(2)
+      : 0
+    
+    res.json({
+      period,
+      totalProspects: totalProspects.count,
+      linkedProspects: linkedProspects.count,
+      standaloneProspects: totalProspects.count - linkedProspects.count,
+      convertedProspects: convertedProspects.count,
+      existingClients: existingClients.count,
+      conversionRate: parseFloat(conversionRate),
+      totalRequests: totalProspects.count + existingClients.count
+    })
+  } catch (error) {
+    console.error('Error fetching prospect metrics:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+/**
+ * Clear conflict flag for a specific conflict entity
+ * Requirement: Parent Company Verification - Allow Compliance to mark false positives
+ */
+export async function clearConflictFlag(req, res) {
+  try {
+    const { id } = req.params
+    const { conflict_entity, notes } = req.body
+    
+    const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(id)
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    // Get current conflicts
+    let conflicts = []
+    if (request.group_conflicts_detected) {
+      try {
+        conflicts = typeof request.group_conflicts_detected === 'string'
+          ? JSON.parse(request.group_conflicts_detected)
+          : request.group_conflicts_detected
+      } catch (e) {
+        console.error('Error parsing group_conflicts_detected:', e)
+      }
+    }
+    
+    // Remove the specified conflict
+    const remainingConflicts = conflicts.filter(c => c.entity_name !== conflict_entity)
+    
+    // Update request
+    db.prepare(`
+      UPDATE coi_requests 
+      SET group_conflicts_detected = ?,
+          requires_compliance_verification = ?
+      WHERE id = ?
+    `).run(
+      remainingConflicts.length > 0 ? JSON.stringify(remainingConflicts) : null,
+      remainingConflicts.length > 0 ? 1 : 0,
+      id
+    )
+    
+    res.json({
+      success: true,
+      message: 'Conflict flag cleared',
+      remaining_conflicts: remainingConflicts,
+      remaining_conflicts_count: remainingConflicts.length
+    })
+  } catch (error) {
+    console.error('Error clearing conflict flag:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Get resolved conflicts for dashboard/reports
+ */
+export async function getResolvedConflicts(req, res) {
+  try {
+    const { status, date_from, date_to } = req.query
+    
+    let query = `
+      SELECT 
+        cr.id,
+        cr.request_id,
+        cr.client_name,
+        cr.service_type,
+        cr.group_conflicts_detected,
+        cr.requires_compliance_verification,
+        cr.created_at
+      FROM coi_requests cr
+      WHERE cr.group_conflicts_detected IS NOT NULL
+    `
+    const params = []
+    
+    if (status) {
+      query += ' AND cr.status = ?'
+      params.push(status)
+    }
+    
+    if (date_from) {
+      query += ' AND cr.created_at >= ?'
+      params.push(date_from)
+    }
+    
+    if (date_to) {
+      query += ' AND cr.created_at <= ?'
+      params.push(date_to)
+    }
+    
+    query += ' ORDER BY cr.created_at DESC'
+    
+    const requests = db.prepare(query).all(...params)
+    
+    // Parse conflicts for each request
+    const resolvedConflicts = requests.map(req => {
+      let conflicts = []
+      try {
+        conflicts = typeof req.group_conflicts_detected === 'string'
+          ? JSON.parse(req.group_conflicts_detected)
+          : req.group_conflicts_detected
+      } catch (e) {
+        console.error('Error parsing conflicts:', e)
+      }
+      
+      return {
+        ...req,
+        conflicts,
+        conflicts_count: conflicts.length
+      }
+    })
+    
+    res.json({
+      conflicts: resolvedConflicts,
+      total: resolvedConflicts.length
+    })
+  } catch (error) {
+    console.error('Error fetching resolved conflicts:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Dismiss a resolved conflict from dashboard
+ */
+export async function dismissResolvedConflict(req, res) {
+  try {
+    const { id } = req.params
+    const { reason } = req.body
+    const userId = req.userId
+    
+    const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(id)
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    // Insert into dismissed_resolved_conflicts table
+    db.prepare(`
+      INSERT INTO dismissed_resolved_conflicts (request_id, dismissed_by, reason)
+      VALUES (?, ?, ?)
+    `).run(id, userId, reason || 'Dismissed from dashboard')
+    
+    res.json({
+      success: true,
+      message: 'Resolved conflict dismissed'
+    })
+  } catch (error) {
+    console.error('Error dismissing resolved conflict:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Verify group structure for a COI request (Compliance only)
+ * Requirement: Parent Company Verification
+ */
+export async function verifyGroupStructure(req, res) {
+  try {
+    const { id } = req.params
+    const { group_structure, parent_company, notes } = req.body
+    const userId = req.userId
+    
+    const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(id)
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    
+    // Update group structure verification
+    db.prepare(`
+      UPDATE coi_requests 
+      SET group_structure = ?,
+          parent_company = ?,
+          parent_company_verified_by = ?,
+          parent_company_verified_at = datetime('now'),
+          requires_compliance_verification = 0
+      WHERE id = ?
+    `).run(
+      group_structure || request.group_structure,
+      parent_company || request.parent_company,
+      userId,
+      id
+    )
+    
+    res.json({
+      success: true,
+      message: 'Group structure verified',
+      group_structure: group_structure || request.group_structure,
+      parent_company: parent_company || request.parent_company
+    })
+  } catch (error) {
+    console.error('Error verifying group structure:', error)
+    res.status(500).json({ error: error.message })
+  }
+}

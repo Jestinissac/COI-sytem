@@ -46,9 +46,9 @@
         <div class="flex-1">
           <!-- Overview Tab -->
           <div v-if="activeTab === 'overview'" class="space-y-6">
-            <!-- Stats Cards -->
+            <!-- Stats Cards - Clickable -->
             <div class="grid grid-cols-4 gap-4">
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'pending'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-indigo-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Pending Finance</p>
@@ -61,7 +61,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'codes'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Code Queue</p>
@@ -74,7 +74,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'codes'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-green-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Active Engagements</p>
@@ -87,7 +87,7 @@
                   </div>
                 </div>
               </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div @click="activeTab = 'codes'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-purple-300 transition-all">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Codes Generated</p>

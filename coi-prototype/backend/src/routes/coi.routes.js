@@ -17,7 +17,14 @@ import {
   getDashboardData,
   updateMonitoring,
   getMonitoringAlerts,
-  reEvaluateRequest
+  reEvaluateRequest,
+  refreshDuplicates,
+  getProspectRequests,
+  getProspectConversionMetrics,
+  verifyGroupStructure,
+  clearConflictFlag,
+  getResolvedConflicts,
+  dismissResolvedConflict
 } from '../controllers/coiController.js'
 import { findSimilarCases, findCasesByCriteria, getClientDecisionHistory } from '../services/similarCasesService.js'
 import { getRegulation, getAllRegulations, searchRegulations, getApplicableRegulations } from '../services/regulationService.js'
@@ -29,7 +36,8 @@ import {
   sendIntervalMonitoringAlerts,
   checkRenewalAlerts, 
   getMonitoringAlertsSummary,
-  checkAndLapseExpiredProposals
+  checkAndLapseExpiredProposals,
+  check3YearRenewalAlerts
 } from '../services/monitoringService.js'
 import { getFilesForRequest, getISQMDocuments, getISQMDocumentTypes, getFileStatistics } from '../services/fileUploadService.js'
 import { uploadAttachment, getAttachments, downloadAttachment, deleteAttachment } from '../controllers/attachmentController.js'
@@ -92,6 +100,7 @@ router.use(authenticateToken)
 
 // Request CRUD
 router.get('/requests', getMyRequests)
+router.get('/requests/prospects', getProspectRequests) // Must come before /:id
 router.get('/requests/:id', getRequestById)
 router.post('/requests', createRequest)
 router.put('/requests/:id', updateRequest)
@@ -108,6 +117,17 @@ router.post('/requests/:id/need-more-info', requestMoreInfo) // Enhanced: return
 // Stale request handling - re-evaluate against current rules
 router.post('/requests/:id/re-evaluate', requireRole('Compliance'), reEvaluateRequest)
 
+// Group structure verification (Compliance only)
+router.post('/requests/:id/verify-group-structure', requireRole('Compliance'), verifyGroupStructure)
+router.post('/requests/:id/clear-conflict-flag', requireRole('Compliance'), clearConflictFlag)
+
+// Resolved conflicts tracking (for dashboard/reports)
+router.get('/resolved-conflicts', requireRole('Compliance', 'Partner'), getResolvedConflicts)
+router.post('/resolved-conflicts/:id/dismiss', requireRole('Compliance', 'Partner'), dismissResolvedConflict)
+
+// Refresh duplicate detection with improved algorithm
+router.post('/requests/:id/refresh-duplicates', requireRole('Compliance', 'Admin', 'Super Admin'), refreshDuplicates)
+
 // Finance
 router.post('/requests/:id/generate-code', requireRole('Finance'), generateEngagementCode)
 
@@ -116,6 +136,7 @@ router.post('/requests/:id/execute', requireRole('Admin'), executeProposal)
 
 // Dashboards
 router.get('/dashboard/:role', getDashboardData)
+router.get('/dashboard/prospect-metrics', getProspectConversionMetrics)
 
 // Monitoring (Admin only)
 router.post('/monitoring/update', requireRole('Admin'), updateMonitoring)
@@ -163,6 +184,16 @@ router.get('/monitoring/summary', requireRole('Admin'), async (req, res) => {
 router.post('/monitoring/check-lapses', requireRole('Admin', 'Super Admin'), async (req, res) => {
   try {
     const result = await checkAndLapseExpiredProposals()
+    res.json({ success: true, result })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// 3-Year renewal alerts manual trigger
+router.post('/monitoring/check-3year-renewals', requireRole('Admin', 'Super Admin'), async (req, res) => {
+  try {
+    const result = await check3YearRenewalAlerts()
     res.json({ success: true, result })
   } catch (error) {
     res.status(500).json({ error: error.message })

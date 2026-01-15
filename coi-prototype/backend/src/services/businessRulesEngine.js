@@ -95,19 +95,49 @@ export function evaluateRules(requestData) {
         ...results
       ]
       
+      // De-duplicate recommendations by rule name/type to prevent spam
+      // Keep the first occurrence of each unique rule (highest priority sources first: redLines > IESBA > business rules)
+      const uniqueRecommendations = []
+      const seenRuleKeys = new Set()
+      
+      for (const rec of allRecommendations) {
+        // Create unique key from rule name or type
+        const key = rec.ruleName || rec.type || `${rec.ruleType}-${rec.reason}`
+        
+        if (!seenRuleKeys.has(key)) {
+          seenRuleKeys.add(key)
+          uniqueRecommendations.push(rec)
+        }
+      }
+      
       return {
-        recommendations: allRecommendations,
+        recommendations: uniqueRecommendations,
         totalRulesEvaluated: rules.length,
         matchedRules: results.length,
+        uniqueRecommendations: uniqueRecommendations.length,
+        duplicatesRemoved: allRecommendations.length - uniqueRecommendations.length,
         redLinesDetected: redLineRecommendations.length,
         iesbaRecommendations: iesbaRecommendations.length,
         businessRuleRecommendations: results.length
       }
     } else {
+      // Standard edition: Also de-duplicate actions
+      const uniqueActions = []
+      const seenActionKeys = new Set()
+      
+      for (const action of results) {
+        const key = action.ruleName || `${action.ruleType}-${action.reason}`
+        if (!seenActionKeys.has(key)) {
+          seenActionKeys.add(key)
+          uniqueActions.push(action)
+        }
+      }
+      
       return {
-        actions: results,
+        actions: uniqueActions,
         totalRulesEvaluated: rules.length,
-        matchedRules: results.length
+        matchedRules: results.length,
+        duplicatesRemoved: results.length - uniqueActions.length
       }
     }
   } catch (error) {
@@ -278,7 +308,7 @@ function evaluateConditionGroups(rule, requestData) {
         continue
       }
       
-      const fieldValue = FieldMappingService.getValue(enhancedRequestData, cond.field)
+      const fieldValue = FieldMappingService.getValue(requestData, cond.field)
       const condResult = evaluateCondition(fieldValue, cond.conditionOperator, cond.value)
       
       const conditionDesc = `${cond.field} ${cond.conditionOperator} "${cond.value}"`

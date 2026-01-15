@@ -87,6 +87,12 @@ const router = createRouter({
           meta: { roles: ['Requester', 'Director'] }
         },
         {
+          path: 'international-operations-demo',
+          name: 'InternationalOperationsDemo',
+          component: () => import('@/views/InternationalOperationsDemo.vue'),
+          meta: { requiresAuth: true }
+        },
+        {
           path: 'request/:id',
           name: 'ViewCOIRequest',
           component: () => import('@/views/COIRequestDetail.vue'),
@@ -105,10 +111,40 @@ const router = createRouter({
           meta: { roles: ['Admin', 'Super Admin'], requiresPro: true }
         },
         {
+          path: 'entity-codes',
+          name: 'EntityCodesManagement',
+          component: () => import('@/views/EntityCodesManagement.vue'),
+          meta: { roles: ['Super Admin'] }
+        },
+        {
+          path: 'service-catalog',
+          name: 'ServiceCatalogManagement',
+          component: () => import('@/views/ServiceCatalogManagement.vue'),
+          meta: { roles: ['Super Admin', 'Admin', 'Compliance'] }
+        },
+        {
           path: 'reports',
+          name: 'Reports',
+          component: () => import('@/views/Reports.vue'),
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'reports-old',
           name: 'ReportingDashboard',
           component: () => import('@/views/ReportingDashboard.vue'),
           meta: { roles: ['Admin', 'Super Admin', 'Compliance'] }
+        },
+        {
+          path: 'prospects',
+          name: 'ProspectManagement',
+          component: () => import('@/views/ProspectManagement.vue'),
+          meta: { roles: ['Admin', 'Super Admin', 'Compliance', 'Partner'] }
+        },
+        {
+          path: 'compliance/client-services',
+          name: 'ComplianceClientServices',
+          component: () => import('@/views/ComplianceClientServices.vue'),
+          meta: { roles: ['Compliance', 'Partner', 'Super Admin'] }
         }
       ]
     },

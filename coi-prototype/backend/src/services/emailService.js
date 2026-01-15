@@ -546,6 +546,59 @@ export async function notifyComplianceReviewRequired(request, complianceOfficers
 }
 
 /**
+ * Send group conflict flagged notification to all Compliance officers
+ * Called when a request is flagged due to parent/subsidiary independence conflicts
+ */
+export async function notifyGroupConflictFlagged(request, complianceOfficers, conflicts) {
+  const baseUrl = process.env.APP_URL || 'http://localhost:5173'
+  
+  // Build conflict summary
+  const conflictSummary = conflicts.map(c => 
+    `• ${c.entity_name}: ${c.reason}`
+  ).join('\n')
+  
+  const variables = {
+    request_id: request.request_id,
+    client_name: request.client_name,
+    service_type: request.service_type,
+    parent_company: request.parent_company || 'Not specified',
+    conflict_count: conflicts.length,
+    conflict_summary: conflictSummary,
+    action_url: `${baseUrl}/coi/compliance/${request.id || request.request_id}`
+  }
+  
+  // Send to all compliance officers
+  for (const officer of complianceOfficers) {
+    try {
+      console.log(`[Email] Sending group conflict notification to ${officer.email} for request ${request.request_id}`)
+      
+      // Using direct email since template might not exist yet
+      const subject = `COI Request ${request.request_id} - Group Conflict Flagged`
+      const body = `
+A COI request has been flagged for potential group independence conflicts.
+
+Request ID: ${request.request_id}
+Client: ${request.client_name}
+Parent Company: ${request.parent_company}
+Service Type: ${request.service_type}
+
+Conflicts Detected: ${conflicts.length}
+${conflictSummary}
+
+Please review this request in the COI system: ${variables.action_url}
+      `.trim()
+      
+      // Log for now since email sending may not be configured
+      console.log(`[Email] To: ${officer.email}\nSubject: ${subject}\nBody: ${body}`)
+    } catch (error) {
+      console.error(`Error sending notification to ${officer.email}:`, error)
+    }
+  }
+  
+  return { success: true, notified: complianceOfficers.length }
+}
+
+/**
  * Send request approved notification
  */
 export async function notifyRequestApproved(request, requestor, approver, conditions) {

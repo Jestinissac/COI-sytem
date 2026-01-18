@@ -8,10 +8,15 @@
             <div>
               <h1 class="text-2xl font-semibold text-gray-900">Client Services Overview</h1>
               <p class="text-sm text-gray-500 mt-1">All services for existing clients (excluding costs/fees) - Requirement 7</p>
+              <div class="mt-2 flex items-center gap-2">
+                <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">Compliance View</span>
+                <span class="text-xs text-gray-500">Financial data (costs/fees) excluded for compliance review</span>
+              </div>
             </div>
             <div class="flex items-center gap-3">
               <button
                 @click="showAllClients = !showAllClients"
+                :aria-label="showAllClients ? 'View single client' : 'View all clients'"
                 class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 transition-colors"
               >
                 {{ showAllClients ? 'View Single Client' : 'View All Clients' }}
@@ -136,7 +141,7 @@
           <h2 class="font-semibold text-gray-900">All Client Services</h2>
           <p class="text-sm text-gray-500 mt-1">{{ allServices.length }} service(s) across all clients</p>
         </div>
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto -mx-6 md:mx-0">
           <table class="w-full">
             <thead class="bg-gray-50">
               <tr>
@@ -148,6 +153,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partner</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Costs/Fees</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -179,12 +185,20 @@
                     {{ service.source }}
                   </span>
                 </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 italic">
+                  <div class="flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    Excluded
+                  </div>
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button @click="viewService(service)" class="text-blue-600 hover:text-blue-900">View</button>
                 </td>
               </tr>
               <tr v-if="filteredAllServices.length === 0">
-                <td colspan="9" class="px-6 py-8 text-center text-gray-500">
+                <td colspan="10" class="px-6 py-8 text-center text-gray-500">
                   No services found matching your filters.
                 </td>
               </tr>
@@ -193,13 +207,20 @@
         </div>
       </div>
     </div>
+
+    <!-- Toast Notifications -->
+    <ToastContainer />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from '@/composables/useToast'
+import ToastContainer from '@/components/ui/ToastContainer.vue'
 import api from '@/services/api'
+
+const toast = useToast()
 
 const router = useRouter()
 
@@ -291,7 +312,7 @@ async function fetchClientServices() {
     clientServices.value = response.data.services || []
   } catch (error: any) {
     console.error('Error fetching client services:', error)
-    alert(error.response?.data?.error || 'Failed to fetch client services')
+    toast.error(error.response?.data?.error || 'Failed to fetch client services. Please try again.')
   } finally {
     loading.value = false
   }
@@ -313,7 +334,7 @@ async function fetchAllClientServices() {
     allServices.value = response.data.services || []
   } catch (error: any) {
     console.error('Error fetching all client services:', error)
-    alert(error.response?.data?.error || 'Failed to fetch services')
+    toast.error(error.response?.data?.error || 'Failed to fetch services. Please try again.')
   } finally {
     loading.value = false
   }

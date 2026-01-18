@@ -1,6 +1,14 @@
 import express from 'express'
 import { authenticateToken, requireRole } from '../middleware/auth.js'
 import {
+  reportGenerationRateLimiter,
+  reportExportRateLimiter
+} from '../middleware/rateLimiter.js'
+import {
+  validateReportFilters,
+  validateExportSize
+} from '../middleware/reportValidator.js'
+import {
   getReportData,
   exportReportPDF,
   exportReportExcel
@@ -15,7 +23,7 @@ router.use(authenticateToken)
  * Get report data (preview)
  * POST /api/reports/:role/:reportType
  */
-router.post('/:role/:reportType', (req, res, next) => {
+router.post('/:role/:reportType', reportGenerationRateLimiter, validateReportFilters, (req, res, next) => {
   const { role } = req.params
   const userRole = req.userRole
   
@@ -41,7 +49,7 @@ router.post('/:role/:reportType', (req, res, next) => {
  * Export report as PDF
  * POST /api/reports/:role/:reportType/export/pdf
  */
-router.post('/:role/:reportType/export/pdf', (req, res, next) => {
+router.post('/:role/:reportType/export/pdf', reportExportRateLimiter, validateReportFilters, validateExportSize, (req, res, next) => {
   const { role } = req.params
   const userRole = req.userRole
   
@@ -66,7 +74,7 @@ router.post('/:role/:reportType/export/pdf', (req, res, next) => {
  * Export report as Excel
  * POST /api/reports/:role/:reportType/export/excel
  */
-router.post('/:role/:reportType/export/excel', (req, res, next) => {
+router.post('/:role/:reportType/export/excel', reportExportRateLimiter, validateReportFilters, validateExportSize, (req, res, next) => {
   const { role } = req.params
   const userRole = req.userRole
   

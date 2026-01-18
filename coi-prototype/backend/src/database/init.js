@@ -940,6 +940,17 @@ export async function initDatabase() {
     console.log('Note: Countries migration/seeding skipped (may already exist)')
   }
   
+  // Add missing indexes for reports performance
+  try {
+    db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_created_at ON coi_requests(created_at)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_service_type ON coi_requests(service_type)')
+    console.log('Report performance indexes created/verified')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.error('Index creation error:', error.message)
+    }
+  }
+
   // Seed IESBA rules (Pro Version)
   try {
     // Use unified seeder instead of separate scripts

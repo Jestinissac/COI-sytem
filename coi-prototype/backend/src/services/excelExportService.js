@@ -222,9 +222,12 @@ export async function exportGlobalCOIFormExcel(req, res) {
 
 /**
  * Generate Excel report for any report type
+ * Optimized for large datasets with chunking
  */
 export async function generateReportExcel(reportData, reportType, reportTitle, filters = {}) {
   try {
+    const MAX_EXPORT_RECORDS = 10000 // Limit to prevent memory issues
+    
     const workbook = new ExcelJS.Workbook()
     
     // Summary sheet
@@ -274,7 +277,7 @@ export async function generateReportExcel(reportData, reportType, reportTitle, f
       })
     }
     
-    // Data sheets
+    // Data sheets - with chunking for large datasets
     if (reportData.requests && reportData.requests.length > 0) {
       const dataSheet = workbook.addWorksheet('Requests')
       
@@ -327,9 +330,10 @@ export async function generateReportExcel(reportData, reportType, reportTitle, f
     }
     
     if (reportData.prospects && reportData.prospects.length > 0) {
+      const prospectsToExport = reportData.prospects.slice(0, MAX_EXPORT_RECORDS)
       const prospectsSheet = workbook.addWorksheet('Prospects')
       
-      const headers = Object.keys(reportData.prospects[0])
+      const headers = Object.keys(prospectsToExport[0])
       prospectsSheet.getRow(1).values = headers.map(h => h.replace(/_/g, ' ').toUpperCase())
       prospectsSheet.getRow(1).font = { bold: true }
       prospectsSheet.getRow(1).fill = {
@@ -338,16 +342,43 @@ export async function generateReportExcel(reportData, reportType, reportTitle, f
         fgColor: { argb: 'FFE0E0E0' }
       }
       
-      reportData.prospects.forEach((row, index) => {
-        const excelRow = prospectsSheet.getRow(index + 2)
+      if (reportData.prospects.length > MAX_EXPORT_RECORDS) {
+        prospectsSheet.getRow(2).values = [`Note: Showing first ${MAX_EXPORT_RECORDS.toLocaleString()} of ${reportData.prospects.length.toLocaleString()} records`]
+        prospectsSheet.getRow(2).font = { bold: true, italic: true }
+        prospectsSheet.mergeCells(`A2:${String.fromCharCode(64 + headers.length)}2`)
+      }
+      
+      const dataStartRow = reportData.prospects.length > MAX_EXPORT_RECORDS ? 3 : 2
+      prospectsToExport.forEach((row, index) => {
+        const excelRow = prospectsSheet.getRow(dataStartRow + index)
         headers.forEach((header, colIndex) => {
-          excelRow.getCell(colIndex + 1).value = row[header] || ''
+          const cell = excelRow.getCell(colIndex + 1)
+          const value = row[header]
+          
+          if (header.includes('date') || header.includes('Date') || header.includes('_at')) {
+            if (value && typeof value === 'string' && value.includes('T')) {
+              cell.value = new Date(value)
+              cell.numFmt = 'mm/dd/yyyy'
+            } else {
+              cell.value = value || ''
+            }
+          } else if (typeof value === 'number') {
+            cell.value = value
+            cell.numFmt = '#,##0'
+          } else {
+            cell.value = value || ''
+          }
         })
       })
       
       headers.forEach((_, index) => {
         prospectsSheet.getColumn(index + 1).width = 20
       })
+      
+      prospectsSheet.views = [{
+        state: 'frozen',
+        ySplit: reportData.prospects.length > MAX_EXPORT_RECORDS ? 2 : 1
+      }]
     }
     
     // Generate buffer

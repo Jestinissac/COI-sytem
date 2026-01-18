@@ -1,22 +1,22 @@
-// Simple toast notification composable
+import { useToastStore } from '@/stores/toast'
+
+export interface Toast {
+  id: string
+  message: string
+  type: 'success' | 'error' | 'warning' | 'info'
+  duration?: number
+}
+
+// Toast notification composable
 export function useToast() {
-  const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
-    // Simple alert for now - can be enhanced with a toast library later
-    if (type === 'error') {
-      alert(`Error: ${message}`)
-    } else if (type === 'success') {
-      alert(`Success: ${message}`)
-    } else if (type === 'warning') {
-      alert(`Warning: ${message}`)
-    } else {
-      alert(message)
-    }
-  }
+  const { toasts, addToast, removeToast } = useToastStore()
 
   return {
-    success: (message: string) => showToast(message, 'success'),
-    error: (message: string) => showToast(message, 'error'),
-    warning: (message: string) => showToast(message, 'warning'),
-    info: (message: string) => showToast(message, 'info')
+    toasts,
+    success: (message: string, duration = 5000) => addToast(message, 'success', duration),
+    error: (message: string, duration = 7000) => addToast(message, 'error', duration),
+    warning: (message: string, duration = 6000) => addToast(message, 'warning', duration),
+    info: (message: string, duration = 5000) => addToast(message, 'info', duration),
+    remove: removeToast
   }
 }

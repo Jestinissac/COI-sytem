@@ -9,6 +9,8 @@ import {
 } from '../services/reportDataService.js'
 import { generatePDFReport } from '../services/pdfExportService.js'
 import { generateReportExcel } from '../services/excelExportService.js'
+import { logAuditTrail } from '../services/auditTrailService.js'
+import { getCachedReportData, cacheReportData } from '../services/reportCacheService.js'
 
 /**
  * Get report data (no export)
@@ -19,9 +21,12 @@ export async function getReportData(req, res) {
     const filters = req.body || {}
     const userId = req.userId
     
-    let reportData
+    // Check cache first (skip cache if includeData is false or page > 1)
+    const skipCache = filters.includeData === 'false' || parseInt(filters.page) > 1
+    let reportData = skipCache ? null : getCachedReportData(role, reportType, filters)
     
-    // Route to appropriate report function based on role and reportType
+    if (!reportData) {
+      // Route to appropriate report function based on role and reportType
     switch (role) {
       case 'requester':
         if (reportType === 'my-requests-summary') {
@@ -75,11 +80,48 @@ export async function getReportData(req, res) {
         
       default:
         return res.status(400).json({ error: 'Invalid role' })
+      }
+      
+      // Cache the report data (only cache first page and if includeData is true)
+      if (!skipCache && filters.includeData !== 'false' && (!filters.page || parseInt(filters.page) === 1)) {
+        const cacheType = reportData.summary ? 'SUMMARY' : 'PAGINATED'
+        cacheReportData(role, reportType, filters, reportData, cacheType)
+      }
     }
+    
+    // Audit log: Report generation
+    logAuditTrail(
+      userId,
+      'Report',
+      null,
+      'REPORT_GENERATED',
+      `Generated ${reportType} report for role ${role}`,
+      {
+        role,
+        reportType,
+        filters: JSON.stringify(filters),
+        timestamp: new Date().toISOString()
+      }
+    )
     
     res.json(reportData)
   } catch (error) {
     console.error('Error getting report data:', error)
+    
+    // Audit log: Report generation failure
+    logAuditTrail(
+      userId,
+      'Report',
+      null,
+      'REPORT_GENERATION_FAILED',
+      `Failed to generate ${req.params.reportType} report: ${error.message}`,
+      {
+        role: req.params.role,
+        reportType: req.params.reportType,
+        error: error.message
+      }
+    )
+    
     res.status(500).json({ error: error.message || 'Failed to get report data' })
   }
 }
@@ -161,6 +203,25 @@ export async function exportReportPDF(req, res) {
     
     // Generate PDF
     const buffer = await generatePDFReport(reportData, reportType, reportTitle, filters)
+    const fileSize = buffer.length
+    
+    // Audit log: PDF export
+    logAuditTrail(
+      userId,
+      'Report',
+      null,
+      'REPORT_EXPORTED_PDF',
+      `Exported ${reportType} report as PDF`,
+      {
+        role,
+        reportType,
+        reportTitle,
+        fileSize,
+        fileSizeMB: (fileSize / (1024 * 1024)).toFixed(2),
+        filters: JSON.stringify(filters),
+        timestamp: new Date().toISOString()
+      }
+    )
     
     // Send file
     res.setHeader('Content-Type', 'application/pdf')
@@ -168,6 +229,21 @@ export async function exportReportPDF(req, res) {
     res.send(buffer)
   } catch (error) {
     console.error('Error exporting PDF report:', error)
+    
+    // Audit log: PDF export failure
+    logAuditTrail(
+      req.userId,
+      'Report',
+      null,
+      'REPORT_EXPORT_PDF_FAILED',
+      `Failed to export ${req.params.reportType} as PDF: ${error.message}`,
+      {
+        role: req.params.role,
+        reportType: req.params.reportType,
+        error: error.message
+      }
+    )
+    
     res.status(500).json({ error: error.message || 'Failed to export PDF report' })
   }
 }
@@ -249,6 +325,26 @@ export async function exportReportExcel(req, res) {
     
     // Generate Excel
     const { buffer, filename } = await generateReportExcel(reportData, reportType, reportTitle, filters)
+    const fileSize = buffer.length
+    
+    // Audit log: Excel export
+    logAuditTrail(
+      userId,
+      'Report',
+      null,
+      'REPORT_EXPORTED_EXCEL',
+      `Exported ${reportType} report as Excel`,
+      {
+        role,
+        reportType,
+        reportTitle,
+        filename,
+        fileSize,
+        fileSizeMB: (fileSize / (1024 * 1024)).toFixed(2),
+        filters: JSON.stringify(filters),
+        timestamp: new Date().toISOString()
+      }
+    )
     
     // Send file
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -256,6 +352,21 @@ export async function exportReportExcel(req, res) {
     res.send(buffer)
   } catch (error) {
     console.error('Error exporting Excel report:', error)
+    
+    // Audit log: Excel export failure
+    logAuditTrail(
+      req.userId,
+      'Report',
+      null,
+      'REPORT_EXPORT_EXCEL_FAILED',
+      `Failed to export ${req.params.reportType} as Excel: ${error.message}`,
+      {
+        role: req.params.role,
+        reportType: req.params.reportType,
+        error: error.message
+      }
+    )
+    
     res.status(500).json({ error: error.message || 'Failed to export Excel report' })
   }
 }

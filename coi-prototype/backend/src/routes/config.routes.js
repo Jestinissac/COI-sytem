@@ -26,7 +26,10 @@ import {
   getEnabledFeatures,
   getRuleFields,
   validateRuleEndpoint,
-  testRule
+  testRule,
+  getClientIntelligenceStatusEndpoint,
+  enableClientIntelligenceEndpoint,
+  disableClientIntelligenceEndpoint
 } from '../controllers/configController.js'
 
 const router = express.Router()
@@ -75,5 +78,10 @@ router.post('/templates/:id/load', requireRole('Admin', 'Super Admin'), loadForm
 router.get('/edition', getSystemEditionConfig)
 router.put('/edition', requireRole('Super Admin'), updateSystemEdition)
 router.get('/features', getEnabledFeatures)
+
+// Client Intelligence Feature Flag (Super Admin only)
+router.get('/client-intelligence/status', getClientIntelligenceStatusEndpoint)
+router.post('/client-intelligence/enable', requireRole('Super Admin'), enableClientIntelligenceEndpoint)
+router.post('/client-intelligence/disable', requireRole('Super Admin'), disableClientIntelligenceEndpoint)
 
 export default router

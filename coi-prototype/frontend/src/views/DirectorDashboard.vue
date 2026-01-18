@@ -21,29 +21,34 @@
     <div class="max-w-7xl mx-auto px-6 py-6">
       <div class="flex gap-6">
         <!-- Left Sidebar Navigation -->
-        <div class="w-56 flex-shrink-0">
+        <div class="hidden md:block w-56 flex-shrink-0">
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6">
-            <nav class="py-2">
-              <a
+            <nav class="py-2" role="tablist">
+              <button
                 v-for="tab in tabs"
                 :key="tab.id"
-                href="#"
-                @click.prevent="activeTab = tab.id"
-                class="flex items-center px-4 py-3 text-sm transition-colors border-l-2"
+                @click="activeTab = tab.id"
+                @keydown.enter="activeTab = tab.id"
+                @keydown.space.prevent="activeTab = tab.id"
+                :aria-selected="activeTab === tab.id"
+                :aria-label="tab.label"
+                role="tab"
+                class="w-full flex items-center px-4 py-3 text-sm transition-colors border-l-2 text-left"
                 :class="activeTab === tab.id 
                   ? 'bg-blue-50 border-blue-600 text-blue-700 font-medium' 
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
               >
-                <component :is="tab.icon" class="w-5 h-5 mr-3" />
+                <component :is="tab.icon" class="w-5 h-5 mr-3" aria-hidden="true" />
                 {{ tab.label }}
                 <span 
                   v-if="tab.count > 0" 
                   class="ml-auto px-2 py-0.5 text-xs font-medium rounded-full"
                   :class="tab.id === 'pending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'"
+                  aria-label="{{ tab.count }} items"
                 >
                   {{ tab.count }}
                 </span>
-              </a>
+              </button>
             </nav>
           </div>
         </div>

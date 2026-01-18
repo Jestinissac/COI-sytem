@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Development Intelligence - Mock Screens</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .mock-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .mock-header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .mock-header h1 {
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        
+        .mock-header p {
+            color: #666;
+        }
+        
+        .screen-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            padding: 10px 20px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .nav-btn:hover {
+            background: #1d4ed8;
+        }
+        
+        .screen {
+            display: none;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 0;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        .screen-header {
+            background: #f8fafc;
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .screen-header h2 {
+            color: #1e293b;
+            margin-bottom: 5px;
+        }
+        
+        .screen-header p {
+            color: #64748b;
+            font-size: 14px;
+        }
+        
+        .screen-content {
+            padding: 20px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-safe {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-high {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .badge-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .card-title {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .score {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2563eb;
+        }
+        
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+        
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .kanban {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+        
+        .kanban-column {
+            min-width: 300px;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        
+        .kanban-column-header {
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .opportunity-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .opportunity-card:hover {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-color: #2563eb;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e5e7eb;
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 24px;
+        }
+        
+        .timeline-dot {
+            position: absolute;
+            left: -25px;
+            top: 4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #2563eb;
+        }
+        
+        .timeline-content {
+            background: #f8fafc;
+            border-radius: 6px;
+            padding: 12px;
+        }
+        
+        .service-matrix {
+            overflow-x: auto;
+        }
+        
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        .matrix-table th,
+        .matrix-table td {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .matrix-table th {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+        
+        .matrix-cell-used {
+            background: #d1fae5;
+        }
+        
+        .matrix-cell-gap {
+            background: #fef3c7;
+        }
+    </style>
+</head>
+<body>
+    <div class="mock-container">
+        <div class="mock-header">
+            <h1>Business Development Intelligence Module</h1>
+            <p>Mock Screens - Plain HTML Renderings</p>
+        </div>
+        
+        <div class="screen-nav">
+            <a href="#" class="nav-btn" onclick="showScreen('dashboard')">Dashboard</a>
+            <a href="#" class="nav-btn" onclick="showScreen('pipeline')">Opportunity Pipeline</a>
+            <a href="#" class="nav-btn" onclick="showScreen('interaction')">Client Interaction</a>
+            <a href="#" class="nav-btn" onclick="showScreen('timeline')">Interaction Timeline</a>
+            <a href="#" class="nav-btn" onclick="showScreen('gaps')">Service Gap Analysis</a>
+        </div>
+        
+        <!-- Screen 1: Client Intelligence Dashboard -->
+        <div id="dashboard" class="screen active">
+            <div class="screen-header">
+                <h2>Client Intelligence Dashboard</h2>
+                <p>AI-Powered recommendations: Where should you have your next meeting?</p>
+            </div>
+            <div class="screen-content">
+                <!-- AI-Powered Next Best Actions Panel -->
+                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                        <div style="font-size: 24px; margin-right: 12px;">🎯</div>
+                        <div>
+                            <div style="font-weight: 700; font-size: 20px;">YOUR NEXT BEST ACTIONS</div>
+                            <div style="font-size: 13px; opacity: 0.9;">AI-Powered Recommendations</div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-3" style="gap: 16px;">
+                        <!-- Recommendation 1 -->
+                        <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border-radius: 8px; padding: 16px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                                <div style="font-weight: 600; font-size: 16px;">Priority 1</div>
+                                <div style="background: rgba(255,255,255,0.3); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">78% Success</div>
+                            </div>
+                            <div style="font-weight: 700; font-size: 18px; margin-bottom: 8px;">ABC Corporation</div>
+                            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Service: Advisory Services</div>
+                            <div style="font-size: 12px; opacity: 0.8; margin-bottom: 12px;">📅 Suggested: Jan 20, 2026 (3 days)</div>
+                            <div style="font-size: 11px; opacity: 0.85; margin-bottom: 12px; line-height: 1.4;">
+                                <strong>Why:</strong> Service gap + parent company uses Advisory + optimal timing
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%; background: white; color: #667eea; font-weight: 600;" onclick="showModal('interactionModal')">Schedule Meeting</button>
+                        </div>
+                        
+                        <!-- Recommendation 2 -->
+                        <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border-radius: 8px; padding: 16px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                                <div style="font-weight: 600; font-size: 16px;">Priority 2</div>
+                                <div style="background: rgba(255,255,255,0.3); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">65% Success</div>
+                            </div>
+                            <div style="font-weight: 700; font-size: 18px; margin-bottom: 8px;">XYZ Industries</div>
+                            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Service: IT Services</div>
+                            <div style="font-size: 12px; opacity: 0.8; margin-bottom: 12px;">📅 Suggested: Jan 22, 2026</div>
+                            <div style="font-size: 11px; opacity: 0.85; margin-bottom: 12px; line-height: 1.4;">
+                                <strong>Why:</strong> Industry peers use IT, client expanding operations
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%; background: white; color: #667eea; font-weight: 600;" onclick="showModal('interactionModal')">Schedule Meeting</button>
+                        </div>
+                        
+                        <!-- Recommendation 3 -->
+                        <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border-radius: 8px; padding: 16px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                                <div style="font-weight: 600; font-size: 16px;">Priority 3</div>
+                                <div style="background: rgba(255,255,255,0.3); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">72% Success</div>
+                            </div>
+                            <div style="font-weight: 700; font-size: 18px; margin-bottom: 8px;">Global Tech Solutions</div>
+                            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">Service: Risk Management</div>
+                            <div style="font-size: 12px; opacity: 0.8; margin-bottom: 12px;">📅 Suggested: Jan 25, 2026</div>
+                            <div style="font-size: 11px; opacity: 0.85; margin-bottom: 12px; line-height: 1.4;">
+                                <strong>Why:</strong> Renewal window opens in 30 days, high relationship strength
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%; background: white; color: #667eea; font-weight: 600;" onclick="showModal('interactionModal')">Schedule Meeting</button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 12px; opacity: 0.9;">
+                        💡 <strong>AI Learning:</strong> Recommendations improve as you record interaction outcomes. The system learns which clients, services, and timing work best for you.
+                    </div>
+                </div>
+                
+                <div class="grid grid-3" style="margin-bottom: 24px;">
+                    <div class="card">
+                        <div style="color: #64748b; font-size: 14px; margin-bottom: 8px;">Total Opportunities</div>
+                        <div class="score">24</div>
+                        <div style="color: #10b981; font-size: 12px; margin-top: 4px;">↑ 12% this month</div>
+                    </div>
+                    <div class="card">
+                        <div style="color: #64748b; font-size: 14px; margin-bottom: 8px;">Conversion Rate</div>
+                        <div class="score">68%</div>
+                        <div style="color: #10b981; font-size: 12px; margin-top: 4px;">↑ 5% this month</div>
+                    </div>
+                    <div class="card">
+                        <div style="color: #64748b; font-size: 14px; margin-bottom: 8px;">Avg Services/Client</div>
+                        <div class="score">2.3</div>
+                        <div style="color: #64748b; font-size: 12px; margin-top: 4px;">Industry avg: 3.2</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Client: ABC Corporation</h3>
+                        <span class="badge badge-safe">Compliance: Safe</span>
+                    </div>
+                    
+                    <div class="grid grid-2" style="margin-bottom: 16px;">
+                        <div>
+                            <div style="color: #64748b; font-size: 12px; margin-bottom: 4px;">Client Since</div>
+                            <div style="font-weight: 600;">2019 (5 years)</div>
+                        </div>
+                        <div>
+                            <div style="color: #64748b; font-size: 12px; margin-bottom: 4px;">Active Engagements</div>
+                            <div style="font-weight: 600;">3 active</div>
+                        </div>
+                        <div>
+                            <div style="color: #64748b; font-size: 12px; margin-bottom: 4px;">Service Categories</div>
+                            <div style="font-weight: 600;">2 categories (Audit, Tax)</div>
+                        </div>
+                        <div>
+                            <div style="color: #64748b; font-size: 12px; margin-bottom: 4px;">Relationship Score</div>
+                            <div style="font-weight: 600;">85/100</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+                        <div style="font-weight: 600; margin-bottom: 12px;">Current Services</div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <span class="badge badge-safe">Statutory Audit</span>
+                            <span class="badge badge-safe">Tax Compliance</span>
+                            <span class="badge badge-safe">Book Keeping</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+                        <div style="font-weight: 600; margin-bottom: 12px;">Recommended Services (Gaps)</div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <span class="badge badge-medium">Advisory Services</span>
+                            <span class="badge badge-medium">IT Services</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 12px;">
+                        <button class="btn btn-primary" onclick="showScreen('pipeline')">View Opportunities</button>
+                        <button class="btn btn-secondary" onclick="showModal('interactionModal')">Contact Client</button>
+                        <button class="btn btn-secondary" onclick="showScreen('timeline')">View Interaction History</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title" style="margin-bottom: 16px;">Top Opportunities</h3>
+                    <div class="opportunity-card" onclick="showScreen('pipeline')">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <div style="font-weight: 600;">Advisory Services for ABC Corporation</div>
+                            <div class="score" style="font-size: 18px;">92</div>
+                        </div>
+                        <div style="color: #64748b; font-size: 12px; margin-bottom: 8px;">
+                            Service Gap • Compliance: Safe • Recommended: Immediate
+                        </div>
+                        <div style="font-size: 13px; color: #475569;">
+                            Client uses Audit & Tax but not Advisory. Parent company uses Advisory services.
+                        </div>
+                        <div style="margin-top: 12px; display: flex; gap: 8px;">
+                            <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;" onclick="showModal('interactionModal'); event.stopPropagation();">Contact Client</button>
+                            <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">View Details</button>
+                        </div>
+                    </div>
+                    
+                    <div class="opportunity-card" onclick="showScreen('pipeline')">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <div style="font-weight: 600;">IT Services for ABC Corporation</div>
+                            <div class="score" style="font-size: 18px;">78</div>
+                        </div>
+                        <div style="color: #64748b; font-size: 12px; margin-bottom: 8px;">
+                            Service Gap • Compliance: Safe • Recommended: 30 days
+                        </div>
+                        <div style="font-size: 13px; color: #475569;">
+                            Industry peers average 3.2 service categories. Client currently uses 2.
+                        </div>
+                        <div style="margin-top: 12px; display: flex; gap: 8px;">
+                            <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;" onclick="showModal('interactionModal'); event.stopPropagation();">Contact Client</button>
+                            <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">View Details</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Screen 2: Opportunity Pipeline -->
+        <div id="pipeline" class="screen">
+            <div class="screen-header">
+                <h2>Opportunity Pipeline</h2>
+                <p>Track opportunities from identification to COI request conversion</p>
+            </div>
+            <div class="screen-content">
+                <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
+                    <select class="form-select" style="width: auto;">
+                        <option>All Clients</option>
+                        <option>ABC Corporation</option>
+                        <option>XYZ Industries</option>
+                    </select>
+                    <select class="form-select" style="width: auto;">
+                        <option>All Types</option>
+                        <option>Service Gap</option>
+                        <option>Renewal</option>
+                        <option>Relationship</option>
+                    </select>
+                    <select class="form-select" style="width: auto;">
+                        <option>All Status</option>
+                        <option>Open</option>
+                        <option>Contact Initiated</option>
+                        <option>In Discussion</option>
+                    </select>
+                </div>
+                
+                <div class="kanban">
+                    <div class="kanban-column">
+                        <div class="kanban-column-header">Open (8)</div>
+                        <div class="opportunity-card">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="font-weight: 600; font-size: 14px;">Advisory Services</div>
+                                <div class="score" style="font-size: 16px;">92</div>
+                            </div>
+                            <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">ABC Corporation</div>
+                            <div style="color: #64748b; font-size: 11px; margin-bottom: 8px;">
+                                <span class="badge badge-safe" style="font-size: 10px;">Safe</span> Service Gap
+                            </div>
+                            <div style="font-size: 12px; color: #475569; margin-bottom: 12px;">
+                                Client uses Audit & Tax but not Advisory. Parent company uses Advisory.
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%; font-size: 12px; padding: 8px;" onclick="showModal('interactionModal')">Contact Client</button>
+                        </div>
+                        
+                        <div class="opportunity-card">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="font-weight: 600; font-size: 14px;">IT Services</div>
+                                <div class="score" style="font-size: 16px;">78</div>
+                            </div>
+                            <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">ABC Corporation</div>
+                            <div style="color: #64748b; font-size: 11px; margin-bottom: 8px;">
+                                <span class="badge badge-safe" style="font-size: 10px;">Safe</span> Service Gap
+                            </div>
+                            <div style="font-size: 12px; color: #475569; margin-bottom: 12px;">
+                                Industry peers average 3.2 categories. Client uses 2.
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%; font-size: 12px; padding: 8px;" onclick="showModal('interactionModal')">Contact Client</button>
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-column-header">Contact Initiated (5)</div>
+                        <div class="opportunity-card">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="font-weight: 600; font-size: 14px;">Tax Planning</div>
+                                <div class="score" style="font-size: 16px;">85</div>
+                            </div>
+                            <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">XYZ Industries</div>
+                            <div style="color: #64748b; font-size: 11px; margin-bottom: 8px;">
+                                <span class="badge badge-safe" style="font-size: 10px;">Safe</span> Service Gap
+                            </div>
+                            <div style="font-size: 11px; color: #10b981; margin-bottom: 8px;">
+                                ✓ Contacted: 2 days ago (Email)
+                            </div>
+                            <div style="font-size: 12px; color: #475569; margin-bottom: 12px;">
+                                Awaiting client response. Follow-up scheduled for next week.
+                            </div>
+                            <button class="btn btn-secondary" style="width: 100%; font-size: 12px; padding: 8px;" onclick="showScreen('timeline')">View Interaction</button>
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-column-header">In Discussion (4)</div>
+                        <div class="opportunity-card">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="font-weight: 600; font-size: 14px;">Management Consulting</div>
+                                <div class="score" style="font-size: 16px;">88</div>
+                            </div>
+                            <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">Global Tech Solutions</div>
+                            <div style="color: #64748b; font-size: 11px; margin-bottom: 8px;">
+                                <span class="badge badge-safe" style="font-size: 10px;">Safe</span> Relationship
+                            </div>
+                            <div style="font-size: 11px; color: #10b981; margin-bottom: 8px;">
+                                ✓ Client Interested • Last contact: 1 day ago
+                            </div>
+                            <div style="font-size: 12px; color: #475569; margin-bottom: 12px;">
+                                Client requested proposal. Ready to create COI request.
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%; font-size: 12px; padding: 8px; background: #10b981;">Create Proposal</button>
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-column-header">Proposal Created (3)</div>
+                        <div class="opportunity-card">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="font-weight: 600; font-size: 14px;">Internal Audit</div>
+                                <div class="score" style="font-size: 16px;">90</div>
+                            </div>
+                            <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">DEF Manufacturing</div>
+                            <div style="font-size: 11px; color: #2563eb; margin-bottom: 8px;">
+                                ✓ COI Request: COI-2026-045
+                            </div>
+                            <div style="font-size: 12px; color: #475569; margin-bottom: 12px;">
+                                Proposal created. Awaiting COI approval.
+                            </div>
+                            <button class="btn btn-secondary" style="width: 100%; font-size: 12px; padding: 8px;">View COI Request</button>
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-column-header">Converted (4)</div>
+                        <div class="opportunity-card" style="opacity: 0.7;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <div style="font-weight: 600; font-size: 14px;">Risk Management</div>
+                                <div class="score" style="font-size: 16px;">82</div>
+                            </div>
+                            <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">GHI Holdings</div>
+                            <div style="font-size: 11px; color: #10b981; margin-bottom: 8px;">
+                                ✓ Converted to COI-2026-038
+                            </div>
+                            <div style="font-size: 12px; color: #475569;">
+                                Successfully converted. Engagement active.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Screen 3: Client Interaction Modal -->
+        <div id="interaction" class="screen">
+            <div class="screen-header">
+                <h2>Record Client Interaction</h2>
+                <p>Log contact with client for opportunity tracking</p>
+            </div>
+            <div class="screen-content">
+                <div class="card" style="max-width: 600px; margin: 0 auto;">
+                    <div style="background: #eff6ff; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+                        <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Opportunity Context</div>
+                        <div style="font-weight: 600;">Advisory Services for ABC Corporation</div>
+                        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Service Gap • Score: 92 • Compliance: Safe</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Interaction Type *</label>
+                        <select class="form-select">
+                            <option>Select type...</option>
+                            <option>Call</option>
+                            <option>Email</option>
+                            <option>Meeting</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Date & Time *</label>
+                        <input type="datetime-local" class="form-input" value="2026-01-15T10:00">
+                    </div>
+                    
+                    <div style="background: #f8fafc; padding: 16px; border-radius: 6px; margin-bottom: 20px;">
+                        <div style="font-weight: 600; margin-bottom: 12px;">Contact Person</div>
+                        <div class="grid grid-2">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">Name *</label>
+                                <input type="text" class="form-input" placeholder="John Smith">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">Designation</label>
+                                <input type="text" class="form-input" placeholder="CFO">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-input" placeholder="john@abccorp.com">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" class="form-input" placeholder="+965 1234 5678">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Subject/Topic *</label>
+                        <input type="text" class="form-input" placeholder="Discussion about Advisory Services">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Notes *</label>
+                        <textarea class="form-textarea" placeholder="Enter conversation details, client feedback, next steps..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Outcome *</label>
+                        <select class="form-select">
+                            <option>Select outcome...</option>
+                            <option>Interested</option>
+                            <option>Not Interested</option>
+                            <option>Needs Follow-up</option>
+                            <option>Requested Proposal</option>
+                            <option>Declined</option>
+                        </select>
+                    </div>
+                    
+                    <div id="followupSection" style="display: none; background: #fef3c7; padding: 16px; border-radius: 6px; margin-bottom: 20px;">
+                        <div style="font-weight: 600; margin-bottom: 12px;">Follow-up Required</div>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label class="form-label">Next Action Date</label>
+                            <input type="date" class="form-input">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Next Action Notes</label>
+                            <textarea class="form-textarea" placeholder="What needs to be done next?"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px; margin-top: 24px;">
+                        <button class="btn btn-primary" style="flex: 1;">Save Interaction</button>
+                        <button class="btn btn-secondary" style="flex: 1;">Save & Create Proposal</button>
+                        <button class="btn btn-secondary">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Screen 4: Interaction Timeline -->
+        <div id="timeline" class="screen">
+            <div class="screen-header">
+                <h2>Client Interaction Timeline</h2>
+                <p>Complete history of all client interactions for ABC Corporation</p>
+            </div>
+            <div class="screen-content">
+                <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
+                    <select class="form-select" style="width: auto;">
+                        <option>All Types</option>
+                        <option>Call</option>
+                        <option>Email</option>
+                        <option>Meeting</option>
+                    </select>
+                    <select class="form-select" style="width: auto;">
+                        <option>All Outcomes</option>
+                        <option>Interested</option>
+                        <option>Needs Follow-up</option>
+                        <option>Not Interested</option>
+                    </select>
+                    <input type="date" class="form-input" style="width: auto;" placeholder="From Date">
+                    <input type="date" class="form-input" style="width: auto;" placeholder="To Date">
+                </div>
+                
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="border-color: #10b981;"></div>
+                        <div class="timeline-content">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <div>
+                                    <div style="font-weight: 600;">Call - Advisory Services Discussion</div>
+                                    <div style="font-size: 12px; color: #64748b;">Jan 15, 2026 • 10:00 AM</div>
+                                </div>
+                                <span class="badge" style="background: #d1fae5; color: #065f46;">Interested</span>
+                            </div>
+                            <div style="font-size: 13px; color: #475569; margin-bottom: 8px;">
+                                <strong>Contact:</strong> John Smith (CFO) • john@abccorp.com
+                            </div>
+                            <div style="font-size: 13px; color: #475569; margin-bottom: 8px;">
+                                Discussed Advisory Services needs. Client expressed interest in Management Consulting. Requested proposal by end of week.
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top: 12px;">
+                                <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">Create Proposal</button>
+                                <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">View Details</button>
+                                <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">Add Follow-up</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="border-color: #f59e0b;"></div>
+                        <div class="timeline-content">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <div>
+                                    <div style="font-weight: 600;">Email - Initial Outreach</div>
+                                    <div style="font-size: 12px; color: #64748b;">Jan 10, 2026 • 2:30 PM</div>
+                                </div>
+                                <span class="badge" style="background: #fef3c7; color: #92400e;">Needs Follow-up</span>
+                            </div>
+                            <div style="font-size: 13px; color: #475569; margin-bottom: 8px;">
+                                <strong>Contact:</strong> Sarah Johnson (Finance Director) • sarah@abccorp.com
+                            </div>
+                            <div style="font-size: 13px; color: #475569; margin-bottom: 8px;">
+                                Sent initial email introducing Advisory Services. Client acknowledged but requested more information.
+                            </div>
+                            <div style="font-size: 12px; color: #f59e0b; margin-top: 8px;">
+                                ⏰ Follow-up scheduled: Jan 17, 2026
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="border-color: #10b981;"></div>
+                        <div class="timeline-content">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <div>
+                                    <div style="font-weight: 600;">Meeting - Service Portfolio Review</div>
+                                    <div style="font-size: 12px; color: #64748b;">Dec 20, 2025 • 3:00 PM</div>
+                                </div>
+                                <span class="badge" style="background: #d1fae5; color: #065f46;">Interested</span>
+                            </div>
+                            <div style="font-size: 13px; color: #475569; margin-bottom: 8px;">
+                                <strong>Contact:</strong> John Smith (CFO)
+                            </div>
+                            <div style="font-size: 13px; color: #475569; margin-bottom: 8px;">
+                                Quarterly review meeting. Discussed current services and potential expansion. Client open to Advisory services discussion.
+                            </div>
+                            <div style="font-size: 12px; color: #2563eb; margin-top: 8px;">
+                                🔗 Linked to Opportunity: Advisory Services
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Screen 5: Service Gap Analysis -->
+        <div id="gaps" class="screen">
+            <div class="screen-header">
+                <h2>Service Gap Analysis (White-Space Analysis)</h2>
+                <p>Matrix view showing used services vs. available services for ABC Corporation</p>
+            </div>
+            <div class="screen-content">
+                <div style="margin-bottom: 20px;">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div>
+                                <div style="font-weight: 600; font-size: 18px;">ABC Corporation</div>
+                                <div style="color: #64748b; font-size: 14px;">Industry: Manufacturing • Client Since: 2019</div>
+                            </div>
+                            <div>
+                                <span class="badge badge-safe">Compliance: Safe</span>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-3" style="margin-bottom: 20px;">
+                            <div>
+                                <div style="color: #64748b; font-size: 12px; margin-bottom: 4px;">Services Used</div>
+                                <div style="font-weight: 600; font-size: 20px;">3</div>
+                            </div>
+                            <div>
+                                <div style="color: #64748b; font-size: 12px; margin-bottom: 4px;">Available Services</div>
+                                <div style="font-weight: 600; font-size: 20px;">177</div>
+                            </div>
+                            <div>
+                                <div style="color: #64748b; font-size: 12px; margin-bottom: 4px;">Service Gaps</div>
+                                <div style="font-weight: 600; font-size: 20px;">12</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 16px;">
+                            <div style="font-weight: 600; margin-bottom: 8px;">Current Services</div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <span class="badge badge-safe">Statutory Audit</span>
+                                <span class="badge badge-safe">Tax Compliance</span>
+                                <span class="badge badge-safe">Book Keeping</span>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 8px;">Recommended Services (Gaps)</div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <span class="badge badge-medium">Management Consulting</span>
+                                <span class="badge badge-medium">IT Services</span>
+                                <span class="badge badge-medium">Risk Management</span>
+                                <span class="badge badge-medium">Internal Audit</span>
+                            </div>
+                            <div style="font-size: 12px; color: #64748b; margin-top: 8px;">
+                                * Based on industry patterns, related entity usage, and service adjacency
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div style="font-weight: 600; margin-bottom: 16px;">Service-Client Matrix (White-Space View)</div>
+                    <div class="service-matrix">
+                        <table class="matrix-table">
+                            <thead>
+                                <tr>
+                                    <th>Service Category</th>
+                                    <th>Statutory Audit</th>
+                                    <th>Tax Compliance</th>
+                                    <th>Advisory</th>
+                                    <th>IT Services</th>
+                                    <th>Risk Management</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="text-align: left; font-weight: 600;">ABC Corporation</td>
+                                    <td class="matrix-cell-used">✓ Used</td>
+                                    <td class="matrix-cell-used">✓ Used</td>
+                                    <td class="matrix-cell-gap">⚠ Gap</td>
+                                    <td class="matrix-cell-gap">⚠ Gap</td>
+                                    <td class="matrix-cell-gap">⚠ Gap</td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align: left; font-weight: 600;">Parent: ABC Holdings</td>
+                                    <td class="matrix-cell-used">✓ Used</td>
+                                    <td class="matrix-cell-used">✓ Used</td>
+                                    <td class="matrix-cell-used">✓ Used</td>
+                                    <td class="matrix-cell-gap">⚠ Gap</td>
+                                    <td class="matrix-cell-used">✓ Used</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 12px; font-size: 12px; color: #64748b;">
+                        <div style="display: inline-block; margin-right: 16px;">
+                            <span style="display: inline-block; width: 16px; height: 16px; background: #d1fae5; border: 1px solid #10b981; margin-right: 6px; vertical-align: middle;"></span>
+                            Used Service
+                        </div>
+                        <div style="display: inline-block;">
+                            <span style="display: inline-block; width: 16px; height: 16px; background: #fef3c7; border: 1px solid #f59e0b; margin-right: 6px; vertical-align: middle;"></span>
+                            Opportunity (Gap)
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div style="font-weight: 600; margin-bottom: 16px;">Relationship Intelligence</div>
+                    <div style="background: #f8fafc; padding: 16px; border-radius: 6px; margin-bottom: 12px;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">Parent Company: ABC Holdings</div>
+                        <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
+                            ABC Holdings uses Advisory and Risk Management services. Consider suggesting these for ABC Corporation for group standardization.
+                        </div>
+                        <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">View Parent Services</button>
+                    </div>
+                    
+                    <div style="background: #f8fafc; padding: 16px; border-radius: 6px;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">Sister Company: ABC Subsidiary UAE</div>
+                        <div style="font-size: 13px; color: #475569; margin-bottom: 12px;">
+                            Sister company uses IT Services. May be relevant for ABC Corporation's operations.
+                        </div>
+                        <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">View Sister Services</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Interaction Modal -->
+    <div id="interactionModal" class="modal" onclick="if(event.target === this) hideModal('interactionModal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Record Client Interaction</h2>
+                <button onclick="hideModal('interactionModal')" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b;">×</button>
+            </div>
+            
+            <div style="background: #eff6ff; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Opportunity Context</div>
+                <div style="font-weight: 600;">Advisory Services for ABC Corporation</div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Service Gap • Score: 92 • Compliance: Safe</div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Interaction Type *</label>
+                <select class="form-select">
+                    <option>Select type...</option>
+                    <option>Call</option>
+                    <option selected>Email</option>
+                    <option>Meeting</option>
+                    <option>Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Date & Time *</label>
+                <input type="datetime-local" class="form-input" value="2026-01-15T14:00">
+            </div>
+            
+            <div style="background: #f8fafc; padding: 16px; border-radius: 6px; margin-bottom: 20px;">
+                <div style="font-weight: 600; margin-bottom: 12px;">Contact Person</div>
+                <div class="grid grid-2">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-input" placeholder="John Smith">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Designation</label>
+                        <input type="text" class="form-input" placeholder="CFO">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" placeholder="john@abccorp.com">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" class="form-input" placeholder="+965 1234 5678">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Subject/Topic *</label>
+                <input type="text" class="form-input" placeholder="Discussion about Advisory Services">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Notes *</label>
+                <textarea class="form-textarea" placeholder="Enter conversation details, client feedback, next steps..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Outcome *</label>
+                <select class="form-select" onchange="toggleFollowup(this.value)">
+                    <option>Select outcome...</option>
+                    <option>Interested</option>
+                    <option>Not Interested</option>
+                    <option>Needs Follow-up</option>
+                    <option>Requested Proposal</option>
+                    <option>Declined</option>
+                </select>
+            </div>
+            
+            <div id="modalFollowupSection" style="display: none; background: #fef3c7; padding: 16px; border-radius: 6px; margin-bottom: 20px;">
+                <div style="font-weight: 600; margin-bottom: 12px;">Follow-up Required</div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label class="form-label">Next Action Date</label>
+                    <input type="date" class="form-input">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Next Action Notes</label>
+                    <textarea class="form-textarea" placeholder="What needs to be done next?"></textarea>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 12px; margin-top: 24px;">
+                <button class="btn btn-primary" style="flex: 1;">Save Interaction</button>
+                <button class="btn btn-secondary" style="flex: 1;">Save & Create Proposal</button>
+                <button class="btn btn-secondary" onclick="hideModal('interactionModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+        
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+        
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        
+        function toggleFollowup(value) {
+            const section = document.getElementById('modalFollowupSection');
+            if (value === 'Needs Follow-up' || value === 'Interested') {
+                section.style.display = 'block';
+            } else {
+                section.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

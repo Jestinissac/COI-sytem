@@ -6,7 +6,11 @@ import {
   setSystemEdition, 
   getEditionFeatures, 
   getAllFeatures,
-  isFeatureEnabled 
+  isFeatureEnabled,
+  isClientIntelligenceEnabled,
+  enableClientIntelligence,
+  disableClientIntelligence,
+  getClientIntelligenceStatus
 } from '../services/configService.js'
 
 const db = getDatabase()
@@ -1790,5 +1794,80 @@ function evaluateCondition(fieldValue, operator, conditionValue) {
       return parseFloat(fieldValue) < parseFloat(conditionValue)
     default:
       return false
+  }
+}
+
+// ========================================
+// CLIENT INTELLIGENCE FEATURE FLAG CONTROLLERS
+// ========================================
+
+/**
+ * Get Client Intelligence module status
+ * GET /api/config/client-intelligence/status
+ */
+export async function getClientIntelligenceStatusEndpoint(req, res) {
+  try {
+    const status = getClientIntelligenceStatus()
+    res.json(status)
+  } catch (error) {
+    console.error('Error getting client intelligence status:', error)
+    res.status(500).json({ 
+      error: 'Failed to get client intelligence status',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Enable Client Intelligence module
+ * POST /api/config/client-intelligence/enable
+ * Requires: Super Admin role
+ */
+export async function enableClientIntelligenceEndpoint(req, res) {
+  try {
+    const userId = req.user?.id
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    const result = enableClientIntelligence(userId)
+    res.json({
+      success: true,
+      message: 'Client Intelligence module enabled',
+      ...result
+    })
+  } catch (error) {
+    console.error('Error enabling client intelligence:', error)
+    res.status(500).json({ 
+      error: 'Failed to enable client intelligence',
+      message: error.message 
+    })
+  }
+}
+
+/**
+ * Disable Client Intelligence module
+ * POST /api/config/client-intelligence/disable
+ * Requires: Super Admin role
+ */
+export async function disableClientIntelligenceEndpoint(req, res) {
+  try {
+    const userId = req.user?.id
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    const result = disableClientIntelligence(userId)
+    res.json({
+      success: true,
+      message: 'Client Intelligence module disabled',
+      ...result
+    })
+  } catch (error) {
+    console.error('Error disabling client intelligence:', error)
+    res.status(500).json({ 
+      error: 'Failed to disable client intelligence',
+      message: error.message 
+    })
   }
 }

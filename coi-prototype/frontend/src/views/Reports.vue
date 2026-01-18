@@ -159,9 +159,9 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-12 gap-8">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <!-- Professional Left Sidebar: Report Selection & Filters -->
-        <div class="col-span-4">
+        <div class="lg:col-span-4">
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden sticky top-6">
             <!-- Sidebar Header -->
             <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
@@ -192,6 +192,8 @@
                 <select
                   v-model="selectedReport"
                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:border-gray-300"
+                  aria-label="Select Report Type"
+                  @keydown.enter="loadReportData"
                 >
                   <option value="" class="text-gray-500">Select a report type...</option>
                   <option
@@ -318,10 +320,10 @@
         </div>
 
         <!-- Professional Main Content: Report Preview & Export -->
-        <div class="col-span-8">
+        <div class="lg:col-span-8">
           <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <!-- Professional Export Header -->
-            <div v-if="reportData" class="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-5 border-b border-gray-200">
+            <div v-if="reportData" class="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-5 border-b border-gray-200 no-print">
               <div class="flex items-center justify-between">
                 <div>
                   <h2 class="text-xl font-bold text-gray-900 flex items-center gap-3">
@@ -338,6 +340,28 @@
                   </p>
                 </div>
                 <div class="flex items-center gap-3">
+                  <button
+                    @click="showPrintPreview = true"
+                    :disabled="!reportData"
+                    class="inline-flex items-center gap-2 px-5 py-2.5 bg-white border-2 border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+                    aria-label="Print Preview"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                    Print Preview
+                  </button>
+                  <button
+                    @click="printReport"
+                    :disabled="!reportData"
+                    class="inline-flex items-center gap-2 px-5 py-2.5 bg-white border-2 border-blue-500 text-blue-600 text-sm font-semibold rounded-lg hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+                    aria-label="Print Report"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                    Print
+                  </button>
                   <button
                     @click="exportPDF"
                     :disabled="exporting"
@@ -363,7 +387,18 @@
             </div>
 
             <!-- Report Content with Professional Styling -->
-            <div class="p-8">
+            <div class="p-8 print:p-4">
+              <!-- Print Header (only visible when printing) -->
+              <div class="hidden print:block mb-6 pb-4 border-b-2 border-gray-300">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ getReportTitle() }}</h1>
+                <div class="text-sm text-gray-600 space-y-1">
+                  <p><strong>Generated:</strong> {{ new Date().toLocaleString() }}</p>
+                  <p><strong>Role:</strong> {{ user?.role }}</p>
+                  <p v-if="filters.dateFrom || filters.dateTo">
+                    <strong>Date Range:</strong> {{ filters.dateFrom || 'All' }} to {{ filters.dateTo || 'All' }}
+                  </p>
+                </div>
+              </div>
               <!-- Empty State -->
               <div v-if="!selectedReport" class="text-center py-20">
                 <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 mb-6">
@@ -427,7 +462,7 @@
                     </div>
                     <h3 class="text-xl font-bold text-gray-900">Executive Summary</h3>
                   </div>
-                  <div class="grid grid-cols-2 md:grid-cols-3 gap-5">
+                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <div
                       v-for="(value, key) in reportData.summary"
                       :key="key"
@@ -443,10 +478,33 @@
                       <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                         {{ formatKey(key) }}
                       </p>
-                      <p class="text-3xl font-bold text-gray-900 mb-1">
-                        {{ formatValue(value) }}
-                      </p>
-                      <div class="w-12 h-1 bg-gradient-to-r from-blue-500 to-blue-300 rounded-full"></div>
+                      
+                      <!-- Handle nested objects (byStatus, byServiceType, byClient) -->
+                      <div v-if="typeof value === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).length > 0">
+                        <div class="space-y-2">
+                          <div
+                            v-for="(subValue, subKey) in value"
+                            :key="subKey"
+                            class="flex items-center justify-between py-1.5 px-2 bg-white rounded border border-gray-100"
+                          >
+                            <span class="text-sm text-gray-600">{{ subKey }}</span>
+                            <span class="text-sm font-semibold text-gray-900">{{ typeof subValue === 'number' ? subValue.toLocaleString() : subValue }}</span>
+                          </div>
+                        </div>
+                        <div class="mt-3 pt-2 border-t border-gray-200">
+                          <p class="text-xs text-gray-500">
+                            Total: <span class="font-semibold text-gray-700">{{ Object.values(value).reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0).toLocaleString() }}</span>
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <!-- Handle simple values (numbers, strings) -->
+                      <div v-else>
+                        <p class="text-3xl font-bold text-gray-900 mb-1">
+                          {{ typeof value === 'number' ? value.toLocaleString() : formatValue(value) }}
+                        </p>
+                        <div class="w-12 h-1 bg-gradient-to-r from-blue-500 to-blue-300 rounded-full"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -474,23 +532,40 @@
                             <th
                               v-for="header in getTableHeaders(reportData.requests[0])"
                               :key="header"
-                              class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                              @click="sortTable(header)"
+                              @keydown.enter="sortTable(header)"
+                              @keydown.space.prevent="sortTable(header)"
+                              tabindex="0"
+                              class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 select-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              :class="{ 'bg-blue-100': sortColumn === header }"
+                              role="columnheader"
+                              :aria-sort="sortColumn === header ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
+                              :aria-label="`Sort by ${formatKey(header)}`"
                             >
-                              {{ formatKey(header) }}
+                              <div class="flex items-center gap-2">
+                                <span>{{ formatKey(header) }}</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getSortIcon(header)"/>
+                                </svg>
+                              </div>
                             </th>
                           </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-100">
+                        <tbody class="bg-white divide-y divide-gray-100" role="rowgroup">
                           <tr 
                             v-for="(row, index) in reportData.requests" 
                             :key="index" 
                             class="hover:bg-blue-50 transition-colors"
                             :class="index % 2 === 0 ? 'bg-white' : 'bg-gray-50'"
+                            role="row"
+                            :aria-rowindex="index + 2"
                           >
                             <td
                               v-for="header in getTableHeaders(reportData.requests[0])"
                               :key="header"
                               class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                              role="cell"
+                              :headers="header"
                             >
                               {{ row[header] || '—' }}
                             </td>
@@ -617,13 +692,156 @@
         </div>
       </div>
     </div>
+
+    <!-- Toast Notifications -->
+    <ToastContainer />
+
+    <!-- Print Preview Modal -->
+    <div
+      v-if="showPrintPreview"
+      class="fixed inset-0 z-50 overflow-y-auto"
+      aria-labelledby="modal-title"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div
+          class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          @click="showPrintPreview = false"
+        ></div>
+
+        <!-- Modal panel -->
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
+          <!-- Header -->
+          <div class="bg-white px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900">Print Preview</h3>
+              <div class="flex items-center gap-3">
+                <button
+                  @click="printReport"
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                  </svg>
+                  Print
+                </button>
+                <button
+                  @click="showPrintPreview = false"
+                  class="text-gray-400 hover:text-gray-500"
+                  aria-label="Close"
+                >
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Print Preview Content -->
+          <div class="bg-white px-6 py-4 max-h-[70vh] overflow-y-auto print-preview-content">
+            <div id="print-content" class="print-content">
+              <!-- Report Header -->
+              <div class="mb-6 pb-4 border-b-2 border-gray-300">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ getReportTitle() }}</h1>
+                <div class="text-sm text-gray-600 space-y-1">
+                  <p><strong>Generated:</strong> {{ new Date().toLocaleString() }}</p>
+                  <p><strong>Role:</strong> {{ user?.role }}</p>
+                  <p v-if="filters.dateFrom || filters.dateTo">
+                    <strong>Date Range:</strong> {{ filters.dateFrom || 'All' }} to {{ filters.dateTo || 'All' }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Summary Section -->
+              <div v-if="reportData?.summary" class="mb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Executive Summary</h2>
+                <div class="grid grid-cols-2 gap-4">
+                  <div
+                    v-for="(value, key) in reportData.summary"
+                    :key="key"
+                    class="border border-gray-200 rounded-lg p-4"
+                  >
+                    <h3 class="text-sm font-semibold text-gray-600 uppercase mb-2">{{ formatKey(key) }}</h3>
+                    <div v-if="typeof value === 'object' && value !== null && !Array.isArray(value)">
+                      <div v-for="(subValue, subKey) in value" :key="subKey" class="mb-1">
+                        <span class="text-gray-600">{{ subKey }}:</span>
+                        <span class="ml-2 font-semibold text-gray-900">{{ subValue }}</span>
+                      </div>
+                    </div>
+                    <p v-else class="text-2xl font-bold text-gray-900">{{ formatValue(value) }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Requests Table -->
+              <div v-if="reportData?.requests && reportData.requests.length > 0" class="mb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Request Details ({{ reportData.requests.length }} records)</h2>
+                <table class="min-w-full border border-gray-300">
+                  <thead class="bg-gray-100">
+                    <tr>
+                      <th
+                        v-for="header in getTableHeaders(reportData.requests[0])"
+                        :key="header"
+                        class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase border border-gray-300"
+                      >
+                        {{ formatKey(header) }}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="(row, index) in reportData.requests"
+                      :key="index"
+                      :class="index % 2 === 0 ? 'bg-white' : 'bg-gray-50'"
+                    >
+                      <td
+                        v-for="header in getTableHeaders(reportData.requests[0])"
+                        :key="header"
+                        class="px-4 py-2 text-sm text-gray-900 border border-gray-300"
+                      >
+                        {{ formatTableValue(row[header], header) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Footer -->
+              <div class="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
+                <p>This report was generated from the COI System on {{ new Date().toLocaleString() }}</p>
+                <p>For questions or concerns, please contact the Compliance Department.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Share Report Modal -->
+    <ShareReportModal
+      v-if="selectedReport"
+      :is-open="showShareModal"
+      :role="getRolePath()"
+      :report-type="selectedReport"
+      :filters="filters"
+      @close="showShareModal = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
+import ToastContainer from '@/components/ui/ToastContainer.vue'
+import ShareReportModal from '@/components/reports/ShareReportModal.vue'
+import FilterChips from '@/components/reports/FilterChips.vue'
 import { getReportData, exportReportPDF, exportReportExcel, downloadBlob, type ReportFilters, type ReportData } from '@/services/reportService'
+
+const toast = useToast()
 
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
@@ -635,6 +853,8 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const exporting = ref<'pdf' | 'excel' | null>(null)
 const showCatalog = ref(true)
+const showPrintPreview = ref(false)
+const showShareModal = ref(false)
 
 // Complete Report Catalog
 const reportCatalog = computed(() => {
@@ -792,26 +1012,99 @@ function selectReportFromCatalog(report: any) {
       document.querySelector('.col-span-4')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 100)
   } else {
-    alert('This report is coming soon. Phase 1 reports are currently available.')
+    toast.warning('This report is coming soon. Phase 1 reports are currently available.')
   }
 }
 
-async function loadReportData() {
+const currentPage = ref(1)
+const pageSize = ref(50)
+const totalPages = ref(1)
+const totalItems = ref(0)
+const sortColumn = ref<string | null>(null)
+const sortDirection = ref<'asc' | 'desc'>('asc')
+const retryCount = ref(0)
+const MAX_RETRIES = 3
+
+async function loadReportData(page = 1, retry = 0) {
   if (!selectedReport.value) return
   
   loading.value = true
   error.value = null
+  currentPage.value = page
   
   try {
     const rolePath = getRolePath()
-    const data = await getReportData(rolePath, selectedReport.value, filters.value)
+    const requestFilters = {
+      ...filters.value,
+      page: page,
+      pageSize: pageSize.value,
+      includeData: true
+    }
+    const data = await getReportData(rolePath, selectedReport.value, requestFilters)
     reportData.value = data
+    retryCount.value = 0 // Reset on success
+    
+    // Update pagination info
+    if (data.pagination) {
+      currentPage.value = data.pagination.currentPage
+      totalPages.value = data.pagination.totalPages
+      totalItems.value = data.pagination.totalItems
+    }
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Failed to load report data'
+    const errorMessage = err.response?.data?.error || err.message || 'Failed to load report data'
+    
+    // Retry logic with exponential backoff
+    if (retry < MAX_RETRIES && (err.response?.status >= 500 || !err.response)) {
+      retryCount.value = retry + 1
+      const delay = Math.pow(2, retry) * 1000 // 1s, 2s, 4s
+      
+      toast.warning(`Retrying... (${retryCount.value}/${MAX_RETRIES})`)
+      
+      setTimeout(() => {
+        loadReportData(page, retry + 1)
+      }, delay)
+      return
+    }
+    
+    // Specific error messages
+    if (err.response?.status === 429) {
+      error.value = 'Rate limit exceeded. Please wait a moment and try again.'
+    } else if (err.response?.status === 400) {
+      error.value = err.response?.data?.errors?.join(', ') || err.response?.data?.error || 'Invalid request parameters'
+    } else if (err.response?.status === 403) {
+      error.value = 'You do not have permission to access this report.'
+    } else if (err.response?.status === 404) {
+      error.value = 'Report not found. Please select a different report.'
+    } else if (!err.response) {
+      error.value = 'Network error. Please check your connection and try again.'
+    } else {
+      error.value = errorMessage
+    }
+    
     console.error('Error loading report:', err)
+    toast.error(error.value)
   } finally {
-    loading.value = false
+    if (retry === 0 || retry >= MAX_RETRIES) {
+      loading.value = false
+    }
   }
+}
+
+function retryLoadReport() {
+  retryCount.value = 0
+  loadReportData(currentPage.value, 0)
+}
+
+function goToPage(page: number) {
+  if (page >= 1 && page <= totalPages.value) {
+    loadReportData(page)
+  }
+}
+
+function changePageSize(newSize: number) {
+  pageSize.value = Math.min(500, Math.max(10, newSize))
+  currentPage.value = 1
+  loadReportData(1)
 }
 
 async function exportPDF() {
@@ -824,7 +1117,7 @@ async function exportPDF() {
     const filename = `${selectedReport.value}_${new Date().toISOString().split('T')[0]}.pdf`
     downloadBlob(blob, filename)
   } catch (err: any) {
-    alert(err.response?.data?.error || 'Failed to export PDF')
+    toast.error(err.response?.data?.error || 'Failed to export PDF. Please try again.')
     console.error('Error exporting PDF:', err)
   } finally {
     exporting.value = null
@@ -841,7 +1134,7 @@ async function exportExcel() {
     const filename = `${selectedReport.value}_${new Date().toISOString().split('T')[0]}.xlsx`
     downloadBlob(blob, filename)
   } catch (err: any) {
-    alert(err.response?.data?.error || 'Failed to export Excel')
+    toast.error(err.response?.data?.error || 'Failed to export Excel. Please try again.')
     console.error('Error exporting Excel:', err)
   } finally {
     exporting.value = null
@@ -868,6 +1161,315 @@ function getTableHeaders(data: any): string[] {
   return Object.keys(data || {})
 }
 
+function sortTable(column: string) {
+  if (sortColumn.value === column) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortColumn.value = column
+    sortDirection.value = 'asc'
+  }
+  
+  if (reportData.value?.requests) {
+    reportData.value.requests.sort((a: any, b: any) => {
+      const aVal = a[column]
+      const bVal = b[column]
+      
+      if (aVal === null || aVal === undefined) return 1
+      if (bVal === null || bVal === undefined) return -1
+      
+      let comparison = 0
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        comparison = aVal - bVal
+      } else {
+        comparison = String(aVal).localeCompare(String(bVal))
+      }
+      
+      return sortDirection.value === 'asc' ? comparison : -comparison
+    })
+  }
+}
+
+function getSortIcon(column: string) {
+  if (sortColumn.value !== column) {
+    return 'M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4'
+  }
+  return sortDirection.value === 'asc' 
+    ? 'M5 15l7-7 7 7' 
+    : 'M19 9l-7 7-7-7'
+}
+
+function getReportTitle(): string {
+  const report = availableReports.value.find(r => r.id === selectedReport.value)
+  return report?.name || 'Report'
+}
+
+function formatTableValue(value: any, header: string): string {
+  if (value === null || value === undefined) return '—'
+  
+  // Format dates
+  if (header.includes('date') || header.includes('Date') || header.includes('_at')) {
+    if (typeof value === 'string' && value.includes('T')) {
+      return new Date(value).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    }
+  }
+  
+  // Format numbers
+  if (typeof value === 'number') {
+    return value.toLocaleString()
+  }
+  
+  // Format objects
+  if (typeof value === 'object' && value !== null) {
+    return JSON.stringify(value)
+  }
+  
+  return String(value)
+}
+
+function getVisiblePages(): number[] {
+  const pages: number[] = []
+  const maxVisible = 7
+  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
+  let end = Math.min(totalPages.value, start + maxVisible - 1)
+  
+  if (end - start < maxVisible - 1) {
+    start = Math.max(1, end - maxVisible + 1)
+  }
+  
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  
+  return pages
+}
+
+function printReport() {
+  if (!reportData.value) {
+    toast.warning('No report data available to print')
+    return
+  }
+
+  // Close preview modal if open
+  showPrintPreview.value = false
+
+  // Create print window
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) {
+    toast.error('Please allow popups to print the report')
+    return
+  }
+
+  const reportTitle = getReportTitle()
+  const reportDate = new Date().toLocaleString()
+
+  // Build HTML content
+  let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${reportTitle} - ${new Date().toLocaleDateString()}</title>
+      <style>
+        @media print {
+          @page {
+            margin: 1cm;
+            size: A4;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          .no-print {
+            display: none;
+          }
+        }
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+          color: #1f2937;
+        }
+        h1 {
+          color: #1f2937;
+          border-bottom: 3px solid #3b82f6;
+          padding-bottom: 10px;
+          margin-bottom: 20px;
+          font-size: 24px;
+        }
+        h2 {
+          color: #374151;
+          margin-top: 30px;
+          margin-bottom: 15px;
+          font-size: 18px;
+          border-bottom: 2px solid #e5e7eb;
+          padding-bottom: 5px;
+        }
+        .report-header {
+          margin-bottom: 30px;
+          padding-bottom: 15px;
+          border-bottom: 2px solid #e5e7eb;
+        }
+        .report-header p {
+          margin: 5px 0;
+          font-size: 12px;
+          color: #6b7280;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+          margin-bottom: 30px;
+          font-size: 11px;
+        }
+        th {
+          background-color: #f3f4f6;
+          text-align: left;
+          padding: 10px;
+          border: 1px solid #d1d5db;
+          font-weight: 600;
+          color: #374151;
+        }
+        td {
+          padding: 8px 10px;
+          border: 1px solid #d1d5db;
+          color: #1f2937;
+        }
+        tr:nth-child(even) {
+          background-color: #f9fafb;
+        }
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 15px;
+          margin-bottom: 30px;
+        }
+        .summary-card {
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          padding: 15px;
+          background-color: #ffffff;
+        }
+        .summary-card h3 {
+          font-size: 11px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          margin-bottom: 8px;
+        }
+        .summary-card .value {
+          font-size: 20px;
+          font-weight: bold;
+          color: #1f2937;
+        }
+        .footer {
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 1px solid #d1d5db;
+          color: #6b7280;
+          font-size: 10px;
+          text-align: center;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="report-header">
+        <h1>${reportTitle}</h1>
+        <p><strong>Generated:</strong> ${reportDate}</p>
+        <p><strong>Role:</strong> ${user.value?.role || 'N/A'}</p>
+        ${filters.value.dateFrom || filters.value.dateTo ? `
+        <p><strong>Date Range:</strong> ${filters.value.dateFrom || 'All'} to ${filters.value.dateTo || 'All'}</p>
+        ` : ''}
+      </div>
+  `
+
+  // Add Summary Section
+  if (reportData.value.summary) {
+    html += `
+      <h2>Executive Summary</h2>
+      <div class="summary-grid">
+    `
+    
+    Object.keys(reportData.value.summary).forEach(key => {
+      const value = reportData.value!.summary[key]
+      html += `
+        <div class="summary-card">
+          <h3>${formatKey(key)}</h3>
+      `
+      
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        Object.keys(value).forEach(subKey => {
+          html += `
+            <div style="margin-bottom: 5px;">
+              <span style="color: #6b7280;">${subKey}:</span>
+              <span style="font-weight: 600; margin-left: 5px;">${value[subKey]}</span>
+            </div>
+          `
+        })
+      } else {
+        html += `<div class="value">${formatValue(value)}</div>`
+      }
+      
+      html += `</div>`
+    })
+    
+    html += `</div>`
+  }
+
+  // Add Requests Table
+  if (reportData.value.requests && reportData.value.requests.length > 0) {
+    const headers = getTableHeaders(reportData.value.requests[0])
+    html += `
+      <h2>Request Details (${reportData.value.requests.length} records)</h2>
+      <table>
+        <thead>
+          <tr>
+    `
+    
+    headers.forEach(header => {
+      html += `<th>${formatKey(header)}</th>`
+    })
+    
+    html += `
+          </tr>
+        </thead>
+        <tbody>
+    `
+    
+    reportData.value.requests.forEach((row: any, index: number) => {
+      html += `<tr${index % 2 === 0 ? '' : ' style="background-color: #f9fafb;"'}>`
+      headers.forEach(header => {
+        html += `<td>${formatTableValue(row[header], header)}</td>`
+      })
+      html += `</tr>`
+    })
+    
+    html += `
+        </tbody>
+      </table>
+    `
+  }
+
+  // Add Footer
+  html += `
+      <div class="footer">
+        <p>This report was generated from the COI System on ${new Date().toLocaleString()}</p>
+        <p>For questions or concerns, please contact the Compliance Department.</p>
+      </div>
+    </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+
+  // Wait for content to load, then print
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}
+
 onMounted(() => {
   // Auto-load first report if available
   if (availableReports.value.length > 0) {
@@ -875,3 +1477,94 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+@media print {
+  .print-preview-content {
+    max-height: none;
+    overflow: visible;
+  }
+  
+  /* Hide non-printable elements */
+  .no-print,
+  button,
+  .bg-gradient-to-r,
+  .shadow-sm,
+  .border-gray-200 {
+    display: none !important;
+  }
+  
+  /* Print-friendly layout */
+  body {
+    margin: 0;
+    padding: 20px;
+  }
+  
+  .col-span-4 {
+    display: none;
+  }
+  
+  .col-span-8 {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  /* Ensure tables print properly */
+  table {
+    page-break-inside: auto;
+  }
+  
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  
+  thead {
+    display: table-header-group;
+  }
+  
+  tfoot {
+    display: table-footer-group;
+  }
+}
+
+.print-content {
+  background: white;
+  padding: 20px;
+}
+
+/* Responsive Design Improvements */
+@media (max-width: 1024px) {
+  .grid-cols-12 {
+    grid-template-columns: 1fr;
+  }
+  
+  .lg\\:col-span-4,
+  .lg\\:col-span-8 {
+    grid-column: span 1;
+  }
+  
+  .chart-container {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  table {
+    font-size: 0.875rem;
+    min-width: 100%;
+  }
+  
+  th, td {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .flex.items-center.gap-3 {
+    flex-wrap: wrap;
+  }
+  
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+</style>

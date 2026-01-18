@@ -1,7 +1,13 @@
 import { getDatabase } from '../database/init.js'
 import { getUserById } from '../utils/userUtils.js'
+import { calculatePagination, getCountQuery, formatPaginationResponse } from '../utils/pagination.js'
 
 const db = getDatabase()
+
+// Default pagination settings
+const DEFAULT_PAGE_SIZE = 50
+const MAX_PAGE_SIZE = 500
+const MAX_EXPORT_RECORDS = 10000 // Limit exports to prevent memory issues
 
 /**
  * Apply role-based data filtering for reports
@@ -62,9 +68,9 @@ function getBaseRequestQuery() {
       d.name as director_approval_by_name,
       p.name as partner_approved_by_name,
       et.proposal_sent_date,
-      et.client_response_date,
-      et.client_response_status,
-      et.engagement_letter_issued,
+      et.client_response_received as client_response_date,
+      et.client_response_type as client_response_status,
+      et.engagement_letter_sent_date as engagement_letter_issued,
       ec.engagement_code
     FROM coi_requests r
     INNER JOIN clients c ON r.client_id = c.id
@@ -81,65 +87,145 @@ function getBaseRequestQuery() {
 
 /**
  * 1.1 My Requests Summary Report
+ * Optimized for large datasets with pagination
  */
 export function getRequesterSummaryReport(userId, filters = {}) {
   const user = getUserById(userId)
   if (!user) throw new Error('User not found')
   
-  let { query, params } = applyRoleFilters(user, getBaseRequestQuery())
+  // Extract pagination params
+  const page = Math.max(1, parseInt(filters.page) || 1)
+  const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(filters.pageSize) || DEFAULT_PAGE_SIZE))
+  const includeData = filters.includeData !== 'false' // Default to true for backward compatibility
+  
   const { dateFrom, dateTo, status, serviceType, clientId } = filters
+  
+  // Build base WHERE clause and params (reusable for all queries)
+  let whereClause = `
+    FROM coi_requests r
+    INNER JOIN clients c ON r.client_id = c.id
+    INNER JOIN users u ON r.requester_id = u.id
+    WHERE 1=1
+  `
+  let baseParams = []
+  
+  // Apply role filter
+  if (user.role === 'Requester') {
+    whereClause += ' AND r.requester_id = ?'
+    baseParams.push(user.id)
+  }
   
   // Apply filters
   if (status) {
-    query += ' AND r.status = ?'
-    params.push(status)
+    whereClause += ' AND r.status = ?'
+    baseParams.push(status)
   }
   if (serviceType) {
-    query += ' AND r.service_type LIKE ?'
-    params.push(`%${serviceType}%`)
+    whereClause += ' AND r.service_type LIKE ?'
+    baseParams.push(`%${serviceType}%`)
   }
   if (clientId) {
-    query += ' AND r.client_id = ?'
-    params.push(clientId)
+    whereClause += ' AND r.client_id = ?'
+    baseParams.push(clientId)
   }
   
-  const { query: dateQuery, params: dateParams } = applyDateFilter(query, params, dateFrom, dateTo)
-  query = dateQuery
-  params = dateParams
+  // Apply date filter
+  if (dateFrom) {
+    whereClause += ' AND r.created_at >= ?'
+    baseParams.push(dateFrom)
+  }
+  if (dateTo) {
+    whereClause += ' AND r.created_at <= ?'
+    baseParams.push(dateTo + ' 23:59:59')
+  }
   
-  const requests = db.prepare(query).all(...params)
+  // Get total count (optimized)
+  const countQuery = `SELECT COUNT(*) as total ${whereClause}`
+  const totalResult = db.prepare(countQuery).get(...baseParams)
+  const totalRequests = totalResult?.total || 0
   
-  // Calculate metrics
-  const totalRequests = requests.length
+  // Calculate summary metrics using optimized aggregation
   const byStatus = {}
   const byServiceType = {}
   const byClient = {}
+  
+  // Get status breakdown
+  const statusQuery = `SELECT r.status, COUNT(*) as count ${whereClause} GROUP BY r.status`
+  const statusData = db.prepare(statusQuery).all(...baseParams)
+  statusData.forEach(row => {
+    byStatus[row.status] = row.count
+  })
+  
+  // Get service type breakdown
+  const serviceQuery = `SELECT r.service_type, COUNT(*) as count ${whereClause} GROUP BY r.service_type`
+  const serviceData = db.prepare(serviceQuery).all(...baseParams)
+  serviceData.forEach(row => {
+    byServiceType[row.service_type || 'Unknown'] = row.count
+  })
+  
+  // Get client breakdown
+  const clientQuery = `SELECT c.client_name, COUNT(*) as count ${whereClause} GROUP BY c.client_name`
+  const clientData = db.prepare(clientQuery).all(...baseParams)
+  clientData.forEach(row => {
+    byClient[row.client_name || 'Unknown'] = row.count
+  })
+  
+  // Calculate average processing time (only for approved requests)
+  const processingQuery = `
+    SELECT 
+      r.created_at,
+      r.partner_approval_date
+    ${whereClause}
+    AND r.status = 'Approved'
+    AND r.partner_approval_date IS NOT NULL
+    AND r.created_at IS NOT NULL
+  `
+  const processingData = db.prepare(processingQuery).all(...baseParams)
+  
   let totalProcessingTime = 0
   let processedCount = 0
-  
-  requests.forEach(req => {
-    // Status breakdown
-    byStatus[req.status] = (byStatus[req.status] || 0) + 1
-    
-    // Service type breakdown
-    const service = req.service_type || 'Unknown'
-    byServiceType[service] = (byServiceType[service] || 0) + 1
-    
-    // Client breakdown
-    const client = req.client_name || 'Unknown'
-    byClient[client] = (byClient[client] || 0) + 1
-    
-    // Processing time (for completed requests)
-    if (req.status === 'Approved' && req.partner_approval_date && req.created_at) {
-      const created = new Date(req.created_at)
-      const approved = new Date(req.partner_approval_date)
-      const days = (approved - created) / (1000 * 60 * 60 * 24)
-      totalProcessingTime += days
-      processedCount++
-    }
+  processingData.forEach(req => {
+    const created = new Date(req.created_at)
+    const approved = new Date(req.partner_approval_date)
+    const days = (approved - created) / (1000 * 60 * 60 * 24)
+    totalProcessingTime += days
+    processedCount++
   })
   
   const avgProcessingTime = processedCount > 0 ? (totalProcessingTime / processedCount).toFixed(2) : 0
+  
+  // Get paginated requests data (only if requested)
+  let requests = []
+  let pagination = null
+  
+  if (includeData) {
+    // Apply pagination
+    const paginationInfo = calculatePagination(page, pageSize, totalRequests)
+    const dataQuery = `
+      SELECT 
+        r.request_id,
+        r.service_type,
+        r.status,
+        r.created_at,
+        r.updated_at,
+        c.client_name
+      ${whereClause}
+      ORDER BY r.created_at DESC
+      LIMIT ? OFFSET ?
+    `
+    const dataParams = [...baseParams, paginationInfo.pageSize, paginationInfo.offset]
+    
+    requests = db.prepare(dataQuery).all(...dataParams)
+    
+    pagination = {
+      currentPage: paginationInfo.currentPage,
+      pageSize: paginationInfo.pageSize,
+      totalItems: totalRequests,
+      totalPages: paginationInfo.totalPages,
+      hasNext: paginationInfo.hasNext,
+      hasPrev: paginationInfo.hasPrev
+    }
+  }
   
   return {
     summary: {
@@ -156,7 +242,8 @@ export function getRequesterSummaryReport(userId, filters = {}) {
       status: r.status,
       created_at: r.created_at,
       updated_at: r.updated_at
-    }))
+    })),
+    pagination
   }
 }
 
@@ -265,7 +352,7 @@ export function getComplianceSummaryReport(userId, filters = {}) {
   if (user.role !== 'Compliance') throw new Error('Access denied')
   
   let query = getBaseRequestQuery()
-  const params = []
+  let params = []
   const { dateFrom, dateTo, status, conflictLevel } = filters
   
   // Apply filters
@@ -343,7 +430,7 @@ export function getPartnerPendingApprovalsReport(userId, filters = {}) {
   if (user.role !== 'Partner') throw new Error('Access denied')
   
   let query = getBaseRequestQuery() + ' AND r.status = ?'
-  const params = ['Pending Partner Approval']
+  let params = ['Pending Partner Approval']
   const { dateFrom, dateTo } = filters
   
   const { query: dateQuery, params: dateParams } = applyDateFilter(query, params, dateFrom, dateTo)
@@ -405,7 +492,7 @@ export function getEngagementCodeSummaryReport(userId, filters = {}) {
     INNER JOIN clients c ON r.client_id = c.id
     WHERE 1=1
   `
-  const params = []
+  let params = []
   
   if (serviceType) {
     query += ' AND r.service_type LIKE ?'
@@ -478,7 +565,7 @@ export function getSystemOverviewReport(userId, filters = {}) {
   
   // Total requests
   let query = 'SELECT COUNT(*) as count FROM coi_requests WHERE 1=1'
-  const params = []
+  let params = []
   const { query: dateQuery, params: dateParams } = applyDateFilter(query, params, dateFrom, dateTo)
   const totalRequests = db.prepare(dateQuery).get(...dateParams)?.count || 0
   
@@ -552,7 +639,7 @@ export function getProspectConversionReport(userId, filters = {}) {
     WHERE r.relationship_with_client = 'New Client'
     AND 1=1
   `
-  const params = []
+  let params = []
   
   if (status) {
     query += ' AND r.status = ?'

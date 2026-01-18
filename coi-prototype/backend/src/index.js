@@ -19,6 +19,7 @@ import engagementRoutes from './routes/engagement.routes.js'
 import serviceCatalogRoutes from './routes/serviceCatalog.routes.js'
 import entityCodesRoutes from './routes/entityCodes.routes.js'
 import reportsRoutes from './routes/reports.routes.js'
+import reportSharingRoutes from './routes/reportSharing.routes.js'
 import prospectClientCreationRoutes from './routes/prospectClientCreation.routes.js'
 import complianceRoutes from './routes/compliance.routes.js'
 import countriesRoutes from './routes/countries.routes.js'
@@ -102,8 +103,20 @@ app.use('/api/service-catalog', serviceCatalogRoutes)
 app.use('/api/entity-codes', entityCodesRoutes)
 app.use('/api/countries', countriesRoutes)
 app.use('/api/reports', reportsRoutes)
+app.use('/api/reports', reportSharingRoutes)
 app.use('/api/prospect-client-creation', prospectClientCreationRoutes)
 app.use('/api/compliance', complianceRoutes)
+
+// Conditionally load client intelligence routes (feature-flagged module)
+import('../../client-intelligence/backend/routes/clientIntelligence.routes.js')
+  .then(module => {
+    app.use('/api/client-intelligence', module.default)
+    console.log('✅ Client Intelligence routes loaded')
+  })
+  .catch(err => {
+    // Feature may be disabled or module not available - this is OK
+    console.log('ℹ️  Client Intelligence routes not loaded (feature may be disabled)')
+  })
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'COI Prototype API' })

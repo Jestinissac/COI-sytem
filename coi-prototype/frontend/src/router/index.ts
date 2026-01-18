@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { isClientIntelligenceEnabled } from '../../../client-intelligence/frontend/services/featureFlag.ts'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -99,6 +100,18 @@ const router = createRouter({
           meta: { requiresAuth: true }
         },
         {
+          path: 'compliance/client-services',
+          name: 'ComplianceClientServices',
+          component: () => import('@/views/ComplianceClientServices.vue'),
+          meta: { roles: ['Compliance'] }
+        },
+        {
+          path: 'hrms/vacation-management',
+          name: 'HRMSVacationManagement',
+          component: () => import('@/views/HRMSVacationManagement.vue'),
+          meta: { roles: ['Admin', 'Super Admin', 'Compliance'] }
+        },
+        {
           path: 'prms-demo',
           name: 'PRMSDemo',
           component: () => import('@/views/PRMSDemo.vue'),
@@ -129,6 +142,16 @@ const router = createRouter({
           meta: { requiresAuth: true }
         },
         {
+          path: 'client-intelligence',
+          name: 'ClientIntelligence',
+          component: () => import('../../../client-intelligence/frontend/views/ClientIntelligenceDashboard.vue'),
+          meta: {
+            requiresAuth: true,
+            roles: ['Requester', 'Director', 'Partner', 'Admin', 'Super Admin'],
+            featureFlag: 'client_intelligence_module'
+          }
+        },
+        {
           path: 'reports-old',
           name: 'ReportingDashboard',
           component: () => import('@/views/ReportingDashboard.vue'),
@@ -145,6 +168,12 @@ const router = createRouter({
           name: 'ComplianceClientServices',
           component: () => import('@/views/ComplianceClientServices.vue'),
           meta: { roles: ['Compliance', 'Partner', 'Super Admin'] }
+        },
+        {
+          path: 'hrms/vacation-management',
+          name: 'HRMSVacationManagement',
+          component: () => import('@/views/HRMSVacationManagement.vue'),
+          meta: { roles: ['Admin', 'Super Admin', 'Compliance'] }
         }
       ]
     },
@@ -156,6 +185,16 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
+  // Check feature flag for client intelligence route
+  if (to.path.includes('client-intelligence')) {
+    const enabled = await isClientIntelligenceEnabled()
+    if (!enabled) {
+      return next({
+        path: '/coi/requester',
+        query: { message: 'Client Intelligence module is currently disabled', feature: 'client_intelligence' }
+      })
+    }
+  }
   const authStore = useAuthStore()
   
   // #region agent log

@@ -5,8 +5,12 @@
       <div class="max-w-7xl mx-auto px-6 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
-            <button @click="goBack" class="p-2 hover:bg-gray-100 rounded-md transition-colors">
-              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button 
+              @click="goBack" 
+              class="p-2 hover:bg-gray-100 rounded-md transition-colors"
+              aria-label="Go back"
+            >
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
               </svg>
             </button>
@@ -918,6 +922,9 @@
       @cancel="showConvertModal = false"
       @converted="handleProspectConverted"
     />
+
+    <!-- Toast Notifications -->
+    <ToastContainer />
   </div>
 </template>
 
@@ -925,10 +932,14 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
+import ToastContainer from '@/components/ui/ToastContainer.vue'
 import FileUpload from '@/components/FileUpload.vue'
 import ConvertToEngagementModal from '@/components/engagement/ConvertToEngagementModal.vue'
 import ProspectConversionModal from '@/components/engagement/ProspectConversionModal.vue'
 import api from '@/services/api'
+
+const toast = useToast()
 
 const route = useRoute()
 const router = useRouter()
@@ -1185,7 +1196,7 @@ function handleAttachmentUploaded(attachment: any) {
 }
 
 function handleAttachmentError(error: string) {
-  alert(error)
+  toast.error(error)
 }
 
 async function downloadAttachment(attachmentId: number) {
@@ -1204,7 +1215,7 @@ async function downloadAttachment(attachmentId: number) {
     link.remove()
     window.URL.revokeObjectURL(url)
   } catch (error: any) {
-    alert(error.response?.data?.error || 'Failed to download attachment')
+    toast.error(error.response?.data?.error || 'Failed to download attachment. Please try again.')
   }
 }
 
@@ -1426,12 +1437,12 @@ async function deleteDraft() {
   deleting.value = true
   try {
     await api.delete(`/coi/requests/${request.value.id}`)
-    alert('Draft deleted successfully')
+    toast.success('Draft deleted successfully')
     // Navigate back to requester dashboard
-    router.push('/coi/requester')
+    setTimeout(() => router.push('/coi/requester'), 1000)
   } catch (error: any) {
     console.error('Failed to delete draft:', error)
-    alert(error.response?.data?.error || 'Failed to delete draft. Please try again.')
+    toast.error(error.response?.data?.error || 'Failed to delete draft. Please try again.')
   } finally {
     deleting.value = false
   }
@@ -1454,30 +1465,24 @@ async function handleConverted(result: any) {
   showConvertModal.value = false
   
   // Show success message
-  alert(`Proposal successfully converted to engagement.\n\nNew Request: ${result.new_request.request_id}`)
+  toast.success(`Proposal successfully converted to engagement. New Request: ${result.new_request.request_id}`)
   
-  // Navigate to new engagement or stay
-  const action = confirm('View new engagement request?')
-  if (action) {
-    router.push(`/coi/requests/${result.new_request.id}`)
-  } else {
-    await loadRequest()
-  }
+  // Navigate to new engagement after a short delay
+  setTimeout(() => {
+    router.push(`/coi/request/${result.new_request.id}`)
+  }, 1500)
 }
 
 async function handleProspectConverted(result: any) {
   showConvertModal.value = false
   
   // Show success message
-  alert(`Engagement created and client creation request submitted to PRMS Admin.\n\nNew Request: ${result.new_request.request_id}`)
+  toast.success(`Engagement created and client creation request submitted to PRMS Admin. New Request: ${result.new_request.request_id}`)
   
-  // Navigate to new engagement or stay
-  const action = confirm('View new engagement request?')
-  if (action) {
-    router.push(`/coi/requests/${result.new_request.id}`)
-  } else {
-    await loadRequest()
-  }
+  // Navigate to new engagement after a short delay
+  setTimeout(() => {
+    router.push(`/coi/request/${result.new_request.id}`)
+  }, 1500)
 }
 
 // Resubmit a rejected request (converts to Draft for editing)
@@ -1490,12 +1495,11 @@ async function resubmitRequest() {
     if (response.data.success) {
       // Reload the request to get updated status
       await loadRequest()
-      // Show success message (optional: could use a toast notification)
-      alert('Request converted to draft. You can now edit and resubmit.')
+      toast.success('Request converted to draft. You can now edit and resubmit.')
     }
   } catch (error: any) {
     console.error('Failed to resubmit:', error)
-    alert(error.response?.data?.error || 'Failed to resubmit request. Please try again.')
+    toast.error(error.response?.data?.error || 'Failed to resubmit request. Please try again.')
   } finally {
     resubmitting.value = false
   }
@@ -1504,7 +1508,7 @@ async function resubmitRequest() {
 // Export Global COI Form Excel
 async function exportGlobalCOIForm() {
   if (!request.value || !request.value.international_operations) {
-    alert('Global COI Form export is only available for requests with international operations')
+    toast.warning('Global COI Form export is only available for requests with international operations')
     return
   }
   
@@ -1524,10 +1528,10 @@ async function exportGlobalCOIForm() {
     link.remove()
     window.URL.revokeObjectURL(url)
     
-    alert('Global COI Form exported successfully!')
+    toast.success('Global COI Form exported successfully!')
   } catch (error: any) {
     console.error('Failed to export:', error)
-    alert(error.response?.data?.error || 'Failed to export Global COI Form')
+    toast.error(error.response?.data?.error || 'Failed to export Global COI Form. Please try again.')
   } finally {
     exporting.value = false
   }

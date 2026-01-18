@@ -15,10 +15,10 @@
 </template>
 
 <script setup lang="ts">
-import { useToast } from '@/composables/useToast'
+import { useToastStore } from '@/stores/toast'
 import Toast from './Toast.vue'
 
-const { toasts, removeToast } = useToast()
+const { toasts, removeToast } = useToastStore()
 </script>
 
 <style scoped>

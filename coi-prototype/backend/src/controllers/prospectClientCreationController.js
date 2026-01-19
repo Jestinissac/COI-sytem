@@ -144,13 +144,14 @@ COI System`
  */
 export async function getPendingClientCreationRequests(req, res) {
   try {
+    // Use COALESCE to handle missing prospect_code column gracefully
     const requests = db.prepare(`
       SELECT 
         r.*,
         u.name as requester_name,
         coi.request_id as coi_request_id_code,
         p.prospect_name,
-        p.prospect_code
+        COALESCE(p.prospect_code, 'PROS-' || strftime('%Y', p.created_at) || '-' || printf('%04d', p.id)) as prospect_code
       FROM prospect_client_creation_requests r
       LEFT JOIN users u ON r.requester_id = u.id
       LEFT JOIN coi_requests coi ON r.coi_request_id = coi.id

@@ -56,69 +56,96 @@
         <!-- Main Content Area -->
         <div class="flex-1">
           <!-- Overview Tab -->
-          <div v-if="activeTab === 'overview'" class="space-y-6">
-            <!-- Stats Cards - Clickable -->
-            <div class="grid grid-cols-4 gap-4">
-              <div @click="activeTab = 'pending'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-orange-300 transition-all">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-sm text-gray-500">Pending Approval</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ pendingApproval.length }}</p>
+          <div v-if="activeTab === 'overview'" class="space-y-8">
+            <!-- Stats Cards - Minimal Design -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div @click="activeTab = 'pending'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-amber-500 transition-colors group">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Pending Approval</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ pendingApproval.length }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="ml-4">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                   </div>
                 </div>
+                <div class="mt-4 h-0.5 bg-amber-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
-              <div @click="activeTab = 'team'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-sm text-gray-500">In Progress</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ inProgress }}</p>
+              <div @click="activeTab = 'team'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-blue-500 transition-colors group">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">In Progress</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ inProgress }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="ml-4">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
                   </div>
                 </div>
+                <div class="mt-4 h-0.5 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
-              <div @click="activeTab = 'approved'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-green-300 transition-all">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-sm text-gray-500">Approved</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ approved }}</p>
+              <div @click="activeTab = 'approved'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-green-500 transition-colors group">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Approved</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ approved }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="ml-4">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                   </div>
                 </div>
+                <div class="mt-4 h-0.5 bg-green-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
-              <div @click="activeTab = 'tracking'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-purple-300 transition-all">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-sm text-gray-500">Active Engagements</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ active }}</p>
+              <div @click="activeTab = 'tracking'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-purple-500 transition-colors group">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Active Engagements</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ active }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="ml-4">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
                   </div>
                 </div>
+                <div class="mt-4 h-0.5 bg-purple-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              </div>
+            </div>
+
+            <!-- Insights Charts - Hero Section -->
+            <div v-if="summaryData" class="bg-white rounded border border-gray-200">
+              <div class="px-8 pt-8 pb-6 border-b border-gray-100">
+                <h2 class="text-xl font-semibold text-gray-900 mb-1">Insights</h2>
+                <p class="text-sm text-gray-500">Click charts to filter reports</p>
+              </div>
+              
+              <div v-if="loadingSummary" class="px-8 py-16 text-center">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600"></div>
+                <p class="mt-4 text-sm text-gray-500">Loading insights...</p>
+              </div>
+              
+              <div v-else-if="summaryData" class="p-8">
+                <ReportCharts
+                  :summary-data="summaryData"
+                  :clickable="true"
+                  @status-click="handleStatusClick"
+                  @service-type-click="handleServiceTypeClick"
+                  @client-click="handleClientClick"
+                />
               </div>
             </div>
 
             <!-- Recent Activity -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="font-semibold text-gray-900">Recent Activity</h2>
+            <div class="bg-white rounded border border-gray-200">
+              <div class="px-8 py-6 border-b border-gray-100">
+                <h2 class="text-xl font-semibold text-gray-900">Recent Activity</h2>
               </div>
-              <div class="p-6">
+              <div class="p-8">
                 <div class="space-y-4">
                   <div v-for="request in recentRequests" :key="request.id" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div class="flex items-center">
@@ -627,6 +654,9 @@
         </div>
       </div>
     </div>
+    
+    <!-- Toast Container -->
+    <ToastContainer />
   </div>
 </template>
 
@@ -635,7 +665,11 @@ import { ref, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 import api from '@/services/api'
+import ReportCharts from '@/components/reports/ReportCharts.vue'
+import { getLandingPageSummary } from '@/services/landingPageService'
+import ToastContainer from '@/components/ui/ToastContainer.vue'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()
@@ -668,6 +702,14 @@ const recordingResponse = ref(false)
 
 const loading = computed(() => coiStore.loading)
 const requests = computed(() => coiStore.requests)
+
+// Chart data for Quick Insights
+const summaryData = ref<{
+  byStatus?: Record<string, number>
+  byServiceType?: Record<string, number>
+  byClient?: Record<string, number>
+} | null>(null)
+const loadingSummary = ref(false)
 
 // Icon components
 const OverviewIcon = {
@@ -878,12 +920,12 @@ async function sendProposal() {
       sent_to: proposalEmail.value,
       include_disclaimer: includeDisclaimer.value
     })
-    alert('Proposal sent successfully!')
+    toast.success('Proposal sent successfully!')
     closeSendProposalModal()
     coiStore.fetchRequests()
   } catch (error: any) {
     console.error('Error sending proposal:', error)
-    alert(error.response?.data?.error || 'Failed to send proposal')
+    toast.error(error.response?.data?.error || 'Failed to send proposal')
   } finally {
     sendingProposal.value = false
   }
@@ -911,12 +953,12 @@ async function recordFollowUp() {
       follow_up_number: followUpNumber.value,
       notes: followUpNotes.value
     })
-    alert('Follow-up recorded successfully!')
+    toast.success('Follow-up recorded successfully!')
     closeFollowUpModal()
     coiStore.fetchRequests()
   } catch (error: any) {
     console.error('Error recording follow-up:', error)
-    alert(error.response?.data?.error || 'Failed to record follow-up')
+    toast.error(error.response?.data?.error || 'Failed to record follow-up')
   } finally {
     recordingFollowUp.value = false
   }
@@ -944,18 +986,72 @@ async function recordClientResponse() {
       response_type: responseType.value,
       notes: responseNotes.value
     })
-    alert('Client response recorded successfully!')
+    toast.success('Client response recorded successfully!')
     closeRecordResponseModal()
     coiStore.fetchRequests()
   } catch (error: any) {
     console.error('Error recording response:', error)
-    alert(error.response?.data?.error || 'Failed to record client response')
+    toast.error(error.response?.data?.error || 'Failed to record client response')
   } finally {
     recordingResponse.value = false
   }
 }
 
+// Load summary data for charts
+async function loadSummaryData() {
+  if (!authStore.user?.role) {
+    return
+  }
+
+  loadingSummary.value = true
+  try {
+    const data = await getLandingPageSummary(authStore.user.role)
+    if (data && (data.byStatus || data.byServiceType || data.byClient)) {
+      summaryData.value = data
+    }
+  } catch (error) {
+    console.error('Error loading summary data:', error)
+  } finally {
+    loadingSummary.value = false
+  }
+}
+
+// Handle chart clicks - navigate to reports with filters
+function handleStatusClick(status: string) {
+  router.push({
+    path: '/coi/reports',
+    query: {
+      report: 'department-overview',
+      role: 'director',
+      status: status
+    }
+  })
+}
+
+function handleServiceTypeClick(serviceType: string) {
+  router.push({
+    path: '/coi/reports',
+    query: {
+      report: 'department-overview',
+      role: 'director',
+      serviceType: serviceType
+    }
+  })
+}
+
+function handleClientClick(clientName: string) {
+  router.push({
+    path: '/coi/reports',
+    query: {
+      report: 'department-overview',
+      role: 'director',
+      clientName: clientName
+    }
+  })
+}
+
 onMounted(() => {
   coiStore.fetchRequests()
+  loadSummaryData()
 })
 </script>

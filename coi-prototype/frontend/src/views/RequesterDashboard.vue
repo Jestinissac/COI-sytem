@@ -18,120 +18,196 @@
       </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-6 py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <!-- Mobile Menu Button -->
+      <button 
+        @click="sidebarOpen = !sidebarOpen"
+        class="md:hidden mb-4 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        aria-label="Toggle navigation menu"
+        :aria-expanded="sidebarOpen"
+      >
+        <svg v-if="!sidebarOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+        <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+
       <div class="flex gap-6">
-        <!-- Left Sidebar Navigation -->
-        <div class="w-56 flex-shrink-0">
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6">
-            <nav class="py-2">
-              <a
+        <!-- Left Sidebar Navigation - Mobile Responsive -->
+        <aside 
+          :class="[
+            'w-64 flex-shrink-0 transition-transform duration-300 ease-in-out',
+            'md:translate-x-0 md:static md:block',
+            sidebarOpen ? 'translate-x-0 fixed inset-y-0 left-0 z-50 md:relative' : '-translate-x-full md:translate-x-0'
+          ]"
+        >
+          <!-- Mobile Overlay -->
+          <div 
+            v-if="sidebarOpen"
+            @click="sidebarOpen = false"
+            class="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            aria-hidden="true"
+          ></div>
+          
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6 h-full md:h-auto overflow-y-auto md:overflow-y-visible">
+            <nav class="py-2" role="tablist">
+              <button
                 v-for="tab in tabs"
                 :key="tab.id"
-                href="#"
-                @click.prevent="activeTab = tab.id"
-                class="flex items-center px-4 py-3 text-sm transition-colors border-l-2"
+                @click="activeTab = tab.id; sidebarOpen = false"
+                @keydown.enter="activeTab = tab.id; sidebarOpen = false"
+                @keydown.space.prevent="activeTab = tab.id; sidebarOpen = false"
+                :aria-selected="activeTab === tab.id"
+                :aria-label="`${tab.label} tab`"
+                role="tab"
+                class="w-full flex items-center px-4 py-3 text-sm transition-colors border-l-2 text-left"
                 :class="activeTab === tab.id 
                   ? 'bg-blue-50 border-blue-600 text-blue-700 font-medium' 
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
               >
-                <component :is="tab.icon" class="w-5 h-5 mr-3" />
+                <component :is="tab.icon" class="w-5 h-5 mr-3" aria-hidden="true" />
                 {{ tab.label }}
                 <span 
                   v-if="tab.count > 0" 
                   class="ml-auto px-2 py-0.5 text-xs font-medium rounded-full"
                   :class="tab.alertColor"
+                  :aria-label="`${tab.count} items`"
                 >
                   {{ tab.count }}
                 </span>
-              </a>
+              </button>
             </nav>
 
             <!-- Quick Actions -->
             <div class="px-4 py-4 border-t border-gray-200">
               <router-link 
                 to="/coi/request/new"
-                class="flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                @click="sidebarOpen = false"
+                class="flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                aria-label="Create new COI request"
               >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 New Request
               </router-link>
             </div>
           </div>
-        </div>
+        </aside>
 
         <!-- Main Content Area -->
         <div class="flex-1">
           <!-- Overview Tab -->
-          <div v-if="activeTab === 'overview'" class="space-y-6">
-            <!-- Stats Cards - Clickable -->
-            <div class="grid grid-cols-4 gap-4">
-              <div @click="activeTab = 'all'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-sm text-gray-500">Total Requests</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ totalRequests }}</p>
+          <div v-if="activeTab === 'overview'" class="space-y-8">
+            <!-- Stats Cards - Minimal Design -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div @click="activeTab = 'all'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-blue-500 transition-colors group">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Total Requests</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ totalRequests }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="ml-4">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                   </div>
                 </div>
+                <div class="mt-4 h-0.5 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
-              <div @click="activeTab = 'pending'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-yellow-300 transition-all">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-sm text-gray-500">In Progress</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ inProgressCount }}</p>
+              <div @click="activeTab = 'pending'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-amber-500 transition-colors group">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">In Progress</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ inProgressCount }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="ml-4">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                   </div>
                 </div>
+                <div class="mt-4 h-0.5 bg-amber-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
-              <div @click="activeTab = 'active'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-green-300 transition-all">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-sm text-gray-500">Approved</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ approvedCount }}</p>
+              <div @click="activeTab = 'active'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-green-500 transition-colors group">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Approved</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ approvedCount }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="ml-4">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                   </div>
                 </div>
+                <div class="mt-4 h-0.5 bg-green-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
-              <div @click="activeTab = 'drafts'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-gray-400 transition-all">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-sm text-gray-500">Drafts</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ draftCount }}</p>
+              <div @click="activeTab = 'drafts'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-gray-500 transition-colors group">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Drafts</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ draftCount }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="ml-4">
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
                   </div>
                 </div>
+                <div class="mt-4 h-0.5 bg-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              </div>
+            </div>
+
+            <!-- Insights Charts - Hero Section -->
+            <div v-if="summaryData" class="bg-white rounded border border-gray-200">
+              <div class="px-8 pt-8 pb-6 border-b border-gray-100">
+                <h2 class="text-xl font-semibold text-gray-900 mb-1">Insights</h2>
+                <p class="text-sm text-gray-500">Click charts to filter reports</p>
+              </div>
+              
+              <div v-if="loadingSummary" class="px-8 py-16 text-center">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600"></div>
+                <p class="mt-4 text-sm text-gray-500">Loading insights...</p>
+              </div>
+              
+              <div v-else-if="summaryData" class="p-8">
+                <ReportCharts
+                  :summary-data="summaryData"
+                  :clickable="true"
+                  @status-click="handleStatusClick"
+                  @service-type-click="handleServiceTypeClick"
+                  @client-click="handleClientClick"
+                />
               </div>
             </div>
 
             <!-- Recent Requests -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="font-semibold text-gray-900">Recent Requests</h2>
+            <div class="bg-white rounded border border-gray-200">
+              <div class="px-8 py-6 border-b border-gray-100">
+                <h2 class="text-xl font-semibold text-gray-900">Recent Requests</h2>
               </div>
-              <div class="p-6">
-                <div class="space-y-3">
+              <div class="p-8">
+                <!-- Loading State -->
+                <div v-if="loading" class="space-y-3">
+                  <SkeletonCard v-for="i in 3" :key="i" />
+                </div>
+                <!-- Empty State -->
+                <EmptyState
+                  v-else-if="recentRequests.length === 0"
+                  icon="📋"
+                  title="No recent requests"
+                  message="Get started by creating your first COI request"
+                  :action="{ label: 'Create Request', to: '/coi/request/new' }"
+                />
+                <!-- Requests List -->
+                <div v-else class="space-y-3">
                   <div v-for="request in recentRequests" :key="request.id" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div class="flex items-center">
                       <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
                       </div>
@@ -141,16 +217,17 @@
                       </div>
                     </div>
                     <div class="flex items-center gap-3">
-                      <span :class="getStatusClass(request.status)" class="px-2 py-1 text-xs font-medium rounded">
+                      <span :class="getStatusClass(request.status || '')" class="px-2 py-1 text-xs font-medium rounded">
                         {{ getStatusLabel(request.status) }}
                       </span>
-                      <button @click="viewRequest(request)" class="text-blue-600 hover:text-blue-800 text-sm">
+                      <button 
+                        @click="viewRequest(request)" 
+                        class="text-blue-600 hover:text-blue-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                        aria-label="View request details"
+                      >
                         View →
                       </button>
                     </div>
-                  </div>
-                  <div v-if="recentRequests.length === 0" class="text-center py-4 text-gray-500">
-                    No requests yet. Create your first request!
                   </div>
                 </div>
               </div>
@@ -163,8 +240,11 @@
               <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <h2 class="font-semibold text-gray-900">All My Requests</h2>
                 <div class="flex items-center gap-3">
-                  <button class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <button 
+                    class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    aria-label="Export requests"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                     Export
@@ -183,7 +263,8 @@
                 </div>
               </div>
 
-              <div class="overflow-x-auto">
+              <!-- Desktop Table View -->
+              <div class="hidden md:block overflow-x-auto">
                 <table class="w-full">
                   <thead class="bg-gray-50">
                     <tr>
@@ -197,28 +278,20 @@
                   </thead>
                   <tbody class="divide-y divide-gray-200">
                     <tr v-if="loading">
-                      <td colspan="6" class="px-6 py-8 text-center text-gray-500">
-                        <div class="flex items-center justify-center">
-                          <svg class="animate-spin h-5 w-5 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Loading...
+                      <td colspan="6" class="px-6 py-8">
+                        <div class="flex items-center justify-center space-x-4">
+                          <SkeletonCard v-for="i in 3" :key="i" />
                         </div>
                       </td>
                     </tr>
                     <tr v-else-if="filteredRequests.length === 0">
                       <td colspan="6" class="px-6 py-8">
-                        <div class="text-center py-8">
-                          <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                          </svg>
-                          <h3 class="text-lg font-medium text-gray-900 mb-2">No requests yet</h3>
-                          <p class="text-sm text-gray-500 mb-4">Get started by creating your first COI request</p>
-                          <router-link to="/coi/request/new" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors inline-block">
-                            Create Request
-                          </router-link>
-                        </div>
+                        <EmptyState
+                          icon="📋"
+                          title="No requests found"
+                          message="Try adjusting your filters or create a new request"
+                          :action="{ label: 'Create Request', to: '/coi/request/new' }"
+                        />
                       </td>
                     </tr>
                     <tr v-for="request in paginatedRequests" :key="request.id" class="hover:bg-gray-50">
@@ -237,16 +310,66 @@
                         </span>
                       </td>
                       <td class="px-6 py-4">
-                        <span class="text-sm text-gray-500">{{ formatDate(request.created_at) }}</span>
+                        <span class="text-sm text-gray-500">{{ formatDate(request.created_at || '') }}</span>
                       </td>
                       <td class="px-6 py-4">
-                        <button @click="viewRequest(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <button 
+                          @click="viewRequest(request)" 
+                          class="text-blue-600 hover:text-blue-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                          aria-label="View request details"
+                        >
                           View →
                         </button>
                       </td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+
+              <!-- Mobile Card Layout -->
+              <div class="md:hidden space-y-4">
+                <div v-if="loading" class="space-y-4">
+                  <SkeletonCard v-for="i in 5" :key="i" />
+                </div>
+                <EmptyState
+                  v-else-if="filteredRequests.length === 0"
+                  icon="📋"
+                  title="No requests found"
+                  message="Try adjusting your filters or create a new request"
+                  :action="{ label: 'Create Request', to: '/coi/request/new' }"
+                />
+                <div 
+                  v-for="request in paginatedRequests" 
+                  :key="request.id" 
+                  class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+                >
+                  <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                      <p class="text-sm font-medium text-gray-900 mb-1">{{ request.request_id }}</p>
+                      <p class="text-xs text-gray-500">{{ request.client_name || 'Not specified' }}</p>
+                    </div>
+                    <span :class="getStatusClass(request.status || '')" class="px-2 py-1 text-xs font-medium rounded">
+                      {{ getStatusLabel(request.status || '') }}
+                    </span>
+                  </div>
+                  <div class="space-y-2 mb-3">
+                    <div class="flex justify-between text-xs">
+                      <span class="text-gray-500">Service Type:</span>
+                      <span class="text-gray-900">{{ request.service_type || 'General' }}</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                      <span class="text-gray-500">Date:</span>
+                      <span class="text-gray-900">{{ formatDate(request.created_at || '') }}</span>
+                    </div>
+                  </div>
+                  <button 
+                    @click="viewRequest(request)" 
+                    class="w-full mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    aria-label="View request details"
+                  >
+                    View Details
+                  </button>
+                </div>
               </div>
 
               <!-- Pagination -->
@@ -294,7 +417,7 @@
                       <div>
                         <p class="font-medium text-gray-900">{{ request.request_id }}</p>
                         <p class="text-sm text-gray-500 mt-1">{{ request.client_name || 'No client selected' }}</p>
-                        <p class="text-xs text-gray-400 mt-2">Last updated: {{ formatDate(request.updated_at) }}</p>
+                        <p class="text-xs text-gray-400 mt-2">Last updated: {{ formatDate(request.updated_at || '') }}</p>
                       </div>
                       <div class="flex gap-2">
                         <button 
@@ -365,7 +488,7 @@
                         </span>
                       </td>
                       <td class="px-6 py-4">
-                        <span class="text-sm text-gray-500">{{ formatDate(request.created_at) }}</span>
+                        <span class="text-sm text-gray-500">{{ formatDate(request.created_at || '') }}</span>
                       </td>
                       <td class="px-6 py-4">
                         <button @click="viewRequest(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
@@ -783,6 +906,9 @@
         </div>
       </div>
     </div>
+    
+    <!-- Toast Container -->
+    <ToastContainer />
   </div>
 </template>
 
@@ -791,16 +917,24 @@ import { ref, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 import api from '@/services/api'
+import ReportCharts from '@/components/reports/ReportCharts.vue'
+import { getLandingPageSummary } from '@/services/landingPageService'
+import ToastContainer from '@/components/ui/ToastContainer.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import SkeletonCard from '@/components/ui/SkeletonCard.vue'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()
 const authStore = useAuthStore()
+const toast = useToast()
 
 const activeTab = ref('overview')
 const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
+const sidebarOpen = ref(false)
 
 // Phase filter for Active tab
 const activePhase = ref<'proposal' | 'engagement'>('proposal')
@@ -826,6 +960,14 @@ const recordingResponse = ref(false)
 
 const loading = computed(() => coiStore.loading)
 const requests = computed(() => coiStore.requests)
+
+// Chart data for Quick Insights
+const summaryData = ref<{
+  byStatus?: Record<string, number>
+  byServiceType?: Record<string, number>
+  byClient?: Record<string, number>
+} | null>(null)
+const loadingSummary = ref(false)
 
 // Icon components
 const OverviewIcon = {
@@ -919,7 +1061,7 @@ const filteredActiveEngagements = computed(() => {
 })
 
 const recentRequests = computed(() => [...requests.value].sort((a, b) => 
-  new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
 ).slice(0, 5))
 
 // Filtered & Paginated
@@ -938,7 +1080,8 @@ const startIndex = computed(() => (currentPage.value - 1) * pageSize.value)
 const endIndex = computed(() => Math.min(startIndex.value + pageSize.value, filteredRequests.value.length))
 const paginatedRequests = computed(() => filteredRequests.value.slice(startIndex.value, endIndex.value))
 
-function getStatusClass(status: string) {
+function getStatusClass(status: string | undefined) {
+  if (!status) return 'bg-gray-100 text-gray-700'
   const classes: Record<string, string> = {
     'Draft': 'bg-gray-100 text-gray-700',
     'Pending Director Approval': 'bg-yellow-100 text-yellow-700',
@@ -976,7 +1119,8 @@ function getClientResponseLabel(request: any) {
   return 'Pending'
 }
 
-function getStatusLabel(status: string) {
+function getStatusLabel(status: string | undefined) {
+  if (!status) return 'Unknown'
   const labels: Record<string, string> = {
     'Pending Director Approval': 'Director Review',
     'Pending Compliance': 'Compliance Review',
@@ -987,7 +1131,7 @@ function getStatusLabel(status: string) {
   return labels[status] || status
 }
 
-function formatDate(dateString: string) {
+function formatDate(dateString: string | undefined) {
   if (!dateString) return 'N/A'
   return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
@@ -1020,7 +1164,7 @@ function editDraft(request: any) {
 
 async function resubmitRequest(request: any) {
   if (request.rejection_type === 'permanent') {
-    alert('This request was permanently rejected and cannot be resubmitted.')
+    toast.error('This request was permanently rejected and cannot be resubmitted.')
     return
   }
   
@@ -1028,23 +1172,23 @@ async function resubmitRequest(request: any) {
     const response = await api.post(`/coi/requests/${request.id}/resubmit`)
     
     if (response.data.success) {
-      alert('Request converted to draft. You can now edit and resubmit.')
+      toast.success('Request converted to draft. You can now edit and resubmit.')
       // Refresh the requests list
       coiStore.fetchRequests()
       // Navigate to the request detail page for editing
       router.push(`/coi/request/${request.id}`)
     } else {
-      alert(response.data.error || 'Failed to resubmit request.')
+      toast.error(response.data.error || 'Failed to resubmit request.')
     }
   } catch (error: any) {
     console.error('Failed to resubmit:', error)
-    alert(error.response?.data?.error || 'Failed to resubmit request. Please try again.')
+    toast.error(error.response?.data?.error || 'Failed to resubmit request. Please try again.')
   }
 }
 
 async function deleteDraft(request: any) {
   if (request.status !== 'Draft') {
-    alert('Only draft requests can be deleted.')
+    toast.error('Only draft requests can be deleted.')
     return
   }
   
@@ -1054,12 +1198,12 @@ async function deleteDraft(request: any) {
   
   try {
     await api.delete(`/coi/requests/${request.id}`)
-    alert('Draft deleted successfully')
+    toast.success('Draft deleted successfully')
     // Refresh the requests list
     coiStore.fetchRequests()
   } catch (error: any) {
     console.error('Failed to delete draft:', error)
-    alert(error.response?.data?.error || 'Failed to delete draft. Please try again.')
+    toast.error(error.response?.data?.error || 'Failed to delete draft. Please try again.')
   }
 }
 
@@ -1104,12 +1248,12 @@ async function sendProposal() {
       sent_to: proposalEmail.value,
       include_disclaimer: includeDisclaimer.value
     })
-    alert('Proposal sent successfully!')
+    toast.success('Proposal sent successfully!')
     closeSendProposalModal()
     coiStore.fetchRequests()
   } catch (error: any) {
     console.error('Error sending proposal:', error)
-    alert(error.response?.data?.error || 'Failed to send proposal')
+    toast.error(error.response?.data?.error || 'Failed to send proposal')
   } finally {
     sendingProposal.value = false
   }
@@ -1137,12 +1281,12 @@ async function recordFollowUp() {
       follow_up_number: followUpNumber.value,
       notes: followUpNotes.value
     })
-    alert('Follow-up recorded successfully!')
+    toast.success('Follow-up recorded successfully!')
     closeFollowUpModal()
     coiStore.fetchRequests()
   } catch (error: any) {
     console.error('Error recording follow-up:', error)
-    alert(error.response?.data?.error || 'Failed to record follow-up')
+    toast.error(error.response?.data?.error || 'Failed to record follow-up')
   } finally {
     recordingFollowUp.value = false
   }
@@ -1170,18 +1314,72 @@ async function recordClientResponse() {
       response_type: responseType.value,
       notes: responseNotes.value
     })
-    alert('Client response recorded successfully!')
+    toast.success('Client response recorded successfully!')
     closeRecordResponseModal()
     coiStore.fetchRequests()
   } catch (error: any) {
     console.error('Error recording response:', error)
-    alert(error.response?.data?.error || 'Failed to record client response')
+    toast.error(error.response?.data?.error || 'Failed to record client response')
   } finally {
     recordingResponse.value = false
   }
 }
 
+// Load summary data for charts
+async function loadSummaryData() {
+  if (!authStore.user?.role) {
+    return
+  }
+
+  loadingSummary.value = true
+  try {
+    const data = await getLandingPageSummary(authStore.user.role)
+    if (data && (data.byStatus || data.byServiceType || data.byClient)) {
+      summaryData.value = data
+    }
+  } catch (error) {
+    console.error('Error loading summary data:', error)
+  } finally {
+    loadingSummary.value = false
+  }
+}
+
+// Handle chart clicks - navigate to reports with filters
+function handleStatusClick(status: string) {
+  router.push({
+    path: '/coi/reports',
+    query: {
+      report: 'my-requests-summary',
+      role: 'requester',
+      status: status
+    }
+  })
+}
+
+function handleServiceTypeClick(serviceType: string) {
+  router.push({
+    path: '/coi/reports',
+    query: {
+      report: 'my-requests-summary',
+      role: 'requester',
+      serviceType: serviceType
+    }
+  })
+}
+
+function handleClientClick(clientName: string) {
+  router.push({
+    path: '/coi/reports',
+    query: {
+      report: 'my-requests-summary',
+      role: 'requester',
+      clientName: clientName
+    }
+  })
+}
+
 onMounted(() => {
   coiStore.fetchRequests()
+  loadSummaryData()
 })
 </script>

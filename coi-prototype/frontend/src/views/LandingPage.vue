@@ -61,6 +61,7 @@ const availableSystems = computed(() => {
   )
 })
 
+
 function navigateToSystem(systemName: string) {
   const system = systems.find(s => s.name === systemName)
   if (system) {

@@ -834,6 +834,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import ToastContainer from '@/components/ui/ToastContainer.vue'
@@ -842,6 +843,7 @@ import FilterChips from '@/components/reports/FilterChips.vue'
 import { getReportData, exportReportPDF, exportReportExcel, downloadBlob, type ReportFilters, type ReportData } from '@/services/reportService'
 
 const toast = useToast()
+const route = useRoute()
 
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
@@ -1471,9 +1473,39 @@ function printReport() {
 }
 
 onMounted(() => {
-  // Auto-load first report if available
-  if (availableReports.value.length > 0) {
-    selectedReport.value = availableReports.value[0].id
+  // Check for query parameters from chart clicks
+  const query = route.query
+  
+  if (query.report) {
+    // Set the selected report
+    selectedReport.value = query.report as string
+    showCatalog.value = false
+    
+    // Apply filters from query params
+    if (query.status) {
+      filters.value.status = query.status as string
+    }
+    if (query.serviceType) {
+      filters.value.serviceType = query.serviceType as string
+    }
+    if (query.clientName) {
+      // Note: We'd need to look up clientId from clientName
+      // For now, we'll store it as a custom filter
+      filters.value.clientName = query.clientName as string
+    }
+    if (query.clientId) {
+      filters.value.clientId = parseInt(query.clientId as string)
+    }
+    
+    // Load the report data with filters
+    if (selectedReport.value) {
+      loadReportData(1)
+    }
+  } else {
+    // Auto-load first report if available
+    if (availableReports.value.length > 0) {
+      selectedReport.value = availableReports.value[0].id
+    }
   }
 })
 </script>

@@ -1,76 +1,85 @@
 <template>
-  <div class="report-charts space-y-6">
-    <!-- Status Breakdown Pie Chart -->
-    <div v-if="summaryData.byStatus && Object.keys(summaryData.byStatus).length > 0" class="chart-container">
-      <div class="flex items-center justify-between mb-4">
-        <h4 class="text-lg font-semibold text-gray-900">Status Distribution</h4>
-        <button
-          @click="exportChart('statusChart', 'Status Distribution')"
-          class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-          aria-label="Export status chart"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-          </svg>
-          Export
-        </button>
+  <div class="report-charts">
+    <!-- Grid Layout for Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- Status Breakdown Pie Chart -->
+      <div v-if="summaryData.byStatus && Object.keys(summaryData.byStatus).length > 0" class="chart-container">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-lg font-medium text-gray-900">Status Distribution</h3>
+          <button
+            @click="exportChart('statusChart', 'Status Distribution')"
+            class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5 transition-colors"
+            aria-label="Export status chart"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            <span>Export</span>
+          </button>
+        </div>
+        <div :class="{ 'cursor-pointer': clickable }">
+          <PieChart
+            ref="statusChart"
+            id="statusChart"
+            :data="statusChartData"
+            :options="pieChartOptions"
+            aria-label="Status distribution pie chart"
+            v-if="statusChartData"
+          />
+        </div>
       </div>
-      <div class="bg-white rounded-lg p-4 border border-gray-200">
-        <PieChart
-          ref="statusChart"
-          :data="statusChartData"
-          :options="pieChartOptions"
-          aria-label="Status distribution pie chart"
-        />
+
+      <!-- Service Type Bar Chart -->
+      <div v-if="summaryData.byServiceType && Object.keys(summaryData.byServiceType).length > 0" class="chart-container">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-lg font-medium text-gray-900">Service Type Distribution</h3>
+          <button
+            @click="exportChart('serviceChart', 'Service Type Distribution')"
+            class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5 transition-colors"
+            aria-label="Export service type chart"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            <span>Export</span>
+          </button>
+        </div>
+        <div :class="{ 'cursor-pointer': clickable }">
+          <BarChart
+            ref="serviceChart"
+            id="serviceChart"
+            :data="serviceChartData"
+            :options="barChartOptions"
+            aria-label="Service type distribution bar chart"
+            v-if="serviceChartData"
+          />
+        </div>
       </div>
     </div>
 
-    <!-- Service Type Bar Chart -->
-    <div v-if="summaryData.byServiceType && Object.keys(summaryData.byServiceType).length > 0" class="chart-container">
-      <div class="flex items-center justify-between mb-4">
-        <h4 class="text-lg font-semibold text-gray-900">Service Type Distribution</h4>
-        <button
-          @click="exportChart('serviceChart', 'Service Type Distribution')"
-          class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-          aria-label="Export service type chart"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-          </svg>
-          Export
-        </button>
-      </div>
-      <div class="bg-white rounded-lg p-4 border border-gray-200">
-        <BarChart
-          ref="serviceChart"
-          :data="serviceChartData"
-          :options="barChartOptions"
-          aria-label="Service type distribution bar chart"
-        />
-      </div>
-    </div>
-
-    <!-- Client Distribution Bar Chart -->
-    <div v-if="summaryData.byClient && Object.keys(summaryData.byClient).length > 0" class="chart-container">
-      <div class="flex items-center justify-between mb-4">
-        <h4 class="text-lg font-semibold text-gray-900">Client Distribution</h4>
+    <!-- Client Distribution Bar Chart - Full Width -->
+    <div v-if="summaryData.byClient && Object.keys(summaryData.byClient).length > 0" class="chart-container mt-8">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-medium text-gray-900">Client Distribution</h3>
         <button
           @click="exportChart('clientChart', 'Client Distribution')"
-          class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+          class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5 transition-colors"
           aria-label="Export client chart"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
           </svg>
-          Export
+          <span>Export</span>
         </button>
       </div>
-      <div class="bg-white rounded-lg p-4 border border-gray-200">
+      <div :class="{ 'cursor-pointer': clickable }">
         <BarChart
           ref="clientChart"
+          id="clientChart"
           :data="clientChartData"
           :options="barChartOptions"
           aria-label="Client distribution bar chart"
+          v-if="clientChartData"
         />
       </div>
     </div>
@@ -108,9 +117,16 @@ interface Props {
     byServiceType?: Record<string, number>
     byClient?: Record<string, number>
   }
+  clickable?: boolean
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  'status-click': [status: string]
+  'service-type-click': [serviceType: string]
+  'client-click': [clientName: string]
+}>()
 
 const statusChart = ref<InstanceType<typeof PieChart> | null>(null)
 const serviceChart = ref<InstanceType<typeof BarChart> | null>(null)
@@ -193,19 +209,23 @@ const clientChartData = computed(() => {
   }
 })
 
-// Chart Options
-const pieChartOptions = {
+// Chart Options with click handlers
+const pieChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: true,
-  aspectRatio: 1.5,
+  aspectRatio: 1.2,
   plugins: {
     legend: {
       position: 'right' as const,
       labels: {
-        padding: 15,
+        padding: 12,
         font: {
-          size: 12
-        }
+          size: 11,
+          family: 'system-ui, -apple-system, sans-serif'
+        },
+        color: '#374151',
+        usePointStyle: true,
+        pointStyle: 'circle'
       }
     },
     tooltip: {
@@ -215,20 +235,36 @@ const pieChartOptions = {
           const value = context.parsed || 0
           const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
           const percentage = ((value / total) * 100).toFixed(1)
-          return `${label}: ${value} (${percentage}%)`
+          return `${label}: ${value} (${percentage}%)${props.clickable ? ' - Click to filter' : ''}`
         }
       }
     }
   },
+  onClick: props.clickable ? (event: any, elements: any[], chart: any) => {
+    if (elements && elements.length > 0 && chart) {
+      const element = elements[0]
+      if (chart.data && chart.data.labels) {
+        const label = chart.data.labels[element.index]
+        if (label) {
+          emit('status-click', label as string)
+        }
+      }
+    }
+  } : undefined,
+  onHover: props.clickable ? (event: any, elements: any[]) => {
+    if (event && event.native && event.native.target) {
+      event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default'
+    }
+  } : undefined,
   accessibility: {
     enabled: true
   }
-}
+}))
 
-const barChartOptions = {
+const barChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: true,
-  aspectRatio: 2,
+  aspectRatio: 2.2,
   plugins: {
     legend: {
       display: false
@@ -236,7 +272,7 @@ const barChartOptions = {
     tooltip: {
       callbacks: {
         label: (context: any) => {
-          return `${context.dataset.label}: ${context.parsed.y}`
+          return `${context.dataset.label}: ${context.parsed.y}${props.clickable ? ' - Click to filter' : ''}`
         }
       }
     }
@@ -245,14 +281,54 @@ const barChartOptions = {
     y: {
       beginAtZero: true,
       ticks: {
-        stepSize: 1
+        stepSize: 1,
+        font: {
+          size: 11,
+          family: 'system-ui, -apple-system, sans-serif'
+        },
+        color: '#6B7280'
+      },
+      grid: {
+        color: '#F3F4F6',
+        lineWidth: 1
+      }
+    },
+    x: {
+      ticks: {
+        font: {
+          size: 11,
+          family: 'system-ui, -apple-system, sans-serif'
+        },
+        color: '#6B7280'
+      },
+      grid: {
+        display: false
       }
     }
   },
+  onClick: props.clickable ? (event: any, elements: any[], chart: any) => {
+    if (elements && elements.length > 0 && chart) {
+      const element = elements[0]
+      if (chart.data && chart.data.labels) {
+        const label = chart.data.labels[element.index]
+        const chartId = chart.canvas?.id
+        if (chartId === 'serviceChart' && label) {
+          emit('service-type-click', label as string)
+        } else if (chartId === 'clientChart' && label) {
+          emit('client-click', label as string)
+        }
+      }
+    }
+  } : undefined,
+  onHover: props.clickable ? (event: any, elements: any[]) => {
+    if (event && event.native && event.native.target) {
+      event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default'
+    }
+  } : undefined,
   accessibility: {
     enabled: true
   }
-}
+}))
 
 // Export chart function
 function exportChart(chartRef: string, chartTitle: string) {
@@ -276,6 +352,16 @@ function exportChart(chartRef: string, chartTitle: string) {
 <style scoped>
 .chart-container {
   @apply w-full;
+}
+
+.report-charts {
+  @apply w-full;
+}
+
+@media (max-width: 1024px) {
+  .report-charts .grid {
+    @apply grid-cols-1;
+  }
 }
 
 @media (max-width: 768px) {

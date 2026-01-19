@@ -11,6 +11,23 @@ import { logAuditTrail } from './auditTrailService.js'
 export function updateMonitoringDays() {
   const db = getDatabase()
   try {
+    // Check if column exists first
+    const tableInfo = db.prepare("PRAGMA table_info(coi_requests)").all()
+    const hasColumn = tableInfo.some(col => col.name === 'monitoring_days_elapsed')
+    
+    if (!hasColumn) {
+      // Add the column if it doesn't exist
+      try {
+        db.exec('ALTER TABLE coi_requests ADD COLUMN monitoring_days_elapsed INTEGER DEFAULT 0')
+        console.log('✅ Added monitoring_days_elapsed column to coi_requests')
+      } catch (alterError) {
+        if (!alterError.message.includes('duplicate column')) {
+          console.error('Error adding monitoring_days_elapsed column:', alterError)
+          return { success: false, error: alterError.message }
+        }
+      }
+    }
+    
     // Update days elapsed for active engagements
     db.prepare(`
       UPDATE coi_requests 

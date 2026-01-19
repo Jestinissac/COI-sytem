@@ -273,6 +273,47 @@ export async function initDatabase() {
     }
   }
 
+  // Fix Schema Issues Migration 2026-01-19
+  // Add missing columns that are causing runtime errors
+  const schemaFixColumns = [
+    { table: 'coi_requests', name: 'monitoring_days_elapsed', def: 'INTEGER DEFAULT 0' },
+    { table: 'coi_requests', name: 'interval_alerts_sent', def: 'TEXT' },
+    { table: 'coi_requests', name: 'renewal_notification_sent', def: 'TEXT' },
+    { table: 'coi_requests', name: 'expiry_notification_sent', def: 'TEXT' },
+    { table: 'coi_requests', name: 'compliance_reminder_sent', def: 'DATETIME' },
+    { table: 'coi_requests', name: 'stale_notification_sent', def: 'DATETIME' },
+    { table: 'prospects', name: 'prospect_code', def: 'VARCHAR(50)' }
+  ]
+  
+  for (const col of schemaFixColumns) {
+    try {
+      db.exec(`ALTER TABLE ${col.table} ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to ${col.table}`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        // Column already exists, that's fine
+      }
+    }
+  }
+  
+  // Generate prospect codes for existing prospects without codes
+  try {
+    db.exec(`
+      UPDATE prospects 
+      SET prospect_code = 'PROS-' || strftime('%Y', created_at) || '-' || printf('%04d', id)
+      WHERE prospect_code IS NULL
+    `)
+  } catch (error) {
+    // Ignore errors
+  }
+  
+  // Create index for prospect_code
+  try {
+    db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_code ON prospects(prospect_code)')
+  } catch (error) {
+    // Ignore errors
+  }
+
   // Service Catalog System Migration 2026-01-13
   // Create tables without foreign key constraints (FKs can be added later if needed)
   try {

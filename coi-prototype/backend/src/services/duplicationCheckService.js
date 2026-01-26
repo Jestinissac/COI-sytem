@@ -580,6 +580,7 @@ function isAuditServiceType(serviceType) {
 
 /**
  * Check for group/parent company conflicts
+ * Uses structured relationships (parent_company_id) when available, falls back to text matching
  * 
  * @param {number} requestId - The COI request ID to check
  * @returns {Object} - { conflicts: [], warnings: [] }
@@ -590,26 +591,99 @@ export async function checkGroupConflicts(requestId) {
     SELECT * FROM coi_requests WHERE id = ?
   `).get(requestId)
   
-  if (!request || !request.parent_company) {
+  if (!request) {
     return { conflicts: [], warnings: [] }
   }
   
   const conflicts = []
   const warnings = []
   
-  // Phase 1: Find all entities related to this parent company (direct siblings)
-  const directSiblings = findEntitiesWithParent(request.parent_company, requestId, db)
+  // Use structured relationship (parent_company_id) if available, otherwise fall back to text
+  const parentCompanyId = request.parent_company_id
+  const parentCompanyName = request.parent_company
   
-  // Phase 2: Find entities where THIS client is listed as parent (children)
-  const children = findEntitiesWithParent(request.client_name, requestId, db)
+  if (!parentCompanyId && !parentCompanyName) {
+    return { conflicts: [], warnings: [] }
+  }
   
-  // Phase 3: Multi-level - Find grandparent relationships (fuzzy matching)
-  const multiLevel = findMultiLevelRelationships(request.parent_company, requestId, db)
+  let allRelated = []
   
-  // Combine and evaluate all relationships for independence conflicts
-  const allRelated = [...directSiblings, ...children, ...multiLevel]
+  // Phase 1: Use structured parent_company_id for accurate sibling detection (preferred method)
+  if (parentCompanyId) {
+    // Find all entities with same parent_company_id (sister companies)
+    const structuredSiblings = db.prepare(`
+      SELECT r.*, c.client_name as parent_name
+      FROM coi_requests r
+      LEFT JOIN clients c ON r.parent_company_id = c.id
+      WHERE r.parent_company_id = ?
+      AND r.status IN ('Approved', 'Active', 'Pending Finance', 'Pending Partner')
+      AND r.id != ?
+    `).all(parentCompanyId, requestId)
+    
+    allRelated.push(...structuredSiblings.map(s => ({
+      ...s,
+      relationship_type: 'sister',
+      relationship_path: `Same Parent (ID: ${parentCompanyId}) → ${s.client_name}`
+    })))
+    
+    // Find parent company itself (if it exists in clients table)
+    const parentCompany = db.prepare(`
+      SELECT r.*
+      FROM coi_requests r
+      WHERE r.client_id = ?
+      AND r.status IN ('Approved', 'Active', 'Pending Finance', 'Pending Partner')
+      AND r.id != ?
+    `).all(parentCompanyId, requestId)
+    
+    allRelated.push(...parentCompany.map(p => ({
+      ...p,
+      relationship_type: 'parent',
+      relationship_path: `Parent Company → ${p.client_name}`
+    })))
+  }
   
-  for (const related of allRelated) {
+  // Phase 2: Find entities where THIS client is listed as parent (children/subsidiaries)
+  // Check both structured (parent_company_id) and text-based (parent_company) relationships
+  const childrenStructured = parentCompanyId ? db.prepare(`
+    SELECT r.*
+    FROM coi_requests r
+    WHERE r.parent_company_id = (
+      SELECT client_id FROM coi_requests WHERE id = ?
+    )
+    AND r.status IN ('Approved', 'Active', 'Pending Finance', 'Pending Partner')
+    AND r.id != ?
+  `).all(requestId, requestId) : []
+  
+  const childrenText = request.client_name ? findEntitiesWithParent(request.client_name, requestId, db) : []
+  
+  // Merge and deduplicate
+  const allChildren = [...childrenStructured, ...childrenText]
+  const uniqueChildren = Array.from(new Map(allChildren.map(c => [c.id, c])).values())
+  
+  allRelated.push(...uniqueChildren.map(c => ({
+    ...c,
+    relationship_type: 'subsidiary',
+    relationship_path: `${request.client_name} → ${c.client_name} (Subsidiary)`
+  })))
+  
+  // Phase 3: Fallback to text-based matching for legacy data or when structured link unavailable
+  if (!parentCompanyId && parentCompanyName) {
+    const textSiblings = findEntitiesWithParent(parentCompanyName, requestId, db)
+    allRelated.push(...textSiblings.map(s => ({
+      ...s,
+      relationship_type: 'sister',
+      relationship_path: `Same Parent (${parentCompanyName}) → ${s.client_name}`
+    })))
+    
+    // Multi-level relationships (grandparent/cousin detection)
+    const multiLevel = findMultiLevelRelationships(parentCompanyName, requestId, db)
+    allRelated.push(...multiLevel)
+  }
+  
+  // Deduplicate by request ID
+  const uniqueRelated = Array.from(new Map(allRelated.map(r => [r.id, r])).values())
+  
+  for (const related of uniqueRelated) {
     const conflict = evaluateIndependenceConflict(
       request.service_type,
       related.service_type,
@@ -634,6 +708,175 @@ export async function checkGroupConflicts(requestId) {
         conflicting_engagement_code: related.engagement_code || related.request_id,
         conflicting_engagement_end_date: related.requested_service_period_end || null
       })
+    }
+  }
+  
+  return { conflicts, warnings }
+}
+
+/**
+ * Check conflicts for International Operations entities
+ * This extends group conflict detection to entities listed in global_coi_form_data
+ * @param {number} requestId - COI request ID
+ * @returns {object} Object with conflicts and warnings arrays
+ */
+export async function checkInternationalOperationsConflicts(requestId) {
+  const db = getDatabase()
+  const request = db.prepare(`
+    SELECT * FROM coi_requests WHERE id = ?
+  `).get(requestId)
+  
+  if (!request) {
+    return { conflicts: [], warnings: [] }
+  }
+  
+  // Check if request has international operations
+  if (!request.international_operations || !request.global_coi_form_data) {
+    return { conflicts: [], warnings: [] }
+  }
+  
+  let globalData
+  try {
+    globalData = JSON.parse(request.global_coi_form_data)
+  } catch (parseError) {
+    console.warn(`[International Operations Conflict] Failed to parse global_coi_form_data for request ${requestId}:`, parseError)
+    return { conflicts: [], warnings: [] }
+  }
+  
+  if (!globalData.countries || !Array.isArray(globalData.countries)) {
+    return { conflicts: [], warnings: [] }
+  }
+  
+  const conflicts = []
+  const warnings = []
+  
+  // Iterate through all countries and entities
+  for (const country of globalData.countries) {
+    const entities = country.entities || []
+    
+    for (const entity of entities) {
+      const entityName = entity.name
+      if (!entityName) continue
+      
+      // Check 1: Entity name matches existing client (duplicate check)
+      const entityNameResult = await checkDuplication(
+        entityName,
+        requestId,
+        request.service_type,
+        request.pie_status === 'Yes',
+        request
+      )
+      
+      // Handle both Pro format (object with matches) and Standard format (array)
+      const entityNameMatches = entityNameResult?.matches || (Array.isArray(entityNameResult) ? entityNameResult : [])
+      
+      if (entityNameMatches && entityNameMatches.length > 0) {
+        const criticalMatches = entityNameMatches.filter(m => m.action === 'block')
+        if (criticalMatches.length > 0) {
+          conflicts.push({
+            type: 'INTERNATIONAL_OPERATIONS_DUPLICATE',
+            severity: 'CRITICAL',
+            entity_name: entityName,
+            entity_country: country.country_code || '',
+            relationship_type: entity.relationship_type || '',
+            ownership_percentage: entity.ownership_percentage || null,
+            existing_engagements: criticalMatches.map(m => ({
+              request_id: m.existingEngagement.request_id,
+              client_name: m.existingEngagement.client_name,
+              service_type: m.existingEngagement.service_type,
+              status: m.existingEngagement.status
+            })),
+            reason: `International Operations entity "${entityName}" matches existing BDO client`,
+            action: 'block',
+            regulation: 'IESBA 290.13'
+          })
+        }
+      }
+      
+      // Check 2: Entity parent company matches existing client (group conflict)
+      // For subsidiary/affiliate entities, check if their parent is an existing BDO client
+      if (entity.relationship_type === 'subsidiary' || entity.relationship_type === 'affiliate') {
+        // If entity has a parent company name in details or we can infer it
+        // Note: In the current form structure, entity details might contain parent info
+        // This is a simplified check - in production, you might want to add a dedicated parent_company field for entities
+        
+        // Check if entity name itself is a parent of other entities (reverse relationship)
+        const entitiesWithThisParent = findEntitiesWithParent(entityName, requestId, db)
+        
+        if (entitiesWithThisParent.length > 0) {
+          for (const related of entitiesWithThisParent) {
+            const conflict = evaluateIndependenceConflict(
+              request.service_type,
+              related.service_type,
+              related.pie_status,
+              request.pie_status
+            )
+            
+            if (conflict) {
+              conflicts.push({
+                type: 'INTERNATIONAL_OPERATIONS_GROUP_CONFLICT',
+                severity: conflict.severity,
+                entity_name: entityName,
+                entity_country: country.country_code || '',
+                relationship_type: entity.relationship_type || '',
+                ownership_percentage: entity.ownership_percentage || null,
+                related_entity_name: related.client_name,
+                existing_service: related.service_type,
+                requested_service: request.service_type,
+                regulation: 'IESBA 290.13',
+                reason: conflict.reason,
+                action: conflict.action,
+                conflicting_engagement_id: related.id,
+                conflicting_engagement_code: related.engagement_code || related.request_id
+              })
+            }
+          }
+        }
+      }
+      
+      // Check 3: Entity name matches existing client's parent company (multi-level conflict)
+      // Find all requests where this entity name appears as a parent company
+      const requestsWithThisParent = db.prepare(`
+        SELECT r.*, c.client_name
+        FROM coi_requests r
+        LEFT JOIN clients c ON r.client_id = c.id
+        WHERE (r.parent_company LIKE ? OR r.parent_company = ?)
+        AND r.status IN ('Approved', 'Active', 'Pending Finance', 'Pending Partner')
+        AND r.id != ?
+      `).all(`%${entityName}%`, entityName, requestId)
+      
+      for (const related of requestsWithThisParent) {
+        // Use Levenshtein to confirm match
+        const similarity = calculateSimilarity(entityName, related.parent_company || '')
+        if (similarity >= 85) {
+          const conflict = evaluateIndependenceConflict(
+            request.service_type,
+            related.service_type,
+            related.pie_status,
+            request.pie_status
+          )
+          
+          if (conflict) {
+            conflicts.push({
+              type: 'INTERNATIONAL_OPERATIONS_PARENT_CONFLICT',
+              severity: conflict.severity,
+              entity_name: entityName,
+              entity_country: country.country_code || '',
+              relationship_type: entity.relationship_type || '',
+              ownership_percentage: entity.ownership_percentage || null,
+              existing_client_parent: related.parent_company,
+              existing_client_name: related.client_name,
+              existing_service: related.service_type,
+              requested_service: request.service_type,
+              regulation: 'IESBA 290.13',
+              reason: `International Operations entity "${entityName}" matches parent company of existing client "${related.client_name}"`,
+              action: conflict.action,
+              conflicting_engagement_id: related.id,
+              conflicting_engagement_code: related.engagement_code || related.request_id
+            })
+          }
+        }
+      }
     }
   }
   

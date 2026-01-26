@@ -1,6 +1,65 @@
 import { getDatabase } from '../database/init.js'
+import { getUserById } from '../utils/userUtils.js'
+import { logFunnelEvent, FUNNEL_STAGES, getLeadSourceIdOrDefault } from '../services/funnelTrackingService.js'
 
 const db = getDatabase()
+
+/**
+ * Auto-detect lead source based on context (industry standard: first-touch, immutable)
+ * Priority:
+ * 1. If source_opportunity_id provided → 'insights_module'
+ * 2. If referred_by_client_id provided → 'client_referral'
+ * 3. If creator is Partner/Director → 'internal_referral'
+ * 4. If lead_source_id explicitly provided → use it
+ * 5. Default → 'unknown'
+ */
+function autoDetectLeadSource(params, user) {
+  const { source_opportunity_id, referred_by_client_id, lead_source_id } = params
+  
+  // Priority 1: From Insights Module opportunity
+  if (source_opportunity_id) {
+    return {
+      lead_source_id: getLeadSourceIdOrDefault('insights_module'),
+      source: 'insights_module',
+      auto_detected: true
+    }
+  }
+  
+  // Priority 2: Client referral
+  if (referred_by_client_id) {
+    return {
+      lead_source_id: getLeadSourceIdOrDefault('client_referral'),
+      source: 'client_referral',
+      auto_detected: true
+    }
+  }
+  
+  // Priority 3: Internal referral (Partner/Director creating prospect)
+  if (user && ['Partner', 'Director'].includes(user.role)) {
+    return {
+      lead_source_id: getLeadSourceIdOrDefault('internal_referral'),
+      source: 'internal_referral',
+      auto_detected: true,
+      referred_by_user_id: user.id
+    }
+  }
+  
+  // Priority 4: Explicitly provided lead source
+  if (lead_source_id) {
+    return {
+      lead_source_id: lead_source_id,
+      source: 'manual',
+      auto_detected: false
+    }
+  }
+  
+  // Priority 5: Default to unknown
+  return {
+    lead_source_id: getLeadSourceIdOrDefault('unknown'),
+    source: 'unknown',
+    auto_detected: true
+  }
+}
 
 // Get all prospects
 export async function getProspects(req, res) {
@@ -57,6 +116,43 @@ export async function getProspects(req, res) {
   }
 }
 
+// Get prospects for dropdown (minimal data, active only)
+export async function getProspectsForDropdown(req, res) {
+  try {
+    const { search } = req.query
+    
+    let query = `
+      SELECT 
+        p.id,
+        p.prospect_name,
+        p.industry,
+        p.commercial_registration,
+        p.status,
+        p.client_id,
+        c.client_name as linked_client_name
+      FROM prospects p
+      LEFT JOIN clients c ON p.client_id = c.id
+      WHERE p.status = 'Active'
+    `
+    const params = []
+    
+    if (search) {
+      query += ' AND (p.prospect_name LIKE ? OR p.commercial_registration LIKE ?)'
+      const searchTerm = `%${search}%`
+      params.push(searchTerm, searchTerm)
+    }
+    
+    query += ' ORDER BY p.prospect_name ASC LIMIT 50'
+    
+    const prospects = db.prepare(query).all(...params)
+    
+    res.json(prospects)
+  } catch (error) {
+    console.error('Error fetching prospects for dropdown:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
 // Get single prospect
 export async function getProspect(req, res) {
   try {
@@ -87,7 +183,7 @@ export async function getProspect(req, res) {
   }
 }
 
-// Create prospect
+// Create prospect with lead source auto-detection
 export async function createProspect(req, res) {
   try {
     const {
@@ -97,12 +193,27 @@ export async function createProspect(req, res) {
       nature_of_business,
       client_id,
       group_level_services,
-      prms_client_code
+      prms_client_code,
+      // New lead attribution fields
+      lead_source_id,
+      referred_by_client_id,
+      source_opportunity_id,
+      source_notes
     } = req.body
     
     if (!prospect_name) {
       return res.status(400).json({ error: 'Prospect name is required' })
     }
+    
+    // Get current user for auto-detection
+    const user = req.userId ? getUserById(req.userId) : null
+    
+    // Auto-detect lead source based on context (industry standard: first-touch, immutable)
+    const leadSourceResult = autoDetectLeadSource({
+      source_opportunity_id,
+      referred_by_client_id,
+      lead_source_id
+    }, user)
     
     // Check if client exists in PRMS (if prms_client_code provided)
     let prms_synced = 0
@@ -120,6 +231,14 @@ export async function createProspect(req, res) {
       }
     }
     
+    // Validate referred_by_client_id if provided
+    if (referred_by_client_id) {
+      const referringClient = db.prepare('SELECT id FROM clients WHERE id = ?').get(referred_by_client_id)
+      if (!referringClient) {
+        return res.status(400).json({ error: 'Referring client not found' })
+      }
+    }
+    
     const result = db.prepare(`
       INSERT INTO prospects (
         prospect_name,
@@ -131,8 +250,13 @@ export async function createProspect(req, res) {
         prms_client_code,
         prms_synced,
         prms_sync_date,
-        status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'Active')
+        status,
+        lead_source_id,
+        referred_by_user_id,
+        referred_by_client_id,
+        source_opportunity_id,
+        source_notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'Active', ?, ?, ?, ?, ?)
     `).run(
       prospect_name,
       commercial_registration || null,
@@ -141,15 +265,46 @@ export async function createProspect(req, res) {
       client_id || null,
       group_level_services ? JSON.stringify(group_level_services) : null,
       prms_client_code || null,
-      prms_synced
+      prms_synced,
+      leadSourceResult.lead_source_id,
+      leadSourceResult.referred_by_user_id || null,
+      referred_by_client_id || null,
+      source_opportunity_id || null,
+      source_notes || null
     )
     
-    const newProspect = db.prepare('SELECT * FROM prospects WHERE id = ?').get(result.lastInsertRowid)
+    const newProspect = db.prepare(`
+      SELECT p.*, ls.source_name as lead_source_name, ls.source_category as lead_source_category
+      FROM prospects p
+      LEFT JOIN lead_sources ls ON p.lead_source_id = ls.id
+      WHERE p.id = ?
+    `).get(result.lastInsertRowid)
+    
     newProspect.group_level_services = newProspect.group_level_services 
       ? JSON.parse(newProspect.group_level_services) 
       : []
     
-    res.status(201).json(newProspect)
+    // Log funnel event: lead_created
+    logFunnelEvent({
+      prospectId: newProspect.id,
+      coiRequestId: null,
+      fromStage: null,
+      toStage: FUNNEL_STAGES.LEAD_CREATED,
+      userId: user?.id,
+      userRole: user?.role,
+      notes: `Prospect created: ${prospect_name}`,
+      metadata: {
+        lead_source: leadSourceResult.source,
+        auto_detected: leadSourceResult.auto_detected,
+        source_opportunity_id
+      }
+    })
+    
+    res.status(201).json({
+      ...newProspect,
+      lead_source_auto_detected: leadSourceResult.auto_detected,
+      lead_source_detection_reason: leadSourceResult.source
+    })
   } catch (error) {
     console.error('Error creating prospect:', error)
     res.status(500).json({ error: error.message })
@@ -339,6 +494,127 @@ export async function getProspectsByClient(req, res) {
     res.json(prospectsWithParsed)
   } catch (error) {
     console.error('Error fetching prospects by client:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+// Get all lead sources for dropdowns
+export async function getLeadSources(req, res) {
+  try {
+    const leadSources = db.prepare(`
+      SELECT id, source_code, source_name, source_category
+      FROM lead_sources
+      WHERE is_active = 1
+      ORDER BY 
+        CASE source_category 
+          WHEN 'referral' THEN 1 
+          WHEN 'system' THEN 2 
+          WHEN 'outbound' THEN 3 
+          ELSE 4 
+        END,
+        source_name
+    `).all()
+    
+    res.json(leadSources)
+  } catch (error) {
+    console.error('Error fetching lead sources:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+// Create prospect from opportunity (Client Intelligence integration)
+export async function createProspectFromOpportunity(req, res) {
+  try {
+    const { opportunity_id } = req.params
+    const user = req.userId ? getUserById(req.userId) : null
+    
+    // Get the opportunity
+    const opportunity = db.prepare(`
+      SELECT co.*, c.client_name, c.industry
+      FROM client_opportunities co
+      JOIN clients c ON co.client_id = c.id
+      WHERE co.id = ?
+    `).get(opportunity_id)
+    
+    if (!opportunity) {
+      return res.status(404).json({ error: 'Opportunity not found' })
+    }
+    
+    // Check if prospect already exists for this opportunity
+    const existingProspect = db.prepare(`
+      SELECT id FROM prospects WHERE source_opportunity_id = ?
+    `).get(opportunity_id)
+    
+    if (existingProspect) {
+      return res.status(400).json({ 
+        error: 'Prospect already exists for this opportunity',
+        prospect_id: existingProspect.id
+      })
+    }
+    
+    // Auto-set lead source to insights_module
+    const leadSourceId = getLeadSourceIdOrDefault('insights_module')
+    
+    // Create prospect from opportunity
+    const result = db.prepare(`
+      INSERT INTO prospects (
+        prospect_name,
+        industry,
+        nature_of_business,
+        status,
+        lead_source_id,
+        source_opportunity_id,
+        source_notes
+      ) VALUES (?, ?, ?, 'Active', ?, ?, ?)
+    `).run(
+      opportunity.title || `Opportunity from ${opportunity.client_name}`,
+      opportunity.industry,
+      opportunity.description,
+      leadSourceId,
+      opportunity_id,
+      `Created from Client Intelligence opportunity: ${opportunity.opportunity_type}`
+    )
+    
+    const newProspect = db.prepare(`
+      SELECT p.*, ls.source_name as lead_source_name
+      FROM prospects p
+      LEFT JOIN lead_sources ls ON p.lead_source_id = ls.id
+      WHERE p.id = ?
+    `).get(result.lastInsertRowid)
+    
+    // Update opportunity status
+    db.prepare(`
+      UPDATE client_opportunities 
+      SET status = 'prospect_created', 
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(opportunity_id)
+    
+    // Log funnel event
+    logFunnelEvent({
+      prospectId: newProspect.id,
+      coiRequestId: null,
+      fromStage: null,
+      toStage: FUNNEL_STAGES.LEAD_CREATED,
+      userId: user?.id,
+      userRole: user?.role,
+      notes: `Prospect created from Client Intelligence opportunity`,
+      metadata: {
+        lead_source: 'insights_module',
+        auto_detected: true,
+        source_opportunity_id: opportunity_id,
+        opportunity_type: opportunity.opportunity_type
+      }
+    })
+    
+    res.status(201).json({
+      ...newProspect,
+      lead_source_auto_detected: true,
+      lead_source_detection_reason: 'insights_module',
+      source_opportunity: opportunity
+    })
+  } catch (error) {
+    console.error('Error creating prospect from opportunity:', error)
     res.status(500).json({ error: error.message })
   }
 }

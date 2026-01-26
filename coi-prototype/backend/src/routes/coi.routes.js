@@ -1,4 +1,5 @@
 import express from 'express'
+import { getDatabase } from '../database/init.js'
 import { authenticateToken, requireRole } from '../middleware/auth.js'
 import {
   getMyRequests,
@@ -350,6 +351,70 @@ router.get('/reports/monthly/:year/:month', requireRole('Admin', 'Super Admin'),
     res.status(500).json({ error: error.message })
   }
 })
+
+// ============================================================================
+// MY DAY / MY WEEK ROUTES
+// ============================================================================
+import { getMyDay, getMyWeek } from '../services/myDayWeekService.js'
+
+router.get('/my-day', async (req, res) => {
+  try {
+    // Build user object from auth middleware
+    const db = getDatabase()
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId)
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' })
+    }
+    const data = getMyDay(user)
+    res.json({ success: true, ...data })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+router.get('/my-week', async (req, res) => {
+  try {
+    // Build user object from auth middleware
+    const db = getDatabase()
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId)
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' })
+    }
+    const data = getMyWeek(user)
+    res.json({ success: true, ...data })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================================================================
+// LOAD TEST & NOISE STATS ROUTES (Admin only, Staging/Dev/Test only)
+// ============================================================================
+import { runLoadTest, getNoiseStats, cleanupLoadTest } from '../controllers/loadTestController.js'
+import { isLoadTestingAllowed, getEnvironment } from '../config/environment.js'
+
+// Middleware to check environment before allowing load testing
+const requireLoadTestingEnvironment = (req, res, next) => {
+  if (!isLoadTestingAllowed()) {
+    const env = getEnvironment()
+    return res.status(403).json({
+      error: 'Load testing endpoints are not available in production',
+      message: `Current environment: ${env}. Load testing is only available in staging, development, or test environments.`,
+      environment: env
+    })
+  }
+  next()
+}
+
+router.post('/admin/load-test', requireRole('Admin', 'Super Admin'), requireLoadTestingEnvironment, runLoadTest)
+router.get('/admin/noise-stats', requireRole('Admin', 'Super Admin'), getNoiseStats)
+router.delete('/admin/load-test/cleanup', requireRole('Admin', 'Super Admin'), requireLoadTestingEnvironment, cleanupLoadTest)
+
+// Analytics endpoints (separate from load testing)
+import { getBusinessAnalytics, getPerformanceAnalytics } from '../controllers/analyticsController.js'
+
+router.get('/admin/analytics/business', requireRole('Admin', 'Super Admin'), getBusinessAnalytics)
+router.get('/admin/analytics/performance', requireRole('Admin', 'Super Admin'), getPerformanceAnalytics)
 
 export default router
 

@@ -1,7 +1,7 @@
 import { getDatabase } from '../database/init.js'
 import { getFilteredRequests } from '../middleware/dataSegregation.js'
-import { checkDuplication, checkGroupConflicts } from '../services/duplicationCheckService.js'
-import { sendApprovalNotification, sendRejectionNotification, sendEngagementCodeNotification, sendProposalExecutedNotification } from '../services/notificationService.js'
+import { checkDuplication, checkGroupConflicts, checkInternationalOperationsConflicts } from '../services/duplicationCheckService.js'
+import { sendApprovalNotification, sendRejectionNotification, sendEngagementCodeNotification, sendProposalExecutedNotification, sendNeedMoreInfoNotification, sendEmail } from '../services/notificationService.js'
 import { notifyRequestSubmitted, notifyDirectorApprovalRequired, notifyComplianceReviewRequired, notifyGroupConflictFlagged } from '../services/emailService.js'
 import { generateEngagementCode as generateCode } from '../services/engagementCodeService.js'
 import { updateMonitoringDays, getApproachingLimitRequests, getExceededLimitRequests } from '../services/monitoringService.js'
@@ -10,6 +10,9 @@ import FieldMappingService from '../services/fieldMappingService.js'
 import { parseRecommendations, logComplianceDecision } from '../services/auditTrailService.js'
 import { getUserById } from '../utils/userUtils.js'
 import { validateGroupStructure, GroupStructureValidationError } from '../validators/groupStructureValidator.js'
+import { validateCompanyRelationship, CompanyRelationshipValidationError } from '../validators/companyRelationshipValidator.js'
+import { eventBus, EVENT_TYPES } from '../services/eventBus.js'
+import { logFunnelEvent, logStatusChange, FUNNEL_STAGES } from '../services/funnelTrackingService.js'
 
 const db = getDatabase()
 
@@ -28,6 +31,10 @@ const STANDARD_FIELD_MAPPINGS = {
   'regulated_body': 'regulated_body',
   'pie_status': 'pie_status',
   'parent_company': 'parent_company',
+  'company_type': 'company_type',
+  'parent_company_id': 'parent_company_id',
+  'ownership_percentage': 'ownership_percentage',
+  'control_type': 'control_type',
   'service_type': 'service_type',
   'service_category': 'service_category',
   'service_description': 'service_description',
@@ -212,18 +219,51 @@ export async function createRequest(req, res) {
     // Get current form version
     const formVersion = getCurrentFormVersion()
 
+    // Validate company relationship if company type is provided
+    if (standardData.company_type || data.company_type) {
+      try {
+        validateCompanyRelationship({
+          company_type: standardData.company_type || data.company_type || null,
+          parent_company_id: standardData.parent_company_id || data.parent_company_id || null,
+          parent_company: standardData.parent_company || data.parent_company || null,
+          ownership_percentage: standardData.ownership_percentage !== undefined ? standardData.ownership_percentage : (data.ownership_percentage !== undefined ? data.ownership_percentage : null),
+          control_type: standardData.control_type || data.control_type || null,
+          group_structure: standardData.group_structure || data.group_structure || null
+        })
+      } catch (validationError) {
+        if (validationError instanceof CompanyRelationshipValidationError) {
+          return res.status(400).json({ 
+            error: validationError.message,
+            field: validationError.field 
+          })
+        }
+        throw validationError
+      }
+    }
+
+    // Resolve parent_company_id from parent_company name if needed
+    let resolvedParentCompanyId = standardData.parent_company_id || data.parent_company_id || null
+    if (!resolvedParentCompanyId && (standardData.parent_company || data.parent_company)) {
+      const parentName = standardData.parent_company || data.parent_company
+      const parentClient = db.prepare('SELECT id FROM clients WHERE client_name = ?').get(parentName)
+      if (parentClient) {
+        resolvedParentCompanyId = parentClient.id
+      }
+    }
+
     const result = db.prepare(`
       INSERT INTO coi_requests (
         request_id, client_id, requester_id, department,
         requestor_name, designation, entity, line_of_service,
         requested_document, language,
-        parent_company, client_location, relationship_with_client, client_type, client_status,
+        parent_company, parent_company_id, company_type, ownership_percentage, control_type,
+        client_location, relationship_with_client, client_type, client_status,
         service_type, service_description, requested_service_period_start, requested_service_period_end,
         full_ownership_structure, pie_status, related_affiliated_entities,
         international_operations, foreign_subsidiaries, global_clearance_status,
-        custom_fields, form_version,
+        custom_fields, form_version, group_structure,
         status, stage
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       requestId, 
       standardData.client_id || data.client_id || null, 
@@ -236,6 +276,10 @@ export async function createRequest(req, res) {
       standardData.requested_document || data.requested_document || '', 
       standardData.language || data.language || '',
       standardData.parent_company || data.parent_company || '', 
+      resolvedParentCompanyId,
+      standardData.company_type || data.company_type || null,
+      standardData.ownership_percentage !== undefined ? standardData.ownership_percentage : (data.ownership_percentage !== undefined ? data.ownership_percentage : null),
+      standardData.control_type || data.control_type || null,
       standardData.client_location || data.client_location || '', 
       standardData.relationship_with_client || data.relationship_with_client || '', 
       standardData.client_type || data.client_type || '',
@@ -255,6 +299,7 @@ export async function createRequest(req, res) {
       standardData.global_clearance_status || data.global_clearance_status || 'Not Required',
       Object.keys(customFields).length > 0 ? JSON.stringify(customFields) : null,
       formVersion || 1,
+      standardData.group_structure || data.group_structure || null,
       'Draft', 
       'Proposal'
     )
@@ -447,6 +492,65 @@ export async function submitRequest(req, res) {
       }
     }
     
+    // ========================================
+    // INTERNATIONAL OPERATIONS CONFLICT DETECTION (IESBA 290.13)
+    // ========================================
+    // Check for conflicts in International Operations entities
+    let internationalOpsConflicts = { conflicts: [], warnings: [] }
+    let hasInternationalOpsConflicts = false
+    
+    if (request.international_operations && request.global_coi_form_data) {
+      try {
+        internationalOpsConflicts = await checkInternationalOperationsConflicts(req.params.id)
+        hasInternationalOpsConflicts = internationalOpsConflicts.conflicts && internationalOpsConflicts.conflicts.length > 0
+        
+        if (hasInternationalOpsConflicts) {
+          // Merge with main group conflicts
+          groupConflicts.conflicts = [...(groupConflicts.conflicts || []), ...(internationalOpsConflicts.conflicts || [])]
+          groupConflicts.warnings = [...(groupConflicts.warnings || []), ...(internationalOpsConflicts.warnings || [])]
+          
+          const criticalConflicts = internationalOpsConflicts.conflicts.filter(c => c.severity === 'CRITICAL')
+          
+          if (criticalConflicts.length > 0) {
+            // Update stored conflicts to include International Operations conflicts
+            const allCriticalConflicts = [
+              ...(groupConflicts.conflicts.filter(c => c.severity === 'CRITICAL') || []),
+              ...criticalConflicts
+            ]
+            
+            db.prepare(`
+              UPDATE coi_requests 
+              SET group_conflicts_detected = ?,
+                  requires_compliance_verification = 1
+              WHERE id = ?
+            `).run(
+              JSON.stringify(allCriticalConflicts),
+              req.params.id
+            )
+            
+            console.log(`[International Operations Conflict] Request ${request.request_id} - ${criticalConflicts.length} critical International Operations conflict(s) detected`)
+            
+            // Notify Compliance officers about International Operations conflicts
+            const complianceOfficers = db.prepare(`
+              SELECT id, name, email FROM users 
+              WHERE role = 'Compliance' AND is_active = 1
+            `).all()
+            
+            if (complianceOfficers.length > 0) {
+              await notifyGroupConflictFlagged(
+                { ...request, client_name: client.client_name },
+                complianceOfficers,
+                criticalConflicts
+              )
+            }
+          }
+        }
+      } catch (internationalOpsConflictError) {
+        // Log but don't block submission if conflict detection fails
+        console.error(`[International Operations Conflict] Error checking International Operations conflicts for request ${request.request_id}:`, internationalOpsConflictError)
+      }
+    }
+    
     // Evaluate business rules
     // Use FieldMappingService to prepare request data with all computed fields
     const requestDataForRules = {
@@ -517,21 +621,72 @@ export async function submitRequest(req, res) {
       }
     }
 
-    // Update status with all recommendations and prospect information
+    // ========================================
+    // LEAD SOURCE ATTRIBUTION (CRM Feature)
+    // ========================================
+    // For proposals, capture lead source (first-touch, immutable)
+    // Only set if not already set (immutable first-touch principle)
+    let leadSourceId = request.lead_source_id // Keep existing if set
+    
+    if (isProspect && !leadSourceId) {
+      const { lead_source_id: providedLeadSource } = req.body || {}
+      
+      if (providedLeadSource) {
+        // Use provided lead source
+        leadSourceId = providedLeadSource
+      } else {
+        // Auto-detect based on user role
+        if (['Partner', 'Director'].includes(user.role)) {
+          // Internal referral from Partner/Director
+          const internalSource = db.prepare('SELECT id FROM lead_sources WHERE source_code = ?').get('internal_referral')
+          leadSourceId = internalSource?.id
+        } else {
+          // Default to unknown
+          const unknownSource = db.prepare('SELECT id FROM lead_sources WHERE source_code = ?').get('unknown')
+          leadSourceId = unknownSource?.id
+        }
+      }
+      
+      console.log(`[Lead Source] Request ${request.request_id} - Lead source set to ID: ${leadSourceId}`)
+    }
+
+    // Update status with all recommendations, prospect information, and lead source
     db.prepare(`
       UPDATE coi_requests 
       SET status = ?, 
           duplication_matches = ?,
           is_prospect = ?,
-          prms_client_id = ?
+          prms_client_id = ?,
+          lead_source_id = COALESCE(?, lead_source_id)
       WHERE id = ?
     `).run(
       newStatus,
       JSON.stringify(allRecommendations),
       isProspect ? 1 : 0,
       prmsClientId,
+      leadSourceId,
       req.params.id
     )
+
+    // ========================================
+    // FUNNEL TRACKING: Log proposal submission
+    // ========================================
+    if (isProspect) {
+      logFunnelEvent({
+        prospectId: request.prospect_id,
+        coiRequestId: req.params.id,
+        fromStage: null,
+        toStage: FUNNEL_STAGES.PROPOSAL_SUBMITTED,
+        userId: user.id,
+        userRole: user.role,
+        notes: `Proposal submitted for ${client.client_name}`,
+        metadata: { 
+          serviceType: request.service_type, 
+          prmsClientId,
+          newStatus 
+        }
+      })
+    }
 
     // Send notifications based on next status
     try {
@@ -566,6 +721,13 @@ export async function submitRequest(req, res) {
         if (director && director.email) {
           await notifyDirectorApprovalRequired(requestWithClient, director)
         }
+        // Emit event for My Day/Week
+        eventBus.emitEvent(EVENT_TYPES.DIRECTOR_APPROVAL_REQUIRED, {
+          requestId: req.params.id,
+          userId: user.id,
+          targetUserId: user.director_id,
+          data: { request_id: request.request_id, client_name: client.client_name }
+        })
       }
       
       // Notify Compliance if status is 'Pending Compliance'
@@ -587,6 +749,16 @@ export async function submitRequest(req, res) {
             conflicts,
             duplicates || []
           )
+          
+          // Emit event for My Day/Week (notify first compliance officer)
+          if (complianceOfficers[0]) {
+            eventBus.emitEvent(EVENT_TYPES.COMPLIANCE_REVIEW_REQUIRED, {
+              requestId: req.params.id,
+              userId: user.id,
+              targetUserId: complianceOfficers[0].id,
+              data: { request_id: request.request_id, client_name: client.client_name }
+            })
+          }
         }
       }
     } catch (notificationError) {
@@ -641,6 +813,14 @@ export async function approveRequest(req, res) {
       notesField = 'director_approval_notes'
       restrictionsField = 'director_restrictions'
       nextStatus = 'Pending Compliance'
+      
+      // Emit event for approval
+      eventBus.emitEvent(EVENT_TYPES.REQUEST_APPROVED, {
+        requestId: req.params.id,
+        userId: user.id,
+        targetUserId: request.requester_id,
+        data: { request_id: request.request_id, approved_by: 'Director' }
+      })
     } else if (user.role === 'Compliance' && request.status === 'Pending Compliance') {
       updateField = 'compliance_review_status'
       dateField = 'compliance_review_date'
@@ -648,6 +828,25 @@ export async function approveRequest(req, res) {
       notesField = 'compliance_review_notes'
       restrictionsField = 'compliance_restrictions'
       nextStatus = 'Pending Partner'
+      
+      // Emit event for approval
+      eventBus.emitEvent(EVENT_TYPES.REQUEST_APPROVED, {
+        requestId: req.params.id,
+        userId: user.id,
+        targetUserId: request.requester_id,
+        data: { request_id: request.request_id, approved_by: 'Compliance' }
+      })
+      
+      // Emit event for next approver (Partner)
+      const partner = db.prepare('SELECT id FROM users WHERE role = ? AND is_active = 1 LIMIT 1').get('Partner')
+      if (partner) {
+        eventBus.emitEvent(EVENT_TYPES.PARTNER_APPROVAL_REQUIRED, {
+          requestId: req.params.id,
+          userId: user.id,
+          targetUserId: partner.id,
+          data: { request_id: request.request_id }
+        })
+      }
       
       // Enhanced audit trail for Compliance decisions
       const recommendations = parseRecommendations(request)
@@ -724,6 +923,17 @@ export async function approveRequest(req, res) {
       }
       
       db.prepare(updateQuery).run(...updateParams)
+      
+      // Update stage_entered_at for SLA tracking when status changes
+      try {
+        db.prepare(`
+          UPDATE coi_requests 
+          SET stage_entered_at = CURRENT_TIMESTAMP 
+          WHERE id = ?
+        `).run(req.params.id)
+      } catch (e) {
+        // Column may not exist yet
+      }
     } catch (error) {
       // Fallback: try without restrictions column
       console.log(`Column ${restrictionsField} not found, updating without restrictions`)
@@ -756,6 +966,69 @@ export async function approveRequest(req, res) {
     const nextRole = roleMapping[nextStatus]
     if (nextRole) {
       sendApprovalNotification(req.params.id, user.name, nextRole, approvalStatus === 'Approved with Restrictions' ? restrictions : null)
+    }
+
+    // Notify requester of progress update
+    const requester = getUserById(request.requester_id)
+    if (requester && requester.email) {
+      const requesterSubject = `COI Request ${request.request_id} - Approved by ${user.role}`
+      const requesterBody = `Dear ${requester.name},
+
+Your Conflict of Interest request has been approved by ${user.name} (${user.role}) and is now pending ${nextRole || 'final'} review.
+
+Request ID: ${request.request_id}
+Department: ${request.department || 'N/A'}
+Service Type: ${request.service_type || 'N/A'}
+Current Status: ${nextStatus}
+
+You can track the progress of your request in the COI system:
+http://localhost:5173/coi
+
+Best regards,
+COI System`
+      
+      sendEmail(requester.email, requesterSubject, requesterBody, { 
+        requestId: request.id, 
+        requestNumber: request.request_id,
+        type: 'progress_update'
+      })
+    }
+
+    // ========================================
+    // FUNNEL TRACKING: Log status change for prospects
+    // ========================================
+    if (request.is_prospect) {
+      // Map status to funnel stage
+      const statusToStageMap = {
+        'Pending Compliance': FUNNEL_STAGES.PENDING_COMPLIANCE,
+        'Pending Partner': FUNNEL_STAGES.PENDING_PARTNER,
+        'Pending Finance': FUNNEL_STAGES.PENDING_FINANCE
+      }
+      const fromStatusMap = {
+        'Pending Director Approval': FUNNEL_STAGES.PENDING_DIRECTOR,
+        'Pending Compliance': FUNNEL_STAGES.PENDING_COMPLIANCE,
+        'Pending Partner': FUNNEL_STAGES.PENDING_PARTNER
+      }
+      
+      const toStage = statusToStageMap[nextStatus]
+      const fromStage = fromStatusMap[request.status]
+      
+      if (toStage) {
+        logFunnelEvent({
+          prospectId: request.prospect_id,
+          coiRequestId: req.params.id,
+          fromStage: fromStage,
+          toStage: toStage,
+          userId: user.id,
+          userRole: user.role,
+          notes: `${user.role} ${approvalStatus.toLowerCase()}`,
+          metadata: { 
+            approvalStatus,
+            approvedBy: user.role,
+            restrictions: restrictions || null
+          }
+        })
+      }
     }
 
     res.json({ success: true, approval_status: approvalStatus })
@@ -799,16 +1072,28 @@ export async function requestMoreInfo(req, res) {
     }
 
     // Set status back to allow requester to update
+    // Also increment escalation_count for priority scoring
     db.prepare(`
       UPDATE coi_requests 
       SET ${updateField} = 'Need More Info',
           ${notesField} = ?,
           status = 'Draft',
+          escalation_count = COALESCE(escalation_count, 0) + 1,
+          stage_entered_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(`${comments || ''}\n\nInfo Required: ${info_required || 'Please provide more details.'}`, req.params.id)
 
-    // TODO: Send notification to requester asking for more info
+    // Send notification to requester asking for more info
+    sendNeedMoreInfoNotification(req.params.id, user.name, info_required || 'Please provide more details.')
+    
+    // Emit event for My Day/Week
+    eventBus.emitEvent(EVENT_TYPES.MORE_INFO_REQUESTED, {
+      requestId: req.params.id,
+      userId: user.id,
+      targetUserId: request.requester_id,
+      data: { request_id: request.request_id, info_required }
+    })
 
     res.json({ success: true })
   } catch (error) {
@@ -855,12 +1140,15 @@ export async function rejectRequest(req, res) {
                                    ? rejection_category 
                                    : null
 
+    // Also increment escalation_count for priority scoring (rejection is an escalation)
     db.prepare(`
       UPDATE coi_requests 
       SET status = 'Rejected',
           rejection_reason = ?,
           rejection_type = ?,
           rejection_category = ?,
+          escalation_count = COALESCE(escalation_count, 0) + 1,
+          stage_entered_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(reason || 'No reason provided', finalRejectionType, finalRejectionCategory, req.params.id)
@@ -887,6 +1175,34 @@ export async function rejectRequest(req, res) {
     
     // Send rejection notification with rejection type and category
     sendRejectionNotification(req.params.id, user.name, reason || 'No reason provided', finalRejectionType, finalRejectionCategory)
+    
+    // Emit event for rejection
+    eventBus.emitEvent(EVENT_TYPES.REQUEST_REJECTED, {
+      requestId: req.params.id,
+      userId: user.id,
+      targetUserId: request.requester_id,
+      data: { request_id: request.request_id, rejected_by: user.role, reason }
+    })
+
+    // ========================================
+    // FUNNEL TRACKING: Log rejection (lost)
+    // ========================================
+    if (request.is_prospect) {
+      logFunnelEvent({
+        prospectId: request.prospect_id,
+        coiRequestId: req.params.id,
+        fromStage: request.status?.toLowerCase().replace(/ /g, '_'),
+        toStage: FUNNEL_STAGES.LOST,
+        userId: user.id,
+        userRole: user.role,
+        notes: reason || 'Rejected',
+        metadata: { 
+          rejectionType: finalRejectionType,
+          rejectionCategory: finalRejectionCategory,
+          rejectedBy: user.role
+        }
+      })
+    }
     
     res.json({ 
       success: true, 
@@ -1140,6 +1456,7 @@ export async function generateEngagementCode(req, res) {
     const code = await generateCode(request.service_type, request.id, user.id, financial_parameters)
 
     // Update request with engagement code and financial parameters
+    const previousStatus = request.status
     db.prepare(`
       UPDATE coi_requests 
       SET engagement_code = ?,
@@ -1148,6 +1465,25 @@ export async function generateEngagementCode(req, res) {
           status = 'Approved'
       WHERE id = ?
     `).run(code, JSON.stringify(financial_parameters), req.params.id)
+
+    // ========================================
+    // FUNNEL TRACKING: Log approval
+    // ========================================
+    if (request.is_prospect) {
+      logFunnelEvent({
+        prospectId: request.prospect_id,
+        coiRequestId: req.params.id,
+        fromStage: previousStatus?.toLowerCase().replace(/ /g, '_'),
+        toStage: FUNNEL_STAGES.APPROVED,
+        userId: user.id,
+        userRole: user.role,
+        notes: `Approved with engagement code: ${code}`,
+        metadata: { 
+          engagementCode: code,
+          financialParameters: financial_parameters
+        }
+      })
+    }
 
     // Send notification about engagement code
     sendEngagementCodeNotification(req.params.id, code)

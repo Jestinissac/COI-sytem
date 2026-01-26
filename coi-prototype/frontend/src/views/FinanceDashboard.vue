@@ -150,25 +150,87 @@
           <!-- Pending Finance Tab -->
           <div v-if="activeTab === 'pending'" class="space-y-6">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 class="font-semibold text-gray-900">Pending Finance Approval</h2>
-                <div class="flex items-center gap-3">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between mb-4">
+                  <h2 class="font-semibold text-gray-900">Pending Finance Approval</h2>
                   <button class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                     Export
                   </button>
-                  <div class="relative">
+                </div>
+                
+                <!-- Filters Bar -->
+                <div class="flex flex-wrap items-center gap-3">
+                  <!-- Search -->
+                  <div class="relative flex-1 min-w-[200px] max-w-[300px]">
                     <input 
                       v-model="searchQuery"
                       type="text" 
-                      placeholder="Search requests..." 
-                      class="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Search by ID, client..." 
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
+                  </div>
+                  
+                  <!-- Service Type Filter -->
+                  <select 
+                    v-model="pendingServiceFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Services</option>
+                    <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
+                  </select>
+                  
+                  <!-- Department Filter -->
+                  <select 
+                    v-model="pendingDepartmentFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Departments</option>
+                    <option v-for="dept in uniqueDepartments" :key="dept" :value="dept">{{ dept }}</option>
+                  </select>
+                  
+                  <!-- Code Status Filter -->
+                  <select 
+                    v-model="pendingCodeStatusFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All</option>
+                    <option value="needs_code">Needs Code</option>
+                    <option value="has_code">Has Code</option>
+                  </select>
+                  
+                  <!-- Clear Filters -->
+                  <button 
+                    v-if="hasActivePendingFilters"
+                    @click="clearPendingFilters"
+                    class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div class="flex items-center gap-6 mt-4 pt-4 border-t border-gray-100">
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-gray-900">{{ enhancedFilteredRequests.length }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Pending Finance</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-blue-600">{{ pendingNeedsCodeCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Needs Code</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-green-600">{{ pendingHasCodeCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Has Code</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-gray-600">{{ pendingServiceTypeCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Service Types</div>
                   </div>
                 </div>
               </div>
@@ -197,7 +259,7 @@
                         </div>
                       </td>
                     </tr>
-                    <tr v-else-if="filteredRequests.length === 0">
+                    <tr v-else-if="enhancedFilteredRequests.length === 0">
                       <td colspan="6" class="px-6 py-8 text-center text-gray-500">
                         <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -205,7 +267,7 @@
                         <p>No pending requests</p>
                       </td>
                     </tr>
-                    <tr v-for="request in filteredRequests" :key="request.id" class="hover:bg-gray-50">
+                    <tr v-for="request in enhancedFilteredRequests" :key="request.id" class="hover:bg-gray-50">
                       <td class="px-6 py-4">
                         <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
                       </td>
@@ -252,7 +314,7 @@
               <!-- Pagination -->
               <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
                 <p class="text-sm text-gray-500">
-                  Showing {{ filteredRequests.length }} of {{ pendingFinance.length }} requests
+                  Showing {{ enhancedFilteredRequests.length }} of {{ pendingFinance.length }} requests
                 </p>
               </div>
             </div>
@@ -261,18 +323,83 @@
           <!-- Engagement Codes Tab -->
           <div v-if="activeTab === 'codes'" class="space-y-6">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 class="font-semibold text-gray-900">All Engagement Codes</h2>
-                <div class="relative">
-                  <input 
-                    v-model="codeSearchQuery"
-                    type="text" 
-                    placeholder="Search codes..." 
-                    class="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                  </svg>
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900 mb-4">All Engagement Codes</h2>
+                
+                <!-- Filters Bar -->
+                <div class="flex flex-wrap items-center gap-3">
+                  <!-- Search -->
+                  <div class="relative flex-1 min-w-[200px] max-w-[300px]">
+                    <input 
+                      v-model="codeSearchQuery"
+                      type="text" 
+                      placeholder="Search by code, client..." 
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                  </div>
+                  
+                  <!-- Status Filter -->
+                  <select 
+                    v-model="codeStatusFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Active">Active</option>
+                  </select>
+                  
+                  <!-- Service Type Filter -->
+                  <select 
+                    v-model="codeServiceFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Services</option>
+                    <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
+                  </select>
+                  
+                  <!-- Risk Filter -->
+                  <select 
+                    v-model="codeRiskFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Risk Levels</option>
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Very High">Very High</option>
+                  </select>
+                  
+                  <!-- Clear Filters -->
+                  <button 
+                    v-if="hasActiveCodeFilters"
+                    @click="clearCodeFilters"
+                    class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div class="flex items-center gap-6 mt-4 pt-4 border-t border-gray-100">
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-gray-900">{{ enhancedEngagementCodes.length }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Total Codes</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-green-600">{{ codesActiveCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Active</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-blue-600">{{ codesApprovedCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Approved</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-amber-600">{{ codesHighRiskCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">High Risk</div>
+                  </div>
                 </div>
               </div>
 
@@ -289,7 +416,7 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-for="code in allEngagementCodes" :key="code.engagement_code" class="hover:bg-gray-50">
+                    <tr v-for="code in enhancedEngagementCodes" :key="code.engagement_code" class="hover:bg-gray-50">
                       <td class="px-6 py-4">
                         <span class="text-sm font-mono font-medium text-gray-900">{{ code.engagement_code }}</span>
                       </td>
@@ -333,9 +460,13 @@
                         </button>
                       </td>
                     </tr>
-                    <tr v-if="allEngagementCodes.length === 0">
+                    <tr v-if="enhancedEngagementCodes.length === 0">
                       <td colspan="6" class="px-6 py-8 text-center text-gray-500">
-                        No engagement codes found
+                        <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                        </svg>
+                        <p>No engagement codes found</p>
+                        <p v-if="hasActiveCodeFilters" class="text-sm mt-1">Try adjusting your filters</p>
                       </td>
                     </tr>
                   </tbody>
@@ -417,6 +548,23 @@
       @close="closeCodeModal"
       @success="handleCodeGenerated"
     />
+
+    <!-- Keyboard Shortcuts Modal -->
+    <KeyboardShortcutsModal
+      :is-open="showHelpModal"
+      :shortcut-groups="getShortcutGroups()"
+      :format-key="formatShortcutKey"
+      @close="showHelpModal = false"
+    />
+
+    <!-- Global Search -->
+    <GlobalSearch
+      :is-open="showSearch"
+      :user-role="authStore.user?.role"
+      :user-id="authStore.user?.id"
+      :user-department="authStore.user?.department"
+      @close="showSearch = false"
+    />
   </div>
 </template>
 
@@ -424,18 +572,48 @@
 import { ref, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
+import { useAuthStore } from '@/stores/auth'
 import CodeGenerationModal from '@/components/finance/CodeGenerationModal.vue'
 import { useToast } from '@/composables/useToast'
+import GlobalSearch from '@/components/ui/GlobalSearch.vue'
+import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()
+const authStore = useAuthStore()
 const toast = useToast()
+
+const showSearch = ref(false)
+
+// Keyboard shortcuts
+const { 
+  registerShortcuts, 
+  showHelpModal, 
+  toggleHelp, 
+  getShortcutGroups, 
+  formatShortcutKey 
+} = useKeyboardShortcuts()
 
 const activeTab = ref('overview')
 const searchQuery = ref('')
 const codeSearchQuery = ref('')
 const showCodeModal = ref(false)
 const selectedRequest = ref<any>(null)
+
+// ============================================
+// Enhanced Filter State Variables
+// ============================================
+
+// Pending Finance filters
+const pendingServiceFilter = ref('all')
+const pendingDepartmentFilter = ref('all')
+const pendingCodeStatusFilter = ref('all')
+
+// Engagement Codes filters
+const codeStatusFilter = ref('all')
+const codeServiceFilter = ref('all')
+const codeRiskFilter = ref('all')
 
 const loading = computed(() => coiStore.loading)
 const requests = computed(() => coiStore.requests)
@@ -512,6 +690,147 @@ const filteredRequests = computed(() => {
     r.client_name?.toLowerCase().includes(q)
   )
 })
+
+// ============================================
+// Unique Values for Filters
+// ============================================
+const uniqueServiceTypes = computed(() => {
+  const services = new Set<string>()
+  requests.value.forEach(r => {
+    if (r.service_type) services.add(r.service_type)
+  })
+  return Array.from(services).sort()
+})
+
+const uniqueDepartments = computed(() => {
+  const depts = new Set<string>()
+  requests.value.forEach(r => {
+    if (r.department) depts.add(r.department)
+  })
+  return Array.from(depts).sort()
+})
+
+// ============================================
+// Enhanced Pending Finance Filtering
+// ============================================
+const enhancedFilteredRequests = computed(() => {
+  let filtered = pendingFinance.value
+  
+  // Search filter
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(r => 
+      r.request_id?.toLowerCase().includes(q) ||
+      r.client_name?.toLowerCase().includes(q)
+    )
+  }
+  
+  // Service type filter
+  if (pendingServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === pendingServiceFilter.value)
+  }
+  
+  // Department filter
+  if (pendingDepartmentFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.department === pendingDepartmentFilter.value)
+  }
+  
+  // Code status filter
+  if (pendingCodeStatusFilter.value !== 'all') {
+    if (pendingCodeStatusFilter.value === 'needs_code') {
+      filtered = filtered.filter(r => !r.engagement_code)
+    } else if (pendingCodeStatusFilter.value === 'has_code') {
+      filtered = filtered.filter(r => r.engagement_code)
+    }
+  }
+  
+  return filtered
+})
+
+const hasActivePendingFilters = computed(() => {
+  return searchQuery.value !== '' ||
+    pendingServiceFilter.value !== 'all' ||
+    pendingDepartmentFilter.value !== 'all' ||
+    pendingCodeStatusFilter.value !== 'all'
+})
+
+const pendingNeedsCodeCount = computed(() => pendingFinance.value.filter(r => !r.engagement_code).length)
+const pendingHasCodeCount = computed(() => pendingFinance.value.filter(r => r.engagement_code).length)
+const pendingServiceTypeCount = computed(() => {
+  const services = new Set(enhancedFilteredRequests.value.map(r => r.service_type).filter(Boolean))
+  return services.size
+})
+
+function clearPendingFilters() {
+  searchQuery.value = ''
+  pendingServiceFilter.value = 'all'
+  pendingDepartmentFilter.value = 'all'
+  pendingCodeStatusFilter.value = 'all'
+}
+
+// ============================================
+// Enhanced Engagement Codes Filtering
+// ============================================
+const enhancedEngagementCodes = computed(() => {
+  let codes = requests.value.filter(r => r.engagement_code)
+  
+  // Search filter
+  if (codeSearchQuery.value) {
+    const q = codeSearchQuery.value.toLowerCase()
+    codes = codes.filter(r => 
+      r.engagement_code?.toLowerCase().includes(q) ||
+      r.client_name?.toLowerCase().includes(q)
+    )
+  }
+  
+  // Status filter
+  if (codeStatusFilter.value !== 'all') {
+    codes = codes.filter(r => r.status === codeStatusFilter.value)
+  }
+  
+  // Service type filter
+  if (codeServiceFilter.value !== 'all') {
+    codes = codes.filter(r => r.service_type === codeServiceFilter.value)
+  }
+  
+  // Risk filter
+  if (codeRiskFilter.value !== 'all') {
+    codes = codes.filter(r => {
+      const params = getFinancialParams(r)
+      return params?.risk_assessment === codeRiskFilter.value
+    })
+  }
+  
+  return codes
+})
+
+const hasActiveCodeFilters = computed(() => {
+  return codeSearchQuery.value !== '' ||
+    codeStatusFilter.value !== 'all' ||
+    codeServiceFilter.value !== 'all' ||
+    codeRiskFilter.value !== 'all'
+})
+
+const codesActiveCount = computed(() => 
+  requests.value.filter(r => r.engagement_code && r.status === 'Active').length
+)
+const codesApprovedCount = computed(() => 
+  requests.value.filter(r => r.engagement_code && r.status === 'Approved').length
+)
+const codesHighRiskCount = computed(() => 
+  requests.value.filter(r => {
+    if (!r.engagement_code) return false
+    const params = getFinancialParams(r)
+    return params?.risk_assessment === 'High' || params?.risk_assessment === 'Very High'
+  }).length
+)
+
+function clearCodeFilters() {
+  codeSearchQuery.value = ''
+  codeStatusFilter.value = 'all'
+  codeServiceFilter.value = 'all'
+  codeRiskFilter.value = 'all'
+}
 
 function getStatusClass(status: string) {
   const classes: Record<string, string> = {

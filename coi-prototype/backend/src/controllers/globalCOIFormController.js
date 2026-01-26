@@ -1,5 +1,6 @@
 import { generateGlobalCOIFormExcel } from '../services/excelExportService.js'
 import { getDatabase } from '../database/init.js'
+import { validateInternationalOperationsEntities, CompanyRelationshipValidationError } from '../validators/companyRelationshipValidator.js'
 
 const db = getDatabase()
 
@@ -19,7 +20,23 @@ export async function generateExcelFromFormData(req, res) {
       })
     }
     
+    // Validate International Operations entities (ownership percentages, control types)
+    if (formData.countries && Array.isArray(formData.countries) && formData.countries.length > 0) {
+      try {
+        validateInternationalOperationsEntities(formData)
+      } catch (validationError) {
+        if (validationError instanceof CompanyRelationshipValidationError) {
+          return res.status(400).json({
+            error: validationError.message,
+            field: validationError.field
+          })
+        }
+        throw validationError
+      }
+    }
+    
     // Create a temporary request-like object for Excel generation
+    // Include full countries/entities data with ownership information
     const tempRequest = {
       id: null,
       client_name: formData.clientName,
@@ -36,6 +53,7 @@ export async function generateExcelFromFormData(req, res) {
       foreign_subsidiaries: formData.countries?.map((c) => 
         `${c.country_code}: ${c.entityName || ''}`
       ).join(', ') || '',
+      global_coi_form_data: JSON.stringify(formData), // Store full form data including entities with ownership
       requested_service_period_start: '',
       requested_service_period_end: '',
       requestor_name: ''

@@ -382,6 +382,45 @@
       <!-- Configuration Tab -->
       <div v-if="activeTab === 'config'" class="p-4">
         <div class="space-y-6">
+          <!-- Configuration Tools -->
+          <div>
+            <h3 class="font-medium text-gray-900 mb-4">Configuration Tools</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <router-link
+                to="/coi/admin/priority-config"
+                class="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 border border-gray-300 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="font-medium text-sm text-gray-900">Priority Configuration</div>
+                    <div class="text-xs text-gray-500">Configure priority scoring rules</div>
+                  </div>
+                </div>
+              </router-link>
+              <router-link
+                to="/coi/admin/sla-config"
+                class="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 border border-gray-300 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="font-medium text-sm text-gray-900">SLA Configuration</div>
+                    <div class="text-xs text-gray-500">Configure Service Level Agreements</div>
+                  </div>
+                </div>
+              </router-link>
+            </div>
+          </div>
+
           <div>
             <h3 class="font-medium text-gray-900 mb-4">Workflow Settings</h3>
             <div class="space-y-3">
@@ -631,6 +670,23 @@
         </div>
       </div>
     </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <KeyboardShortcutsModal
+      :is-open="showHelpModal"
+      :shortcut-groups="getShortcutGroups()"
+      :format-key="formatShortcutKey"
+      @close="showHelpModal = false"
+    />
+
+    <!-- Global Search -->
+    <GlobalSearch
+      :is-open="showSearch"
+      :user-role="authStore.user?.role"
+      :user-id="authStore.user?.id"
+      :user-department="authStore.user?.department"
+      @close="showSearch = false"
+    />
   </div>
 </template>
 
@@ -641,6 +697,9 @@ import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import EditionSwitcher from '@/components/edition/EditionSwitcher.vue'
+import GlobalSearch from '@/components/ui/GlobalSearch.vue'
+import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 const coiStore = useCOIRequestsStore()
 const authStore = useAuthStore()
@@ -653,6 +712,16 @@ const loading = ref(false)
 const showAddUserModal = ref(false)
 const showEditUserModal = ref(false)
 const editingUser = ref<any>(null)
+const showSearch = ref(false)
+
+// Keyboard shortcuts
+const { 
+  registerShortcuts, 
+  showHelpModal, 
+  toggleHelp, 
+  getShortcutGroups, 
+  formatShortcutKey 
+} = useKeyboardShortcuts()
 
 const users = ref<any[]>([])
 const auditLogsList = ref<any[]>([])
@@ -769,6 +838,23 @@ onMounted(async () => {
   await authStore.loadEdition()
   await coiStore.fetchRequests()
   await fetchUsers()
+  
+  registerShortcuts([
+    {
+      key: 'k',
+      description: 'Open search',
+      handler: () => { showSearch.value = true },
+      modifier: 'ctrl',
+      group: 'Navigation'
+    },
+    {
+      key: '/',
+      description: 'Show keyboard shortcuts',
+      handler: toggleHelp,
+      modifier: 'ctrl',
+      group: 'General'
+    }
+  ])
 })
 
 async function fetchUsers() {

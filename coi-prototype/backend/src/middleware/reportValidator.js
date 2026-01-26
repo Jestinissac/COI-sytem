@@ -124,6 +124,16 @@ export function validateReportFilters(req, res, next) {
     }
   }
 
+  // Validate clientName
+  if (filters.clientName) {
+    const clientName = sanitizeString(filters.clientName)
+    if (clientName.length > 200) {
+      errors.push('clientName must be 200 characters or less')
+    } else {
+      filters.clientName = clientName
+    }
+  }
+
   // Validate requesterId
   if (filters.requesterId) {
     const requesterId = parseInt(filters.requesterId)
@@ -142,9 +152,14 @@ export function validateReportFilters(req, res, next) {
     }
   }
 
-  // Validate includeData (boolean)
-  if (filters.includeData !== undefined && filters.includeData !== 'true' && filters.includeData !== 'false') {
-    errors.push('includeData must be "true" or "false"')
+  // Validate includeData (boolean or string)
+  if (filters.includeData !== undefined) {
+    // Accept both boolean and string values
+    if (typeof filters.includeData === 'boolean') {
+      filters.includeData = filters.includeData ? 'true' : 'false'
+    } else if (filters.includeData !== 'true' && filters.includeData !== 'false') {
+      errors.push('includeData must be true or false')
+    }
   }
 
   // If there are errors, return them

@@ -2,15 +2,29 @@ import Database from 'better-sqlite3'
 import { readFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { getDatabaseName, validateEnvironment } from '../config/environment.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 let db = null
 
+/**
+ * Get database path based on environment
+ * @returns {string} Full path to database file
+ */
+function getDatabasePath() {
+  // Validate environment first
+  validateEnvironment()
+  
+  const basePath = join(__dirname, '../../../database')
+  const dbName = getDatabaseName()
+  return join(basePath, dbName)
+}
+
 export function getDatabase() {
   if (!db) {
-    const dbPath = join(__dirname, '../../../database/coi.db')
+    const dbPath = getDatabasePath()
     db = new Database(dbPath)
     db.pragma('foreign_keys = ON')
   }
@@ -879,6 +893,25 @@ export async function initDatabase() {
     }
   }
 
+  // Add industry-standard company relationship fields (IESBA 290.13 compliance)
+  const companyRelationshipColumns = [
+    { name: 'company_type', def: "VARCHAR(50) CHECK(company_type IN ('Standalone', 'Subsidiary', 'Parent', 'Sister', 'Affiliate'))" },
+    { name: 'parent_company_id', def: 'INTEGER REFERENCES clients(id)' },
+    { name: 'ownership_percentage', def: 'DECIMAL(5,2) CHECK(ownership_percentage >= 0 AND ownership_percentage <= 100)' },
+    { name: 'control_type', def: "VARCHAR(50) CHECK(control_type IN ('Majority', 'Minority', 'Joint', 'Significant Influence', 'None'))" }
+  ]
+  
+  for (const col of companyRelationshipColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        console.log(`Note: ${col.name} column:`, error.message)
+      }
+    }
+  }
+
   // Add approver availability columns to users table
   const approverAvailabilityColumns = [
     { name: 'unavailable_reason', def: 'TEXT' },
@@ -992,6 +1025,218 @@ export async function initDatabase() {
     }
   }
 
+  // ============================================
+  // Lead Attribution Migration (2026-01-20)
+  // CRM Features: Lead Source Tracking & Funnel Events
+  // ============================================
+  
+  // Create lead_sources table directly (more reliable than migration file)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS lead_sources (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_code VARCHAR(50) UNIQUE NOT NULL,
+        source_name VARCHAR(100) NOT NULL,
+        source_category VARCHAR(50),
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log('✅ lead_sources table ensured')
+    
+    // Seed lead sources
+    const leadSourcesSeeds = [
+      ['unknown', 'Unknown / Legacy', 'other'],
+      ['internal_referral', 'Internal Referral (Partner/Director)', 'referral'],
+      ['client_referral', 'Client Referral', 'referral'],
+      ['insights_module', 'Client Intelligence Module', 'system'],
+      ['cold_outreach', 'Cold Outreach', 'outbound'],
+      ['direct_creation', 'Direct Client Creation', 'other'],
+      ['marketing', 'Marketing Campaign', 'outbound'],
+      ['event', 'Event / Conference', 'outbound']
+    ]
+    
+    const insertLeadSource = db.prepare(`
+      INSERT OR IGNORE INTO lead_sources (source_code, source_name, source_category) 
+      VALUES (?, ?, ?)
+    `)
+    
+    let seededCount = 0
+    for (const [code, name, category] of leadSourcesSeeds) {
+      const result = insertLeadSource.run(code, name, category)
+      if (result.changes > 0) seededCount++
+    }
+    if (seededCount > 0) {
+      console.log(`✅ Seeded ${seededCount} lead sources`)
+    }
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Lead sources table:', error.message)
+    }
+  }
+  
+  // Create prospect_funnel_events table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS prospect_funnel_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        prospect_id INTEGER,
+        coi_request_id INTEGER,
+        from_stage VARCHAR(50),
+        to_stage VARCHAR(50) NOT NULL,
+        performed_by_user_id INTEGER,
+        performed_by_role VARCHAR(50),
+        event_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        days_in_previous_stage INTEGER,
+        notes TEXT,
+        metadata TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (prospect_id) REFERENCES prospects(id),
+        FOREIGN KEY (coi_request_id) REFERENCES coi_requests(id),
+        FOREIGN KEY (performed_by_user_id) REFERENCES users(id)
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_funnel_prospect ON prospect_funnel_events(prospect_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_funnel_coi_request ON prospect_funnel_events(coi_request_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_funnel_stage ON prospect_funnel_events(to_stage)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_funnel_user ON prospect_funnel_events(performed_by_user_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_funnel_timestamp ON prospect_funnel_events(event_timestamp)')
+    console.log('✅ prospect_funnel_events table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Prospect funnel events table:', error.message)
+    }
+  }
+
+  // Add lead source and attribution columns to prospects table
+  const prospectAttributionColumns = [
+    { name: 'lead_source_id', def: 'INTEGER REFERENCES lead_sources(id)' },
+    { name: 'referred_by_user_id', def: 'INTEGER REFERENCES users(id)' },
+    { name: 'referred_by_client_id', def: 'INTEGER REFERENCES clients(id)' },
+    { name: 'source_opportunity_id', def: 'INTEGER' },
+    { name: 'source_notes', def: 'TEXT' }
+  ]
+  
+  for (const col of prospectAttributionColumns) {
+    try {
+      db.exec(`ALTER TABLE prospects ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to prospects`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        // Column already exists, that's fine
+      }
+    }
+  }
+
+  // Add lead_source_id to coi_requests for direct proposal tracking
+  try {
+    db.exec('ALTER TABLE coi_requests ADD COLUMN lead_source_id INTEGER REFERENCES lead_sources(id)')
+    console.log('✅ Added lead_source_id to coi_requests')
+  } catch (error) {
+    if (!error.message.includes('duplicate column')) {
+      // Column already exists
+    }
+  }
+
+  // Create index for lead source lookups
+  try {
+    db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_lead_source ON prospects(lead_source_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_lead_source ON coi_requests(lead_source_id)')
+  } catch (error) {
+    // Indexes may already exist
+  }
+
+  // Migrate existing prospects to 'unknown' lead source if they don't have one
+  try {
+    const unknownSource = db.prepare('SELECT id FROM lead_sources WHERE source_code = ?').get('unknown')
+    if (unknownSource) {
+      const result = db.prepare(`
+        UPDATE prospects 
+        SET lead_source_id = ? 
+        WHERE lead_source_id IS NULL
+      `).run(unknownSource.id)
+      
+      if (result.changes > 0) {
+        console.log(`✅ Migrated ${result.changes} existing prospects to 'unknown' lead source`)
+      }
+    }
+  } catch (error) {
+    // Table or column may not exist yet
+    if (!error.message.includes('no such table') && !error.message.includes('no such column')) {
+      console.log('Lead source migration note:', error.message)
+    }
+  }
+
+  // ============================================
+  // PHASE 3: Lost Tracking & Stale Detection (2026-01-20)
+  // ============================================
+  
+  // Add lost tracking columns to prospects table
+  const lostTrackingColumns = [
+    { name: 'lost_reason', def: 'TEXT' },
+    { name: 'lost_at_stage', def: 'VARCHAR(50)' },
+    { name: 'lost_date', def: 'DATETIME' },
+    { name: 'stale_detected_at', def: 'DATETIME' },
+    { name: 'stale_notification_sent_at', def: 'DATETIME' },
+    { name: 'last_activity_at', def: 'DATETIME DEFAULT CURRENT_TIMESTAMP' }
+  ]
+  
+  for (const col of lostTrackingColumns) {
+    try {
+      db.exec(`ALTER TABLE prospects ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to prospects`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        // Column already exists, that's fine
+      }
+    }
+  }
+  
+  // Add lost tracking columns to coi_requests table (for proposal-level tracking)
+  const coiLostTrackingColumns = [
+    { name: 'lost_reason', def: 'TEXT' },
+    { name: 'lost_at_stage', def: 'VARCHAR(50)' },
+    { name: 'lost_date', def: 'DATETIME' },
+    { name: 'stale_detected_at', def: 'DATETIME' },
+    { name: 'last_activity_at', def: 'DATETIME DEFAULT CURRENT_TIMESTAMP' }
+  ]
+  
+  for (const col of coiLostTrackingColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        // Column already exists
+      }
+    }
+  }
+  
+  // Create index for stale detection queries
+  try {
+    db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_last_activity ON prospects(last_activity_at)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_stale ON prospects(stale_detected_at)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_last_activity ON coi_requests(last_activity_at)')
+  } catch (error) {
+    // Indexes may already exist
+  }
+  
+  // Backfill last_activity_at for existing prospects
+  try {
+    db.exec(`
+      UPDATE prospects 
+      SET last_activity_at = COALESCE(updated_at, created_at)
+      WHERE last_activity_at IS NULL
+    `)
+    db.exec(`
+      UPDATE coi_requests 
+      SET last_activity_at = COALESCE(updated_at, created_at)
+      WHERE last_activity_at IS NULL AND is_prospect = 1
+    `)
+  } catch (error) {
+    // Ignore backfill errors
+  }
+
   // Seed IESBA rules (Pro Version)
   try {
     // Use unified seeder instead of separate scripts
@@ -1006,6 +1251,358 @@ export async function initDatabase() {
     // Rules are now seeded by unified seedRules() above
   } catch (error) {
     console.log('Note: Additional rules seeding skipped (may already exist)')
+  }
+
+  // ============================================
+  // PRIORITY SCORING & SLA CONFIGURATION (2026-01-21)
+  // ============================================
+  
+  // Create priority_config table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS priority_config (
+        factor_id VARCHAR(50) PRIMARY KEY,
+        factor_name VARCHAR(100) NOT NULL,
+        weight DECIMAL(3,1) DEFAULT 1.0,
+        value_mappings TEXT NOT NULL,
+        is_active BOOLEAN DEFAULT 1,
+        updated_by INTEGER REFERENCES users(id),
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log('✅ priority_config table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Priority config table:', error.message)
+    }
+  }
+  
+  // Create priority_audit table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS priority_audit (
+        audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        factor_id VARCHAR(50) NOT NULL,
+        field_changed VARCHAR(50) NOT NULL,
+        old_value TEXT,
+        new_value TEXT,
+        changed_by INTEGER REFERENCES users(id),
+        changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        reason VARCHAR(255)
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_priority_audit_factor ON priority_audit(factor_id)')
+    console.log('✅ priority_audit table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Priority audit table:', error.message)
+    }
+  }
+  
+  // Create sla_config table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS sla_config (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workflow_stage VARCHAR(100) NOT NULL,
+        target_hours INTEGER NOT NULL,
+        warning_threshold_percent INTEGER DEFAULT 75,
+        critical_threshold_percent INTEGER DEFAULT 90,
+        applies_to_service_type VARCHAR(100),
+        applies_to_pie BOOLEAN,
+        is_active BOOLEAN DEFAULT 1,
+        updated_by INTEGER REFERENCES users(id),
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(workflow_stage, applies_to_service_type, applies_to_pie)
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_sla_config_stage ON sla_config(workflow_stage)')
+    console.log('✅ sla_config table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('SLA config table:', error.message)
+    }
+  }
+  
+  // Create email_config table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS email_config (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        config_name VARCHAR(100) NOT NULL DEFAULT 'default',
+        smtp_host VARCHAR(255) NOT NULL,
+        smtp_port INTEGER NOT NULL DEFAULT 587,
+        smtp_secure BOOLEAN DEFAULT 0,
+        smtp_user VARCHAR(255) NOT NULL,
+        smtp_password VARCHAR(255) NOT NULL,
+        from_email VARCHAR(255) NOT NULL,
+        from_name VARCHAR(255) DEFAULT 'COI System',
+        reply_to VARCHAR(255),
+        is_active BOOLEAN DEFAULT 1,
+        test_email VARCHAR(255),
+        last_tested_at DATETIME,
+        test_status VARCHAR(50),
+        test_error TEXT,
+        updated_by INTEGER REFERENCES users(id),
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(config_name)
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_email_config_active ON email_config(is_active)')
+    console.log('✅ email_config table ensured')
+    
+    // Seed default email config if none exists
+    const existingConfig = db.prepare('SELECT COUNT(*) as count FROM email_config').get()
+    if (existingConfig.count === 0) {
+      db.prepare(`
+        INSERT INTO email_config (
+          config_name, smtp_host, smtp_port, smtp_secure, 
+          smtp_user, smtp_password, from_email, from_name, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        'default',
+        process.env.SMTP_HOST || 'smtp.gmail.com',
+        parseInt(process.env.SMTP_PORT) || 587,
+        process.env.SMTP_SECURE === 'true' ? 1 : 0,
+        process.env.SMTP_USER || '',
+        process.env.SMTP_PASS || '',
+        process.env.SMTP_USER || 'noreply@coi-system.com',
+        'COI System',
+        0 // Inactive by default until configured
+      )
+      console.log('✅ Seeded default email config')
+    }
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Email config table:', error.message)
+    }
+  }
+  
+  // Create business_calendar table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS business_calendar (
+        date DATE PRIMARY KEY,
+        is_working_day BOOLEAN DEFAULT 1,
+        holiday_name VARCHAR(100),
+        working_hours_start TIME DEFAULT '09:00',
+        working_hours_end TIME DEFAULT '18:00',
+        synced_from_hrms BOOLEAN DEFAULT 0,
+        synced_at DATETIME
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_business_calendar_working ON business_calendar(is_working_day)')
+    console.log('✅ business_calendar table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Business calendar table:', error.message)
+    }
+  }
+  
+  // Create sla_breach_log table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS sla_breach_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        coi_request_id INTEGER NOT NULL REFERENCES coi_requests(id),
+        workflow_stage VARCHAR(100) NOT NULL,
+        breach_type VARCHAR(20) NOT NULL,
+        target_hours INTEGER NOT NULL,
+        actual_hours DECIMAL(10,2) NOT NULL,
+        detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        resolved_at DATETIME,
+        notified_users TEXT
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_sla_breach_request ON sla_breach_log(coi_request_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_sla_breach_type ON sla_breach_log(breach_type)')
+    console.log('✅ sla_breach_log table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('SLA breach log table:', error.message)
+    }
+  }
+  
+  // Create ML tables for future use
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ml_weights (
+        model_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_type VARCHAR(50) NOT NULL,
+        model_path VARCHAR(255),
+        weights TEXT NOT NULL,
+        accuracy DECIMAL(5,4),
+        training_records INTEGER,
+        trained_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        is_active BOOLEAN DEFAULT 0,
+        activated_by INTEGER REFERENCES users(id),
+        activated_at DATETIME,
+        notes TEXT
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_ml_weights_active ON ml_weights(model_type, is_active)')
+    console.log('✅ ml_weights table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('ML weights table:', error.message)
+    }
+  }
+  
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ml_predictions (
+        prediction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id VARCHAR(50) NOT NULL,
+        predicted_score INTEGER,
+        predicted_level VARCHAR(20),
+        prediction_method VARCHAR(10),
+        model_id INTEGER REFERENCES ml_weights(model_id),
+        features_snapshot TEXT,
+        predicted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        actual_outcome VARCHAR(20),
+        outcome_recorded_at DATETIME
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_ml_predictions_request ON ml_predictions(request_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_ml_predictions_outcome ON ml_predictions(actual_outcome, predicted_at)')
+    console.log('✅ ml_predictions table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('ML predictions table:', error.message)
+    }
+  }
+  
+  // Add priority/SLA columns to coi_requests
+  const prioritySlaColumns = [
+    { name: 'escalation_count', def: 'INTEGER DEFAULT 0' },
+    { name: 'external_deadline', def: 'DATE' },
+    { name: 'deadline_reason', def: 'VARCHAR(255)' },
+    { name: 'deadline_source', def: "VARCHAR(50) DEFAULT 'system'" },
+    { name: 'stage_entered_at', def: 'DATETIME' },
+    { name: 'partner_override', def: 'BOOLEAN DEFAULT 0' },
+    { name: 'complaint_logged', def: 'BOOLEAN DEFAULT 0' }
+  ]
+  
+  for (const col of prioritySlaColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        // Column already exists
+      }
+    }
+  }
+  
+  // Create index for SLA calculations
+  try {
+    db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_stage_entered ON coi_requests(stage_entered_at)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_external_deadline ON coi_requests(external_deadline)')
+  } catch (error) {
+    // Indexes may already exist
+  }
+  
+  // Seed priority factors
+  try {
+    const priorityFactors = [
+      ['sla_status', 'SLA Status', 5.0, '{"BREACHED": 100, "CRITICAL": 80, "WARNING": 60, "ON_TRACK": 20}'],
+      ['external_deadline', 'External Deadline', 4.0, '{"OVERDUE": 100, "TODAY": 90, "THIS_WEEK": 60, "NEXT_WEEK": 30, "NONE": 0}'],
+      ['pie_status', 'PIE Status', 3.0, '{"Yes": 100, "No": 20}'],
+      ['international_operations', 'International Operations', 2.0, '{"1": 70, "0": 20}'],
+      ['service_type', 'Service Type', 2.0, '{"Statutory Audit": 100, "Tax Compliance": 80, "Internal Audit": 70, "Advisory": 40, "Other": 30}'],
+      ['escalation_count', 'Escalation Count', 3.0, '{"3+": 100, "2": 70, "1": 40, "0": 0}']
+    ]
+    
+    const insertFactor = db.prepare(`
+      INSERT OR IGNORE INTO priority_config (factor_id, factor_name, weight, value_mappings) 
+      VALUES (?, ?, ?, ?)
+    `)
+    
+    let seededFactors = 0
+    for (const [factorId, factorName, weight, mappings] of priorityFactors) {
+      const result = insertFactor.run(factorId, factorName, weight, mappings)
+      if (result.changes > 0) seededFactors++
+    }
+    if (seededFactors > 0) {
+      console.log(`✅ Seeded ${seededFactors} priority factors`)
+    }
+  } catch (error) {
+    console.log('Priority factors seeding:', error.message)
+  }
+  
+  // Seed SLA configurations
+  try {
+    const slaConfigs = [
+      // Default SLAs for all requests
+      ['Pending Director Approval', 24, 75, 90, null, null],
+      ['Pending Compliance', 48, 75, 90, null, null],
+      ['Pending Partner', 24, 75, 90, null, null],
+      ['Pending Finance', 24, 75, 90, null, null],
+      ['Draft', 168, 75, 90, null, null],  // 7 days
+      ['More Info Requested', 48, 75, 90, null, null],
+      // PIE client overrides (stricter)
+      ['Pending Compliance', 24, 75, 90, null, 1],  // PIE = 24h instead of 48h
+      ['Pending Partner', 16, 75, 90, null, 1]      // PIE = 16h instead of 24h
+    ]
+    
+    const insertSla = db.prepare(`
+      INSERT OR IGNORE INTO sla_config (workflow_stage, target_hours, warning_threshold_percent, critical_threshold_percent, applies_to_service_type, applies_to_pie) 
+      VALUES (?, ?, ?, ?, ?, ?)
+    `)
+    
+    let seededSla = 0
+    for (const config of slaConfigs) {
+      const result = insertSla.run(...config)
+      if (result.changes > 0) seededSla++
+    }
+    if (seededSla > 0) {
+      console.log(`✅ Seeded ${seededSla} SLA configurations`)
+    }
+  } catch (error) {
+    console.log('SLA config seeding:', error.message)
+  }
+  
+  // Generate business calendar for next 90 days (prototype)
+  try {
+    const existingDays = db.prepare('SELECT COUNT(*) as count FROM business_calendar').get()
+    
+    if (existingDays.count < 30) {
+      const today = new Date()
+      const insertDay = db.prepare(`
+        INSERT OR IGNORE INTO business_calendar (date, is_working_day, holiday_name) 
+        VALUES (?, ?, ?)
+      `)
+      
+      let generated = 0
+      for (let i = 0; i < 90; i++) {
+        const date = new Date(today)
+        date.setDate(date.getDate() + i)
+        const dateStr = date.toISOString().split('T')[0]
+        const dayOfWeek = date.getDay()
+        const isWorkingDay = dayOfWeek !== 0 && dayOfWeek !== 6  // Not Sunday (0) or Saturday (6)
+        
+        const result = insertDay.run(dateStr, isWorkingDay ? 1 : 0, null)
+        if (result.changes > 0) generated++
+      }
+      
+      if (generated > 0) {
+        console.log(`✅ Generated ${generated} days in business calendar (prototype mode)`)
+      }
+    }
+  } catch (error) {
+    console.log('Business calendar generation:', error.message)
+  }
+  
+  // Backfill stage_entered_at for existing requests
+  try {
+    db.exec(`
+      UPDATE coi_requests 
+      SET stage_entered_at = COALESCE(updated_at, created_at)
+      WHERE stage_entered_at IS NULL
+    `)
+  } catch (error) {
+    // Ignore backfill errors
   }
 
   console.log('Database initialized')

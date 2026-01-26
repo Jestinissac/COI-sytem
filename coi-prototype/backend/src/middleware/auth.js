@@ -21,8 +21,18 @@ export function authenticateToken(req, res, next) {
 
 export function requireRole(...allowedRoles) {
   return (req, res, next) => {
-    if (!allowedRoles.includes(req.userRole)) {
-      return res.status(403).json({ error: 'Insufficient permissions' })
+    // Handle both array argument and individual arguments
+    // If first argument is an array, use it; otherwise use all arguments
+    const roles = Array.isArray(allowedRoles[0]) 
+      ? allowedRoles[0] 
+      : allowedRoles
+    
+    if (!roles.includes(req.userRole)) {
+      return res.status(403).json({ 
+        error: 'Insufficient permissions',
+        required: roles,
+        userRole: req.userRole
+      })
     }
     next()
   }

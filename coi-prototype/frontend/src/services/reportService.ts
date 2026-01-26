@@ -6,10 +6,14 @@ export interface ReportFilters {
   status?: string
   serviceType?: string
   clientId?: number
+  clientName?: string
   requesterId?: number
   department?: string
   conflictLevel?: string
   conversionStatus?: string
+  includeData?: boolean | string
+  page?: number
+  pageSize?: number
   [key: string]: any
 }
 
@@ -18,6 +22,14 @@ export interface ReportData {
   requests?: any[]
   codes?: any[]
   prospects?: any[]
+  pagination?: {
+    currentPage: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+    hasNext: boolean
+    hasPrev: boolean
+  }
 }
 
 /**

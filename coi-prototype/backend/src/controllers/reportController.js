@@ -5,7 +5,17 @@ import {
   getPartnerPendingApprovalsReport,
   getEngagementCodeSummaryReport,
   getSystemOverviewReport,
-  getProspectConversionReport
+  getProspectConversionReport,
+  // Phase 2: CRM Attribution Reports
+  getLeadSourceEffectivenessReport,
+  getFunnelPerformanceReport,
+  getInsightsToConversionReport,
+  getAttributionByUserReport,
+  // Phase 3: Advanced CRM Reports
+  getPipelineForecastReport,
+  getConversionTrendsReport,
+  getPeriodComparisonReport,
+  getLostProspectAnalysisReport
 } from '../services/reportDataService.js'
 import { generatePDFReport } from '../services/pdfExportService.js'
 import { generateReportExcel } from '../services/excelExportService.js'
@@ -31,6 +41,23 @@ export async function getReportData(req, res) {
       case 'requester':
         if (reportType === 'my-requests-summary') {
           reportData = getRequesterSummaryReport(userId, filters)
+        // CRM Reports for Requester (sales cycle participant)
+        } else if (reportType === 'lead-source-effectiveness') {
+          reportData = getLeadSourceEffectivenessReport(userId, filters)
+        } else if (reportType === 'funnel-performance') {
+          reportData = getFunnelPerformanceReport(userId, filters)
+        } else if (reportType === 'insights-to-conversion') {
+          reportData = getInsightsToConversionReport(userId, filters)
+        } else if (reportType === 'attribution-by-user') {
+          reportData = getAttributionByUserReport(userId, filters)
+        } else if (reportType === 'pipeline-forecast') {
+          reportData = getPipelineForecastReport(userId, filters)
+        } else if (reportType === 'conversion-trends') {
+          reportData = getConversionTrendsReport(userId, filters)
+        } else if (reportType === 'period-comparison') {
+          reportData = getPeriodComparisonReport(userId, filters)
+        } else if (reportType === 'lost-prospect-analysis') {
+          reportData = getLostProspectAnalysisReport(userId, filters)
         } else {
           return res.status(400).json({ error: 'Invalid report type for Requester' })
         }
@@ -39,6 +66,23 @@ export async function getReportData(req, res) {
       case 'director':
         if (reportType === 'department-overview') {
           reportData = getDirectorOverviewReport(userId, filters)
+        // CRM Reports for Director (sales cycle participant)
+        } else if (reportType === 'lead-source-effectiveness') {
+          reportData = getLeadSourceEffectivenessReport(userId, filters)
+        } else if (reportType === 'funnel-performance') {
+          reportData = getFunnelPerformanceReport(userId, filters)
+        } else if (reportType === 'insights-to-conversion') {
+          reportData = getInsightsToConversionReport(userId, filters)
+        } else if (reportType === 'attribution-by-user') {
+          reportData = getAttributionByUserReport(userId, filters)
+        } else if (reportType === 'pipeline-forecast') {
+          reportData = getPipelineForecastReport(userId, filters)
+        } else if (reportType === 'conversion-trends') {
+          reportData = getConversionTrendsReport(userId, filters)
+        } else if (reportType === 'period-comparison') {
+          reportData = getPeriodComparisonReport(userId, filters)
+        } else if (reportType === 'lost-prospect-analysis') {
+          reportData = getLostProspectAnalysisReport(userId, filters)
         } else {
           return res.status(400).json({ error: 'Invalid report type for Director' })
         }
@@ -55,6 +99,23 @@ export async function getReportData(req, res) {
       case 'partner':
         if (reportType === 'pending-approvals') {
           reportData = getPartnerPendingApprovalsReport(userId, filters)
+        } else if (reportType === 'lead-source-effectiveness') {
+          reportData = getLeadSourceEffectivenessReport(userId, filters)
+        } else if (reportType === 'funnel-performance') {
+          reportData = getFunnelPerformanceReport(userId, filters)
+        } else if (reportType === 'insights-to-conversion') {
+          reportData = getInsightsToConversionReport(userId, filters)
+        } else if (reportType === 'attribution-by-user') {
+          reportData = getAttributionByUserReport(userId, filters)
+        // Phase 3 Reports
+        } else if (reportType === 'pipeline-forecast') {
+          reportData = getPipelineForecastReport(userId, filters)
+        } else if (reportType === 'conversion-trends') {
+          reportData = getConversionTrendsReport(userId, filters)
+        } else if (reportType === 'period-comparison') {
+          reportData = getPeriodComparisonReport(userId, filters)
+        } else if (reportType === 'lost-prospect-analysis') {
+          reportData = getLostProspectAnalysisReport(userId, filters)
         } else {
           return res.status(400).json({ error: 'Invalid report type for Partner' })
         }
@@ -73,6 +134,23 @@ export async function getReportData(req, res) {
           reportData = getSystemOverviewReport(userId, filters)
         } else if (reportType === 'prospect-conversion') {
           reportData = getProspectConversionReport(userId, filters)
+        } else if (reportType === 'lead-source-effectiveness') {
+          reportData = getLeadSourceEffectivenessReport(userId, filters)
+        } else if (reportType === 'funnel-performance') {
+          reportData = getFunnelPerformanceReport(userId, filters)
+        } else if (reportType === 'insights-to-conversion') {
+          reportData = getInsightsToConversionReport(userId, filters)
+        } else if (reportType === 'attribution-by-user') {
+          reportData = getAttributionByUserReport(userId, filters)
+        // Phase 3 Reports
+        } else if (reportType === 'pipeline-forecast') {
+          reportData = getPipelineForecastReport(userId, filters)
+        } else if (reportType === 'conversion-trends') {
+          reportData = getConversionTrendsReport(userId, filters)
+        } else if (reportType === 'period-comparison') {
+          reportData = getPeriodComparisonReport(userId, filters)
+        } else if (reportType === 'lost-prospect-analysis') {
+          reportData = getLostProspectAnalysisReport(userId, filters)
         } else {
           return res.status(400).json({ error: 'Invalid report type for Admin' })
         }
@@ -110,7 +188,7 @@ export async function getReportData(req, res) {
     
     // Audit log: Report generation failure
     logAuditTrail(
-      userId,
+      req.userId || null,
       'Report',
       null,
       'REPORT_GENERATION_FAILED',

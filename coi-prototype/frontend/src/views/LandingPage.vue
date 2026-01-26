@@ -1,18 +1,18 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
+  <div class="min-h-screen bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div class="text-center mb-12">
         <div class="inline-block mb-4">
-          <div class="w-20 h-20 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-xl mx-auto">
+          <div class="w-16 h-16 flex items-center justify-center mx-auto">
             <span class="text-4xl">🏢</span>
           </div>
         </div>
-        <h1 class="text-5xl font-bold text-gray-900 mb-3">Envision Systems</h1>
+        <h1 class="text-3xl font-semibold text-gray-900 mb-3">Envision Systems</h1>
         <p class="text-xl text-gray-600 mb-1">Welcome back, <span class="font-semibold text-primary-600">{{ authStore.user?.name }}</span></p>
         <p class="text-sm text-gray-500">{{ authStore.user?.role }} - {{ authStore.user?.department }}</p>
       </div>
 
-      <div v-if="availableSystems.length === 0" class="text-center py-12 bg-white rounded-xl shadow-lg border border-gray-200">
+      <div v-if="availableSystems.length === 0" class="text-center py-12 bg-white rounded border border-gray-200">
         <p class="text-gray-600">No systems available. Please contact your administrator.</p>
       </div>
 
@@ -28,7 +28,7 @@
       <div class="text-center">
         <button
           @click="handleLogout"
-          class="px-6 py-2 text-gray-600 hover:text-gray-900 font-medium bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-200 transition-all"
+          class="px-6 py-2 text-gray-600 hover:text-gray-900 font-medium bg-white rounded border border-gray-200 hover:border-gray-400 transition-colors"
         >
           Logout
         </button>

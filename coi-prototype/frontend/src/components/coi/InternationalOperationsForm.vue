@@ -206,11 +206,12 @@
                     <span v-if="country.entities && country.entities.length > 0">
                       {{ country.entities.length }} {{ country.entities.length === 1 ? 'entity' : 'entities' }}
                       <span class="text-gray-400 mx-1">•</span>
-                      <span class="inline-flex items-center space-x-1">
-                        <span v-if="country.entities.some((e: any) => e.relationship_type === 'parent')" class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">Parent</span>
-                        <span v-if="country.entities.some((e: any) => e.relationship_type === 'subsidiary')" class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">Subsidiary</span>
-                        <span v-if="country.entities.some((e: any) => e.relationship_type === 'sister')" class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">Sister</span>
-                      </span>
+                        <span class="inline-flex items-center space-x-1">
+                          <span v-if="country.entities.some((e: any) => e.relationship_type === 'parent')" class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">Parent</span>
+                          <span v-if="country.entities.some((e: any) => e.relationship_type === 'subsidiary')" class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">Subsidiary</span>
+                          <span v-if="country.entities.some((e: any) => e.relationship_type === 'affiliate')" class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium">Affiliate</span>
+                          <span v-if="country.entities.some((e: any) => e.relationship_type === 'sister')" class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">Sister</span>
+                        </span>
                     </span>
                     <span v-else>No entities added</span>
                   </div>
@@ -295,6 +296,7 @@
                       :class="{
                         'border-purple-500 bg-purple-50': entity.relationship_type === 'parent',
                         'border-blue-500 bg-blue-50': entity.relationship_type === 'subsidiary',
+                        'border-amber-500 bg-amber-50': entity.relationship_type === 'affiliate',
                         'border-green-500 bg-green-50': entity.relationship_type === 'sister',
                         'border-gray-300 bg-gray-50': !entity.relationship_type
                       }"
@@ -311,7 +313,8 @@
                               >
                                 <option value="">Select relationship...</option>
                                 <option value="parent">Parent Company</option>
-                                <option value="subsidiary">Subsidiary</option>
+                                <option value="subsidiary">Subsidiary (≥50% ownership)</option>
+                                <option value="affiliate">Affiliate (20-50% ownership)</option>
                                 <option value="sister">Sister Company</option>
                               </select>
                               <!-- Relationship Badge -->
@@ -321,11 +324,13 @@
                                 :class="{
                                   'bg-purple-100 text-purple-700': entity.relationship_type === 'parent',
                                   'bg-blue-100 text-blue-700': entity.relationship_type === 'subsidiary',
+                                  'bg-amber-100 text-amber-700': entity.relationship_type === 'affiliate',
                                   'bg-green-100 text-green-700': entity.relationship_type === 'sister'
                                 }"
                               >
                                 <span v-if="entity.relationship_type === 'parent'">🏢 Parent</span>
                                 <span v-else-if="entity.relationship_type === 'subsidiary'">📦 Subsidiary</span>
+                                <span v-else-if="entity.relationship_type === 'affiliate'">🤝 Affiliate</span>
                                 <span v-else-if="entity.relationship_type === 'sister'">🔗 Sister</span>
                               </span>
                             </div>
@@ -334,7 +339,10 @@
                                 <strong>Parent Company:</strong> The controlling entity that owns this client
                               </span>
                               <span v-else-if="entity.relationship_type === 'subsidiary'">
-                                <strong>Subsidiary:</strong> An entity controlled by this client
+                                <strong>Subsidiary:</strong> An entity controlled by this client (≥50% ownership)
+                              </span>
+                              <span v-else-if="entity.relationship_type === 'affiliate'">
+                                <strong>Affiliate:</strong> An entity with significant influence (20-50% ownership)
                               </span>
                               <span v-else-if="entity.relationship_type === 'sister'">
                                 <strong>Sister Company:</strong> Another entity sharing the same parent as this client
@@ -354,6 +362,49 @@
                             type="text"
                             :placeholder="getEntityPlaceholder(entity.relationship_type)"
                             class="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium"
+                          />
+                        </div>
+                        
+                        <!-- Ownership Percentage (for Subsidiary/Affiliate) -->
+                        <div v-if="entity.relationship_type === 'subsidiary' || entity.relationship_type === 'affiliate'">
+                          <label class="block text-xs font-medium text-gray-700 mb-1.5">
+                            Ownership Percentage (%)
+                            <span class="text-gray-400 font-normal text-xs ml-1">
+                              ({{ entity.relationship_type === 'subsidiary' ? '≥50% required' : '20-50% required' }})
+                            </span>
+                            <span class="text-red-500">*</span>
+                          </label>
+                          <input
+                            v-model.number="entity.ownership_percentage"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            placeholder="e.g., 75.5"
+                            @blur="validateEntityOwnership(countryIndex, entityIndex)"
+                          />
+                          <p class="mt-1 text-xs text-gray-500">
+                            <span v-if="entity.relationship_type === 'subsidiary'">
+                              Must be ≥50% for control (Subsidiary)
+                            </span>
+                            <span v-else>
+                              Must be 20-50% for significant influence (Affiliate)
+                            </span>
+                          </p>
+                          <p v-if="entity.ownership_error" class="mt-1 text-xs text-red-600">
+                            {{ entity.ownership_error }}
+                          </p>
+                        </div>
+                        
+                        <!-- Control Type (auto-inferred, display-only) -->
+                        <div v-if="entity.ownership_percentage !== null && entity.ownership_percentage !== undefined && entity.ownership_percentage > 0">
+                          <label class="block text-xs font-medium text-gray-700 mb-1.5">Control Type</label>
+                          <input
+                            :value="getControlType(entity.ownership_percentage)"
+                            type="text"
+                            readonly
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-600"
                           />
                         </div>
                         
@@ -454,6 +505,9 @@ const formData = ref({
       relationship_type: string
       name: string
       details: string
+      ownership_percentage?: number | null
+      control_type?: string | null
+      ownership_error?: string
     }>
   }>
 })
@@ -471,7 +525,9 @@ function transformCountries(countriesData: any[]) {
         entities: [{
           relationship_type: '',
           name: country.entityName || '',
-          details: ''
+          details: '',
+          ownership_percentage: null,
+          control_type: null
         }]
       }
     }
@@ -498,11 +554,12 @@ watch(() => props.initialData, (newData) => {
   if (newData) {
     // Only update if fields are empty (don't overwrite user input)
     Object.keys(newData).forEach(key => {
-      if (newData[key] && (!formData.value[key] || formData.value[key] === '')) {
+      const typedKey = key as keyof typeof newData
+      if (newData[typedKey] && (!(formData.value as any)[key] || (formData.value as any)[key] === '')) {
         if (key === 'countries') {
           formData.value.countries = transformCountries(newData.countries || [])
         } else {
-          formData.value[key] = newData[key]
+          (formData.value as any)[key] = newData[typedKey]
         }
       }
     })
@@ -615,7 +672,9 @@ function addEntity(countryIndex: number) {
   formData.value.countries[countryIndex].entities.push({
     relationship_type: '',
     name: '',
-    details: ''
+    details: '',
+    ownership_percentage: null,
+    control_type: null
   })
 }
 
@@ -633,11 +692,59 @@ function getEntityPlaceholder(relationshipType: string) {
       return 'Parent company name...'
     case 'subsidiary':
       return 'Subsidiary name...'
+    case 'affiliate':
+      return 'Affiliate company name...'
     case 'sister':
       return 'Sister company name...'
     default:
       return 'Entity name...'
   }
+}
+
+function getControlType(ownership: number | null | undefined): string {
+  if (!ownership || ownership === 0) return 'None'
+  if (ownership >= 50) return 'Majority'
+  if (ownership >= 20) return 'Significant Influence'
+  return 'Minority'
+}
+
+function validateEntityOwnership(countryIndex: number, entityIndex: number) {
+  const entity = formData.value.countries[countryIndex]?.entities[entityIndex]
+  if (!entity) return
+  
+  // Clear previous error
+  entity.ownership_error = undefined
+  
+  // Only validate if ownership is provided and relationship type requires it
+  if (entity.relationship_type === 'subsidiary' || entity.relationship_type === 'affiliate') {
+    const ownership = entity.ownership_percentage
+    
+    if (ownership === null || ownership === undefined || ownership === 0) {
+      entity.ownership_error = 'Ownership percentage is required for ' + entity.relationship_type
+      return false
+    }
+    
+    if (entity.relationship_type === 'subsidiary') {
+      if (ownership < 50) {
+        entity.ownership_error = 'Subsidiary requires ≥50% ownership for control. If ownership is <50%, use "Affiliate" type instead.'
+        return false
+      }
+      if (ownership > 100) {
+        entity.ownership_error = 'Ownership percentage cannot exceed 100%'
+        return false
+      }
+    } else if (entity.relationship_type === 'affiliate') {
+      if (ownership < 20 || ownership >= 50) {
+        entity.ownership_error = 'Affiliate requires 20-50% ownership (significant influence, not control). For ≥50%, use "Subsidiary" type.'
+        return false
+      }
+    }
+    
+    // Auto-infer control type
+    entity.control_type = getControlType(ownership)
+  }
+  
+  return true
 }
 
 async function exportToExcel() {

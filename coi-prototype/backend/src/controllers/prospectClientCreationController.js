@@ -1,6 +1,7 @@
 import { getDatabase } from '../database/init.js'
 import { sendEmail } from '../services/emailService.js'
 import { getUserById } from '../utils/userUtils.js'
+import { logFunnelEvent, FUNNEL_STAGES } from '../services/funnelTrackingService.js'
 
 const db = getDatabase()
 
@@ -399,6 +400,24 @@ export async function completeClientCreation(req, res) {
     })
     
     const { newClientId, clientCode } = transaction()
+
+    // ========================================
+    // FUNNEL TRACKING: Log client creation
+    // ========================================
+    logFunnelEvent({
+      prospectId: request.prospect_id,
+      coiRequestId: request.coi_request_id,
+      fromStage: FUNNEL_STAGES.APPROVED,
+      toStage: FUNNEL_STAGES.CLIENT_CREATED,
+      userId: reviewer_id,
+      userRole: reviewer_role,
+      notes: `Client created in PRMS: ${clientCode}`,
+      metadata: { 
+        newClientId,
+        clientCode,
+        clientName: request.client_name
+      }
+    })
     
     // 5. Get requester details and send email notification
     try {

@@ -1713,6 +1713,760 @@ CREATE PROCEDURE sp_GetDynamicFields
 
 ---
 
+## CRM Features (January 2026)
+
+### Prospect Management System
+
+**Status**: Fully implemented in prototype
+
+The prototype now includes a complete prospect management system that operates separately from the client master, enabling COI requests for prospects before they become full PRMS clients.
+
+**New Database Tables**:
+
+| Table | Purpose | Production SQL Server |
+|-------|---------|----------------------|
+| `prospects` | Prospect records separate from clients | See schema below |
+| `lead_sources` | Lead attribution reference data | See schema below |
+| `prospect_funnel_events` | Conversion funnel tracking | See schema below |
+| `prospect_client_creation_requests` | PRMS client creation workflow | See schema below |
+| `proposal_engagement_conversions` | Proposal to engagement tracking | See schema below |
+
+**Prospect Table Schema (Production SQL Server)**:
+```sql
+CREATE TABLE prospects (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    prospect_code VARCHAR(50) UNIQUE,
+    prospect_name NVARCHAR(255) NOT NULL,
+    commercial_registration VARCHAR(100),
+    industry VARCHAR(100),
+    nature_of_business NVARCHAR(MAX),
+    client_id INT REFERENCES clients(id),
+    group_level_services NVARCHAR(MAX), -- JSON array
+    prms_client_code VARCHAR(50),
+    prms_synced BIT DEFAULT 0,
+    prms_sync_date DATETIME,
+    status VARCHAR(50) DEFAULT 'Active' CHECK (status IN ('Active', 'Converted', 'Inactive')),
+    converted_to_client_id INT REFERENCES clients(id),
+    converted_date DATETIME,
+    -- Lead Attribution
+    lead_source_id INT REFERENCES lead_sources(id),
+    referred_by_user_id INT REFERENCES users(id),
+    referred_by_client_id INT REFERENCES clients(id),
+    source_opportunity_id INT,
+    source_notes NVARCHAR(MAX),
+    -- Lost Tracking
+    lost_reason NVARCHAR(MAX),
+    lost_at_stage VARCHAR(50),
+    lost_date DATETIME,
+    stale_detected_at DATETIME,
+    stale_notification_sent_at DATETIME,
+    last_activity_at DATETIME DEFAULT GETDATE(),
+    -- Timestamps
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE()
+);
+
+CREATE INDEX idx_prospects_status ON prospects(status);
+CREATE INDEX idx_prospects_lead_source ON prospects(lead_source_id);
+CREATE INDEX idx_prospects_last_activity ON prospects(last_activity_at);
+CREATE INDEX idx_prospects_code ON prospects(prospect_code);
+```
+
+**Lead Sources Reference Table**:
+```sql
+CREATE TABLE lead_sources (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    source_code VARCHAR(50) UNIQUE NOT NULL,
+    source_name VARCHAR(100) NOT NULL,
+    source_category VARCHAR(50), -- 'referral', 'system', 'outbound', 'other'
+    is_active BIT DEFAULT 1,
+    created_at DATETIME DEFAULT GETDATE()
+);
+
+-- Seed data
+INSERT INTO lead_sources (source_code, source_name, source_category) VALUES
+    ('unknown', 'Unknown / Legacy', 'other'),
+    ('internal_referral', 'Internal Referral (Partner/Director)', 'referral'),
+    ('client_referral', 'Client Referral', 'referral'),
+    ('insights_module', 'Client Intelligence Module', 'system'),
+    ('cold_outreach', 'Cold Outreach', 'outbound'),
+    ('direct_creation', 'Direct Client Creation', 'other'),
+    ('marketing', 'Marketing Campaign', 'outbound'),
+    ('event', 'Event / Conference', 'outbound');
+```
+
+**COI Requests Extended Columns (CRM)**:
+```sql
+-- Add to coi_requests table
+ALTER TABLE coi_requests ADD is_prospect BIT DEFAULT 0;
+ALTER TABLE coi_requests ADD prospect_id INT REFERENCES prospects(id);
+ALTER TABLE coi_requests ADD prms_client_id VARCHAR(50);
+ALTER TABLE coi_requests ADD prospect_converted_at DATETIME;
+ALTER TABLE coi_requests ADD lead_source_id INT REFERENCES lead_sources(id);
+ALTER TABLE coi_requests ADD lost_reason NVARCHAR(MAX);
+ALTER TABLE coi_requests ADD lost_at_stage VARCHAR(50);
+ALTER TABLE coi_requests ADD lost_date DATETIME;
+ALTER TABLE coi_requests ADD stale_detected_at DATETIME;
+ALTER TABLE coi_requests ADD last_activity_at DATETIME DEFAULT GETDATE();
+```
+
+**Production Notes**:
+- Prospect code format: `PROS-{YEAR}-{SEQUENTIAL}` (e.g., PROS-2026-0001)
+- Prospects can be linked to existing clients (`client_id`) or standalone
+- `prms_client_code` populated when prospect is converted to PRMS client
+- Lead source tracking enables ROI analysis by acquisition channel
+
+---
+
+### Funnel Tracking & Analytics
+
+**Status**: Fully implemented in prototype
+
+The system tracks prospect journey through the conversion funnel, logging events at each stage transition for attribution analytics.
+
+**Funnel Stages**:
+```
+lead_created        → Prospect record created
+proposal_submitted  → COI request submitted with is_prospect=1
+pending_director    → Awaiting director approval
+pending_compliance  → Awaiting compliance review
+pending_partner     → Awaiting partner approval
+pending_finance     → Awaiting finance coding
+approved            → Proposal approved
+engagement_started  → Converted to engagement
+client_created      → PRMS client created
+lost / rejected     → Rejected or abandoned
+```
+
+**Funnel Events Table (Production SQL Server)**:
+```sql
+CREATE TABLE prospect_funnel_events (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    prospect_id INT REFERENCES prospects(id),
+    coi_request_id INT REFERENCES coi_requests(id),
+    from_stage VARCHAR(50),
+    to_stage VARCHAR(50) NOT NULL,
+    performed_by_user_id INT REFERENCES users(id),
+    performed_by_role VARCHAR(50),
+    event_timestamp DATETIME DEFAULT GETDATE(),
+    days_in_previous_stage INT,
+    notes NVARCHAR(MAX),
+    metadata NVARCHAR(MAX), -- JSON
+    created_at DATETIME DEFAULT GETDATE()
+);
+
+CREATE INDEX idx_funnel_prospect ON prospect_funnel_events(prospect_id);
+CREATE INDEX idx_funnel_coi_request ON prospect_funnel_events(coi_request_id);
+CREATE INDEX idx_funnel_stage ON prospect_funnel_events(to_stage);
+CREATE INDEX idx_funnel_timestamp ON prospect_funnel_events(event_timestamp);
+```
+
+**Service Layer** (`funnelTrackingService.js`):
+```javascript
+// Log funnel event on status change
+logStatusChange({
+  coiRequestId,
+  oldStatus: 'Pending Director',
+  newStatus: 'Pending Compliance',
+  userId,
+  userRole: 'Director'
+});
+
+// Get conversion metrics
+const metrics = getConversionFunnelMetrics(dateFrom, dateTo);
+// Returns: { stage, count, conversionRate, dropOff } for each stage
+```
+
+**Production Notes**:
+- Funnel events are logged automatically on COI request status changes
+- Only prospect requests (`is_prospect = 1`) generate funnel events
+- `days_in_previous_stage` calculated automatically
+- Metadata stores JSON context (old/new status, etc.)
+
+---
+
+### Stale Prospect Detection
+
+**Status**: Fully implemented in prototype
+
+Automated detection of stale prospects and proposals for follow-up.
+
+**Thresholds** (Configurable):
+- **14 days**: Flag as "needs follow-up"
+- **30 days**: Mark as "stale"
+- **30 days**: Stale proposal (no status change)
+
+**Lost Reasons**:
+```javascript
+const LOST_REASONS = {
+  STALE: 'stale_no_activity',
+  REJECTED: 'rejected_by_compliance',
+  REJECTED_DIRECTOR: 'rejected_by_director',
+  REJECTED_PARTNER: 'rejected_by_partner',
+  CLIENT_DECLINED: 'client_declined',
+  COMPETITOR_WON: 'competitor_won',
+  BUDGET_CONSTRAINTS: 'budget_constraints',
+  TIMING_NOT_RIGHT: 'timing_not_right',
+  NO_RESPONSE: 'no_response',
+  OTHER: 'other'
+};
+```
+
+**Service Layer** (`staleProspectService.js`):
+```javascript
+// Run detection job (call via scheduler)
+const results = runStaleDetectionJob();
+// Returns: { staleProspects, needsFollowup, staleProposals }
+
+// Mark prospect as lost
+markProspectAsLost(prospectId, 'client_declined', 'pending_partner', userId);
+
+// Update activity timestamp (resets stale timer)
+updateProspectActivity(prospectId);
+```
+
+**Production Notes**:
+- Requires scheduled job (cron) to run `runStaleDetectionJob()` daily
+- Stale detection logs funnel events automatically
+- Lost analysis available: by reason, by stage, by lead source
+
+---
+
+### My Day/Week/Month Views
+
+**Status**: Fully implemented in prototype
+
+Personalized task management views showing actionable items based on user role.
+
+**New Frontend Components**:
+- `MyDay.vue` - Today's actionable items
+- `MyWeek.vue` - This week's upcoming items
+- `MyMonth.vue` - This month's calendar view
+
+**Service Layer** (`myDayWeekService.js`):
+```javascript
+// Get My Day view
+const myDay = getMyDay(user);
+// Returns: {
+//   today: { actionRequired, expiring, overdue },
+//   summary: { totalActions, urgentCount, expiringCount }
+// }
+
+// Get My Week view
+const myWeek = getMyWeek(user);
+// Returns: {
+//   thisWeek: { dueThisWeek, expiringThisWeek, groupedByDay },
+//   summary: { weekTotal }
+// }
+```
+
+**Role-Based Action Types**:
+| Role | Action Required When |
+|------|---------------------|
+| Requester | Draft, Rejected, More Info Requested (own requests) |
+| Director | Pending Director Approval + own requests |
+| Compliance | Pending Compliance |
+| Partner | Pending Partner |
+| Finance | Pending Finance |
+| Admin/Super Admin | Requires re-evaluation (escalated) |
+
+**Production Notes**:
+- Uses existing data segregation middleware
+- Overdue threshold: 14 days
+- Expiry tracking for proposals (30 days from execution) and engagements
+- Works with real data, no changes needed for production
+
+---
+
+## Notification Batching System
+
+**Status**: Fully implemented in prototype
+
+The notification system includes intelligent batching to reduce email noise.
+
+**New Database Tables**:
+```sql
+CREATE TABLE notification_queue (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    recipient_id INT NOT NULL REFERENCES users(id),
+    notification_type VARCHAR(100) NOT NULL,
+    is_urgent BIT DEFAULT 0,
+    payload NVARCHAR(MAX) NOT NULL, -- JSON
+    batch_id VARCHAR(50),
+    sent BIT DEFAULT 0,
+    sent_at DATETIME,
+    created_at DATETIME DEFAULT GETDATE()
+);
+
+CREATE TABLE notification_stats (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    stat_date DATE NOT NULL,
+    total_generated INT DEFAULT 0,
+    total_sent INT DEFAULT 0,
+    urgent_sent INT DEFAULT 0,
+    batched_count INT DEFAULT 0,
+    digest_count INT DEFAULT 0,
+    created_at DATETIME DEFAULT GETDATE(),
+    UNIQUE(stat_date)
+);
+```
+
+**Batching Configuration**:
+```javascript
+const BATCH_CONFIG = {
+  windowMinutes: 5,           // Batch window
+  urgentTypes: [              // Bypass batching
+    'REJECTION',
+    'EXPIRING_TODAY',
+    'MORE_INFO_REQUESTED'
+  ]
+};
+```
+
+**Service Layer** (`notificationService.js`):
+```javascript
+// Queue notification (batched or urgent)
+queueNotification(recipientId, 'STATUS_CHANGE', payload, isUrgent);
+
+// Flush batch (call via scheduler every 5 minutes)
+const result = flushNotificationBatch();
+// Returns: { digestsSent, notificationsSent, noiseReduction }
+
+// Get noise reduction stats
+const stats = getNoiseReductionStats(days);
+// Returns: { totalGenerated, totalSent, noiseReduction: '85%' }
+```
+
+**Production Notes**:
+- Urgent notifications sent immediately (rejection, expiring today, more info)
+- Non-urgent notifications batched into digests
+- Requires scheduled job to call `flushNotificationBatch()` every 5 minutes
+- Noise reduction can reach 70-90% in active systems
+
+---
+
+## Environment Configuration
+
+**Status**: Fully implemented in prototype
+
+Multi-environment support with separate databases.
+
+**Environment Configuration** (`config/environment.js`):
+```javascript
+// Environment detection
+getEnvironment()       // 'production', 'staging', 'development', 'test'
+isProduction()         // boolean
+isLoadTestingAllowed() // Only staging, development, test
+
+// Database per environment
+getDatabaseName()
+// production  → 'coi.db'
+// staging     → 'coi-staging.db'
+// development → 'coi-dev.db'
+// test        → 'coi-test.db'
+```
+
+**Production Notes**:
+- Set `NODE_ENV` environment variable
+- Load testing blocked in production
+- Each environment uses separate database file (SQLite) or connection string (SQL Server)
+
+---
+
+## Service Catalog System
+
+**Status**: Fully implemented in prototype
+
+Multi-entity service catalog management with Kuwait Local and Global catalogs.
+
+**New Database Tables**:
+```sql
+CREATE TABLE entity_codes (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    entity_code VARCHAR(10) UNIQUE NOT NULL,
+    entity_name NVARCHAR(255) NOT NULL,
+    country_code VARCHAR(3),
+    is_active BIT DEFAULT 1,
+    created_at DATETIME DEFAULT GETDATE()
+);
+
+CREATE TABLE service_catalog_global (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    service_code VARCHAR(50) UNIQUE NOT NULL,
+    service_name NVARCHAR(255) NOT NULL,
+    category VARCHAR(100),
+    subcategory VARCHAR(100),
+    description NVARCHAR(MAX),
+    is_pie_relevant BIT DEFAULT 0,
+    typical_timing VARCHAR(50),  -- 'year_end', 'quarter_end', 'on_demand'
+    deadline_days INT,
+    seasonal_pattern NVARCHAR(MAX), -- JSON
+    is_active BIT DEFAULT 1,
+    created_at DATETIME DEFAULT GETDATE()
+);
+
+CREATE TABLE service_catalog_entities (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    entity_id INT NOT NULL REFERENCES entity_codes(id),
+    global_service_id INT NOT NULL REFERENCES service_catalog_global(id),
+    local_service_code VARCHAR(50),
+    local_service_name NVARCHAR(255),
+    local_restrictions NVARCHAR(MAX),
+    is_active BIT DEFAULT 1,
+    created_at DATETIME DEFAULT GETDATE(),
+    UNIQUE(entity_id, global_service_id)
+);
+```
+
+**Production Notes**:
+- Kuwait Local catalog: 39 services (from COI Template)
+- Global catalog: 177+ services (from Global COI Form)
+- Entity-specific overrides for local naming/restrictions
+
+---
+
+## Company Relationships (IESBA 290.13)
+
+**Status**: Fully implemented in prototype
+
+Industry-standard company relationship tracking for group structure conflicts.
+
+**New Columns on coi_requests**:
+```sql
+ALTER TABLE coi_requests ADD company_type VARCHAR(50) 
+    CHECK(company_type IN ('Standalone', 'Subsidiary', 'Parent', 'Sister', 'Affiliate'));
+ALTER TABLE coi_requests ADD parent_company_id INT REFERENCES clients(id);
+ALTER TABLE coi_requests ADD ownership_percentage DECIMAL(5,2) 
+    CHECK(ownership_percentage >= 0 AND ownership_percentage <= 100);
+ALTER TABLE coi_requests ADD control_type VARCHAR(50) 
+    CHECK(control_type IN ('Majority', 'Minority', 'Joint', 'Significant Influence', 'None'));
+ALTER TABLE coi_requests ADD group_structure VARCHAR(50) 
+    CHECK(group_structure IN ('standalone', 'has_parent', 'research_required'));
+ALTER TABLE coi_requests ADD parent_company_verified_by INT REFERENCES users(id);
+ALTER TABLE coi_requests ADD parent_company_verified_at DATETIME;
+ALTER TABLE coi_requests ADD group_conflicts_detected NVARCHAR(MAX); -- JSON array
+ALTER TABLE coi_requests ADD requires_compliance_verification BIT DEFAULT 0;
+```
+
+**Production Notes**:
+- Enables automatic conflict detection across group structures
+- Compliance verification flag for uncertain parent relationships
+- Backfill `group_structure` from existing `parent_company` values
+
+---
+
+## Updated Database Schema Summary
+
+### New Tables (7 Migrations)
+
+| Migration Date | Tables Added |
+|----------------|--------------|
+| 2026-01-12 | `prospects`, `service_type_categories`, `proposal_engagement_conversions` |
+| 2026-01-13 | `entity_codes`, `service_catalog_global`, `service_catalog_entities` |
+| 2026-01-15 | `countries` |
+| 2026-01-16 | `client_intelligence_*` (5 tables) |
+| 2026-01-19 | `notification_queue`, `notification_stats` |
+| 2026-01-20 | `lead_sources`, `prospect_funnel_events` |
+
+### Extended Columns on coi_requests
+
+| Category | Columns |
+|----------|---------|
+| CRM/Prospect | `is_prospect`, `prospect_id`, `prms_client_id`, `prospect_converted_at`, `lead_source_id` |
+| Lost Tracking | `lost_reason`, `lost_at_stage`, `lost_date`, `stale_detected_at`, `last_activity_at` |
+| Company Relationships | `company_type`, `parent_company_id`, `ownership_percentage`, `control_type` |
+| Group Structure | `group_structure`, `parent_company_verified_by`, `parent_company_verified_at`, `group_conflicts_detected`, `requires_compliance_verification` |
+| Monitoring | `monitoring_days_elapsed`, `interval_alerts_sent`, `renewal_notification_sent`, `expiry_notification_sent` |
+| Service | `service_sub_category` |
+
+---
+
+## Scheduled Jobs (Production)
+
+The following scheduled jobs are required for production:
+
+| Job | Frequency | Function |
+|-----|-----------|----------|
+| Stale Detection | Daily (midnight) | `runStaleDetectionJob()` |
+| Notification Batch Flush | Every 5 minutes | `flushNotificationBatch()` |
+| Proposal Monitoring | Daily | `checkProposalExpiry()` |
+| Engagement Renewal Alerts | Weekly | `checkEngagementRenewals()` |
+
+**Example Cron Configuration**:
+```bash
+# Stale detection - daily at midnight
+0 0 * * * node /app/jobs/staleDetection.js
+
+# Notification batch flush - every 5 minutes
+*/5 * * * * node /app/jobs/flushNotifications.js
+
+# Proposal monitoring - daily at 8am
+0 8 * * * node /app/jobs/proposalMonitoring.js
+
+# Engagement renewal alerts - weekly on Monday
+0 9 * * 1 node /app/jobs/renewalAlerts.js
+```
+
+**Production Notes**:
+- Use process manager (PM2, systemd) for job reliability
+- Jobs should be idempotent (safe to run multiple times)
+- Log job execution to audit trail
+
+---
+
+## Service Abstraction Layers (Production)
+
+### HRMS Service Abstraction
+
+Create `hrmsService.js` with this interface:
+```typescript
+interface HRMSService {
+  // Employee data
+  getEmployees(): Promise<Employee[]>;
+  getEmployeeById(id: number): Promise<Employee>;
+  getEmployeeByEmail(email: string): Promise<Employee>;
+  
+  // User groups/permissions
+  getUserGroups(userId: number): Promise<string[]>;
+  mapGroupsToCOIRole(groups: string[]): string;
+  
+  // Email
+  getEmailAddress(userId: number): Promise<string>;
+}
+
+// Production implementation queries HRMS SQL Server
+// Prototype implementation returns mock data
+```
+
+### PRMS Service Abstraction
+
+Create `prmsService.js` with this interface:
+```typescript
+interface PRMSService {
+  // Client master
+  getClients(): Promise<Client[]>;
+  getClientByCode(code: string): Promise<Client>;
+  syncClients(): Promise<void>;
+  
+  // Engagement code validation
+  validateEngagementCode(code: string): Promise<{ valid: boolean; reason?: string }>;
+  
+  // Project creation
+  createProject(data: ProjectData): Promise<{ projectId: string }>;
+}
+
+// Production implementation queries PRMS SQL Server or API
+// Prototype implementation returns mock data
+```
+
+### Email Service Abstraction
+
+The `notificationService.js` already abstracts email:
+```typescript
+// Prototype: console.log
+// Production: Replace sendEmail() implementation with:
+
+import nodemailer from 'nodemailer';
+
+const transporter = nodemailer.createTransport({
+  host: 'smtp.office365.com',
+  port: 587,
+  auth: {
+    user: process.env.O365_EMAIL,
+    pass: process.env.O365_PASSWORD
+  }
+});
+
+export function sendEmail(to, subject, body, metadata = {}) {
+  return transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to,
+    subject,
+    html: body
+  });
+}
+```
+
+---
+
+## Dynamic Fields (Practical Approach)
+
+### Current Implementation
+
+The prototype already supports dynamic fields via:
+1. `form_fields_config` table - Field definitions
+2. `form_templates` / `form_template_fields` tables - Template management
+3. `custom_fields` JSON column on `coi_requests` - Storage for dynamic values
+
+### Recommended Production Approach
+
+**Phase 1: JSON Storage (Immediate)**
+- Keep hardcoded core fields working
+- Store additional fields in `custom_fields` JSON column
+- No complex schema changes required
+
+**Phase 2: Admin UI (Later)**
+- Build field configuration interface
+- Allow adding/editing fields without deployment
+- Full audit trail
+
+**Example Usage**:
+```javascript
+// Store custom fields as JSON
+const request = {
+  // Core fields (hardcoded)
+  client_id: 123,
+  service_type: 'Audit',
+  
+  // Dynamic fields (JSON)
+  custom_fields: JSON.stringify({
+    valuation_purpose: 'Acquisition',
+    special_requirements: 'Urgent review needed',
+    additional_contacts: ['john@client.com']
+  })
+};
+
+// Retrieve and parse
+const customFields = JSON.parse(request.custom_fields || '{}');
+```
+
+**Production Notes**:
+- JSON storage in SQL Server uses `NVARCHAR(MAX)`
+- Index on frequently queried JSON paths using computed columns
+- No complex rules engine needed initially
+
+---
+
+## Production Build Checklist (Updated)
+
+### New Items
+
+- [ ] **CRM/Prospect System**:
+  - [ ] Create `prospects` table with all columns
+  - [ ] Create `lead_sources` table and seed data
+  - [ ] Create `prospect_funnel_events` table
+  - [ ] Create `prospect_client_creation_requests` table
+  - [ ] Add CRM columns to `coi_requests`
+
+- [ ] **Notification Batching**:
+  - [ ] Create `notification_queue` table
+  - [ ] Create `notification_stats` table
+  - [ ] Set up 5-minute batch flush job
+  - [ ] Configure urgent notification bypass
+
+- [ ] **Scheduled Jobs**:
+  - [ ] Stale detection job (daily)
+  - [ ] Notification batch flush (every 5 minutes)
+  - [ ] Proposal monitoring (daily)
+  - [ ] Engagement renewal alerts (weekly)
+
+- [ ] **Service Catalog**:
+  - [ ] Create `entity_codes` table
+  - [ ] Create `service_catalog_global` table
+  - [ ] Create `service_catalog_entities` table
+  - [ ] Seed Kuwait Local (39 services)
+  - [ ] Seed Global catalog (177+ services)
+
+- [ ] **Company Relationships**:
+  - [ ] Add company relationship columns to `coi_requests`
+  - [ ] Implement group conflict detection
+  - [ ] Add compliance verification workflow
+
+- [ ] **Service Abstraction Layers**:
+  - [ ] Create `hrmsService.js` production implementation
+  - [ ] Create `prmsService.js` production implementation
+  - [ ] Replace mock email with O365 SMTP
+
+- [ ] **Master Search** (Optional Enhancements):
+  - [ ] Backend search API for performance at scale
+  - [ ] Search history database table (cross-device sync)
+  - [ ] Recent items database table (cross-device sync)
+  - [ ] Search analytics tracking
+  - [ ] ARIA labels for accessibility
+  - [ ] Backend fuzzy matching API (leverages existing `calculateSimilarity`)
+
+---
+
+## New API Endpoints (CRM Features)
+
+```typescript
+// Prospects
+GET    /api/prospects              // List prospects (filtered)
+POST   /api/prospects              // Create prospect
+GET    /api/prospects/:id          // Get prospect details
+PUT    /api/prospects/:id          // Update prospect
+POST   /api/prospects/:id/convert  // Convert to client
+
+// Lead Sources
+GET    /api/lead-sources           // Get all lead sources
+
+// Funnel Analytics
+GET    /api/analytics/funnel       // Get funnel metrics
+GET    /api/analytics/funnel/:prospectId  // Get funnel events for prospect
+
+// Stale Detection
+GET    /api/analytics/stale        // Get stale detection summary
+POST   /api/analytics/stale/run    // Run stale detection (admin)
+
+// My Day/Week
+GET    /api/my-day                 // Get My Day view
+GET    /api/my-week                // Get My Week view
+GET    /api/my-month               // Get My Month view
+
+// Notifications
+GET    /api/notifications/stats    // Get noise reduction stats
+POST   /api/notifications/flush    // Flush notification batch (admin)
+
+// Master Search (Optional - for enhanced features)
+GET    /api/search/history          // Get user's search history
+POST   /api/search/history          // Save search to history
+DELETE /api/search/history          // Clear search history
+GET    /api/search/recent-items     // Get user's recent items
+POST   /api/search/recent-items     // Track item access
+POST   /api/search                  // Backend search with pagination (for performance at scale)
+```
+
+---
+
+## Master Search Feature (January 2026)
+
+**Status**: Fully implemented in prototype
+
+**Features Added**:
+1. **Global Search Component** (`GlobalSearch.vue`)
+   - Accessible via `⌘/Ctrl + K` keyboard shortcut on all dashboards
+   - Role-based result filtering
+   - Empty state with recent items, search history, and quick actions
+   - Search history persistence (localStorage)
+   - Recent items tracking (localStorage)
+
+2. **Search Enhancements**:
+   - **Relevance Ranking**: Results sorted by relevance score (exact matches, starts with, contains, recent items, status priority)
+   - **Autocomplete Suggestions**: Shows top 5 suggestions for 1-character queries
+   - **Fuzzy Matching**: Levenshtein distance algorithm handles typos and name variations (70% similarity threshold)
+   - **Result Highlighting**: Safe highlighting using computed segments (no v-html, regex escaped)
+
+3. **Role-Based Access**:
+   - Requester: Only own requests
+   - Director: Department requests + team members
+   - Compliance/Partner/Finance: All requests (backend filtered)
+   - Admin/Super Admin: All requests + users
+
+**Production Notes**:
+- **Prototype**: Uses browser localStorage for search history and recent items
+- **Production**: Consider server-side storage for cross-device sync (optional)
+- **Performance**: For 10,000+ requests, consider backend search API with database indexing
+- **Fuzzy Matching**: Backend `calculateSimilarity` function exists in `duplicationCheckService.js` - can be used for API endpoint
+- **Accessibility**: Add ARIA labels for screen reader support (recommended)
+
+**Database Schema** (Optional for enhanced features):
+- `user_search_history` table (for cross-device sync)
+- `user_recent_items` table (for cross-device sync)
+
+**See**: `coi-prototype/MASTER_SEARCH_HANDOFF_UPDATE.md` for detailed implementation notes
+
+---
+
 ## Questions for Technical Team
 
 Before starting production build, confirm:
@@ -1725,9 +2479,13 @@ Before starting production build, confirm:
 6. **Email**: O365 account credentials?
 7. **Database**: SQL Server version and connection details?
 8. **Cloud**: Deployment platform (Azure, AWS, on-premise)?
+9. **Job Scheduler**: What tool for scheduled jobs? (Windows Task Scheduler, Azure Functions, cron)
+10. **CRM Integration**: Any existing CRM to integrate with prospect management?
 
 ---
 
 **This document is the primary reference for production system development.**
+
+**Last Updated**: January 2026 (CRM Features, Notification Batching, My Day/Week Views, Master Search)
 
 

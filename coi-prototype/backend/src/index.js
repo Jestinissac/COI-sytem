@@ -23,12 +23,18 @@ import reportSharingRoutes from './routes/reportSharing.routes.js'
 import prospectClientCreationRoutes from './routes/prospectClientCreation.routes.js'
 import complianceRoutes from './routes/compliance.routes.js'
 import countriesRoutes from './routes/countries.routes.js'
+import myDayWeekRoutes from './routes/myDayWeek.routes.js'
+import priorityRoutes from './routes/priority.routes.js'
+import slaRoutes from './routes/sla.routes.js'
+import emailRoutes from './routes/email.routes.js'
 import { 
   updateMonitoringDays, 
   checkAndLapseExpiredProposals, 
   sendIntervalMonitoringAlerts,
   check3YearRenewalAlerts 
 } from './services/monitoringService.js'
+import { initSLANotificationHandlers } from './services/notificationService.js'
+import { checkAllPendingRequests as checkSLAStatus } from './services/slaMonitorService.js'
 
 dotenv.config()
 
@@ -88,6 +94,16 @@ initDatabase().catch(err => {
   process.exit(1)
 })
 
+// Health check endpoint (returns environment info)
+app.get('/api/health', (req, res) => {
+  const env = process.env.NODE_ENV || 'development'
+  res.json({
+    status: 'ok',
+    environment: env,
+    timestamp: new Date().toISOString()
+  })
+})
+
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/coi', coiRoutes)
@@ -106,6 +122,10 @@ app.use('/api/reports', reportsRoutes)
 app.use('/api/reports', reportSharingRoutes)
 app.use('/api/prospect-client-creation', prospectClientCreationRoutes)
 app.use('/api/compliance', complianceRoutes)
+app.use('/api', myDayWeekRoutes)
+app.use('/api/priority', priorityRoutes)
+app.use('/api/sla', slaRoutes)
+app.use('/api/email', emailRoutes)
 
 // Conditionally load client intelligence routes (feature-flagged module)
 import('../../client-intelligence/backend/routes/clientIntelligence.routes.js')
@@ -124,6 +144,11 @@ app.get('/api/health', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
+  
+  // ========================================
+  // INITIALIZE SLA NOTIFICATION HANDLERS
+  // ========================================
+  initSLANotificationHandlers()
   
   // ========================================
   // AUTOMATED MONITORING SCHEDULER
@@ -155,6 +180,10 @@ app.listen(PORT, () => {
       const renewalResult = await check3YearRenewalAlerts()
       console.log(`  ✓ Renewal alerts: ${renewalResult.alertsSent || 0} sent`)
       
+      // Check SLA status for all pending requests
+      const slaResult = await checkSLAStatus()
+      console.log(`  ✓ SLA check: ${slaResult.checked} requests checked, ${slaResult.breached.length} breaches`)
+      
     } catch (error) {
       console.error('❌ Error in initial monitoring check:', error.message)
     }
@@ -182,6 +211,12 @@ app.listen(PORT, () => {
       
       // Check renewal alerts
       await check3YearRenewalAlerts()
+      
+      // Check SLA status (every hour for production, more frequent check could be configured)
+      const slaResult = await checkSLAStatus()
+      if (slaResult.breached.length > 0 || slaResult.critical.length > 0) {
+        console.log(`  ⚠️ SLA: ${slaResult.breached.length} breached, ${slaResult.critical.length} critical`)
+      }
       
       console.log(`  ✓ Monitoring check completed`)
     } catch (error) {

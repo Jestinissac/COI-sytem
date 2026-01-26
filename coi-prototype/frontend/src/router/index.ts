@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { isClientIntelligenceEnabled } from '../../../client-intelligence/frontend/services/featureFlag.ts'
+// Note: Client Intelligence is now integrated into Business Development tab in dashboards
 
 const router = createRouter({
   history: createWebHistory(),
@@ -100,10 +100,31 @@ const router = createRouter({
           meta: { requiresAuth: true }
         },
         {
+          path: 'my-tasks',
+          name: 'MyTasks',
+          component: () => import('@/views/MyTasks.vue'),
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'my-day',
+          name: 'MyDay',
+          redirect: '/coi/my-tasks?tab=day'
+        },
+        {
+          path: 'my-week',
+          name: 'MyWeek',
+          redirect: '/coi/my-tasks?tab=week'
+        },
+        {
+          path: 'my-month',
+          name: 'MyMonth',
+          redirect: '/coi/my-tasks?tab=month'
+        },
+        {
           path: 'compliance/client-services',
           name: 'ComplianceClientServices',
           component: () => import('@/views/ComplianceClientServices.vue'),
-          meta: { roles: ['Compliance'] }
+          meta: { roles: ['Compliance', 'Partner', 'Super Admin'] }
         },
         {
           path: 'hrms/vacation-management',
@@ -142,13 +163,17 @@ const router = createRouter({
           meta: { requiresAuth: true }
         },
         {
+          // Redirect old client-intelligence route to dashboard with business-dev tab
           path: 'client-intelligence',
           name: 'ClientIntelligence',
-          component: () => import('../../../client-intelligence/frontend/views/ClientIntelligenceDashboard.vue'),
+          redirect: () => {
+            // Redirect to appropriate dashboard based on user role
+            // The business-dev tab is now integrated into each role's dashboard
+            return { path: '/coi/requester', query: { tab: 'business-dev', subtab: 'ai-insights' } }
+          },
           meta: {
             requiresAuth: true,
-            roles: ['Requester', 'Director', 'Partner', 'Admin', 'Super Admin'],
-            featureFlag: 'client_intelligence_module'
+            roles: ['Requester', 'Director', 'Partner', 'Admin', 'Super Admin']
           }
         },
         {
@@ -161,19 +186,25 @@ const router = createRouter({
           path: 'prospects',
           name: 'ProspectManagement',
           component: () => import('@/views/ProspectManagement.vue'),
-          meta: { roles: ['Admin', 'Super Admin', 'Compliance', 'Partner'] }
+          meta: { roles: ['Admin', 'Super Admin', 'Director', 'Requester', 'Partner'] }
         },
         {
-          path: 'compliance/client-services',
-          name: 'ComplianceClientServices',
-          component: () => import('@/views/ComplianceClientServices.vue'),
-          meta: { roles: ['Compliance', 'Partner', 'Super Admin'] }
+          path: 'admin/priority-config',
+          name: 'PriorityConfig',
+          component: () => import('@/views/PriorityConfig.vue'),
+          meta: { roles: ['Super Admin', 'Admin'] }
         },
         {
-          path: 'hrms/vacation-management',
-          name: 'HRMSVacationManagement',
-          component: () => import('@/views/HRMSVacationManagement.vue'),
-          meta: { roles: ['Admin', 'Super Admin', 'Compliance'] }
+          path: 'admin/sla-config',
+          name: 'SLAConfig',
+          component: () => import('@/views/SLAConfig.vue'),
+          meta: { roles: ['Super Admin', 'Admin'] }
+        },
+        {
+          path: 'admin/email-config',
+          name: 'EmailConfig',
+          component: () => import('@/views/EmailConfig.vue'),
+          meta: { roles: ['Super Admin', 'Admin'] }
         }
       ]
     },
@@ -185,21 +216,7 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-  // Check feature flag for client intelligence route
-  if (to.path.includes('client-intelligence')) {
-    const enabled = await isClientIntelligenceEnabled()
-    if (!enabled) {
-      return next({
-        path: '/coi/requester',
-        query: { message: 'Client Intelligence module is currently disabled', feature: 'client_intelligence' }
-      })
-    }
-  }
   const authStore = useAuthStore()
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'router/index.ts:116',message:'Router navigation guard',data:{toPath:to.path,fromPath:from.path,userRole:authStore.user?.role,hasToken:!!authStore.token,hasUser:!!authStore.user},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-  // #endregion
   
   // If we have a token but no user, check auth first
   if (authStore.token && !authStore.user) {
@@ -208,13 +225,7 @@ router.beforeEach(async (to, from, next) => {
   
   // Always load edition if authenticated (to get current value from API)
   if (authStore.isAuthenticated) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'router/index.ts:128',message:'Loading edition before route check',data:{currentEdition:authStore.edition,toPath:to.path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     await authStore.loadEdition()
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'router/index.ts:131',message:'Edition loaded after await',data:{edition:authStore.edition,isPro:authStore.isPro,toPath:to.path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
   }
   
   const requiresAuth = to.meta.requiresAuth !== false
@@ -230,25 +241,12 @@ router.beforeEach(async (to, from, next) => {
     
     // Check if Pro edition is required
     if (requiresPro) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'router/index.ts:144',message:'Pro edition check',data:{requiresPro,edition:authStore.edition,isPro:authStore.isPro,toPath:to.path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       if (!authStore.isPro) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'router/index.ts:147',message:'Redirecting - not Pro edition',data:{edition:authStore.edition,isPro:authStore.isPro,toPath:to.path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        // Redirect to dashboard if not Pro edition
         next('/coi')
         return
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'router/index.ts:152',message:'Pro edition check passed',data:{edition:authStore.edition,isPro:authStore.isPro,toPath:to.path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
     }
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'router/index.ts:133',message:'Role check',data:{allowedRoles,userRole:authStore.user?.role,roleMatch:allowedRoles?.includes(authStore.user?.role||''),toPath:to.path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
-    // #endregion
     if (allowedRoles && authStore.user) {
       if (allowedRoles.includes(authStore.user.role)) {
         next()

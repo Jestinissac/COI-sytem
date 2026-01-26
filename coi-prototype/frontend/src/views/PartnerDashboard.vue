@@ -29,26 +29,28 @@
         <div class="w-56 flex-shrink-0">
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6">
             <nav class="py-2">
-              <a
-                v-for="tab in tabs"
-                :key="tab.id"
-                href="#"
-                @click.prevent="activeTab = tab.id"
-                class="flex items-center px-4 py-3 text-sm transition-colors border-l-2"
-                :class="activeTab === tab.id 
-                  ? 'bg-blue-50 border-blue-600 text-blue-700 font-medium' 
-                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
-              >
-                <component :is="tab.icon" class="w-5 h-5 mr-3" />
-                {{ tab.label }}
-                <span 
-                  v-if="tab.count > 0" 
-                  class="ml-auto px-2 py-0.5 text-xs font-medium rounded-full"
-                  :class="tab.alertColor"
+              <template v-for="tab in tabs" :key="tab.id">
+                <!-- Divider before Business Development tab -->
+                <div v-if="tab.divider" class="my-2 mx-4 border-t border-gray-200"></div>
+                <a
+                  href="#"
+                  @click.prevent="activeTab = tab.id"
+                  class="flex items-center px-4 py-3 text-sm transition-colors border-l-2"
+                  :class="activeTab === tab.id 
+                    ? 'bg-blue-50 border-blue-600 text-blue-700 font-medium' 
+                    : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
                 >
-                  {{ tab.count }}
-                </span>
-              </a>
+                  <component :is="tab.icon" class="w-5 h-5 mr-3" />
+                  {{ tab.label }}
+                  <span 
+                    v-if="tab.count > 0" 
+                    class="ml-auto px-2 py-0.5 text-xs font-medium rounded-full"
+                    :class="tab.alertColor"
+                  >
+                    {{ tab.count }}
+                  </span>
+                </a>
+              </template>
             </nav>
           </div>
         </div>
@@ -113,6 +115,9 @@
               </div>
             </div>
 
+            <!-- CRM Insights Cards -->
+            <CRMInsightsCards @viewReport="handleViewReport" />
+
             <!-- Quick Actions -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 class="font-semibold text-gray-900 mb-4">Recent Activity</h3>
@@ -143,42 +148,98 @@
             </div>
           </div>
 
-          <!-- Pending Approvals Tab -->
-          <div v-if="activeTab === 'pending'" class="space-y-6">
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 class="font-semibold text-gray-900">Pending Partner Approval</h2>
-                <div class="relative">
+          <!-- Pending Approvals Tab - Enterprise Design -->
+          <div v-if="activeTab === 'pending'" class="space-y-4">
+            <!-- Filters Bar -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div class="flex flex-wrap items-center gap-3">
+                <!-- Search -->
+                <div class="relative flex-1 min-w-[200px] max-w-xs">
                   <input 
-                    v-model="searchQuery"
+                    v-model="pendingSearchQuery"
                     type="text" 
-                    placeholder="Search requests..." 
-                    class="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Search client or request..." 
+                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                   <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                   </svg>
                 </div>
-              </div>
 
+                <!-- Service Type Filter -->
+                <select v-model="pendingServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  <option value="all">All Services</option>
+                  <option v-for="serviceType in uniqueServiceTypes" :key="serviceType" :value="serviceType">
+                    {{ serviceType }}
+                  </option>
+                </select>
+
+                <!-- Department Filter -->
+                <select v-model="pendingDepartmentFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  <option value="all">All Departments</option>
+                  <option v-for="dept in uniqueDepartments" :key="dept" :value="dept">
+                    {{ dept }}
+                  </option>
+                </select>
+
+                <!-- Risk Filter -->
+                <select v-model="pendingRiskFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  <option value="all">All Risk Levels</option>
+                  <option value="high">High Risk Only</option>
+                  <option value="low">Low Risk Only</option>
+                </select>
+
+                <!-- Clear Filters -->
+                <button 
+                  v-if="hasActivePendingFilters"
+                  @click="clearPendingFilters"
+                  class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Clear filters
+                </button>
+              </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-4 gap-3">
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-purple-600">{{ enhancedFilteredPending.length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Pending Review</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-red-600">{{ enhancedFilteredPending.filter(r => hasRedFlags(r)).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">High Risk</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-green-600">{{ enhancedFilteredPending.filter(r => !hasRedFlags(r)).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Low Risk</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-gray-900">{{ [...new Set(enhancedFilteredPending.map(r => r.service_type))].length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Service Types</div>
+              </div>
+            </div>
+
+            <!-- Pending Table -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="overflow-x-auto">
                 <table class="w-full">
                   <thead class="bg-gray-50">
                     <tr>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Type</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24"></th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
                     <tr v-if="loading">
-                      <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                      <td colspan="7" class="px-4 py-8 text-center text-gray-500">
                         <div class="flex items-center justify-center">
-                          <svg class="animate-spin h-5 w-5 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24">
+                          <svg class="animate-spin h-5 w-5 text-purple-600 mr-2" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
@@ -186,64 +247,62 @@
                         </div>
                       </td>
                     </tr>
-                    <tr v-else-if="filteredPending.length === 0">
-                      <td colspan="7" class="px-6 py-8 text-center text-gray-500">
-                        <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <p>No pending approvals</p>
-                      </td>
-                    </tr>
-                    <tr v-for="request in filteredPending" :key="request.id" class="hover:bg-gray-50">
-                      <td class="px-6 py-4">
+                    <tr v-for="request in enhancedFilteredPending" :key="request.id" class="hover:bg-gray-50">
+                      <td class="px-4 py-3">
                         <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
                       </td>
-                      <td class="px-6 py-4">
+                      <td class="px-4 py-3">
                         <span class="text-sm text-gray-600">{{ request.client_name || 'Not specified' }}</span>
                       </td>
-                      <td class="px-6 py-4">
+                      <td class="px-4 py-3">
                         <span class="text-sm text-gray-600">{{ request.service_type || 'General' }}</span>
                       </td>
-                      <td class="px-6 py-4">
-                        <span class="text-sm text-gray-600">{{ request.department }}</span>
+                      <td class="px-4 py-3">
+                        <span class="text-sm text-gray-600">{{ request.department || '-' }}</span>
                       </td>
-                      <td class="px-6 py-4">
-                        <div class="flex items-center gap-1">
-                          <span 
-                            v-if="hasRedFlags(request)"
-                            class="px-2 py-0.5 text-xs font-medium rounded bg-red-100 text-red-700"
-                          >
-                            🚩 High
-                          </span>
-                          <span 
-                            v-else
-                            class="px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-700"
-                          >
-                            Low
-                          </span>
-                        </div>
+                      <td class="px-4 py-3">
+                        <span 
+                          v-if="hasRedFlags(request)"
+                          class="px-2 py-0.5 text-xs font-medium rounded bg-red-100 text-red-700 border border-red-200"
+                        >
+                          High
+                        </span>
+                        <span 
+                          v-else
+                          class="px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-700 border border-green-200"
+                        >
+                          Low
+                        </span>
                       </td>
-                      <td class="px-6 py-4">
-                        <span class="text-sm text-gray-500">{{ formatDate(request.created_at) }}</span>
+                      <td class="px-4 py-3">
+                        <span class="text-xs text-gray-500">{{ formatDate(request.created_at) }}</span>
                       </td>
-                      <td class="px-6 py-4">
+                      <td class="px-4 py-3">
                         <button 
                           @click="viewDetails(request)" 
-                          class="px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded hover:bg-purple-700 transition-colors"
+                          class="px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded hover:bg-purple-700 transition-colors"
                         >
                           Review
                         </button>
                       </td>
                     </tr>
+                    <tr v-if="!loading && enhancedFilteredPending.length === 0">
+                      <td colspan="7" class="px-4 py-12 text-center">
+                        <svg class="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-gray-500 text-sm">No pending approvals match your filters</p>
+                        <button 
+                          v-if="hasActivePendingFilters"
+                          @click="clearPendingFilters" 
+                          class="mt-3 text-sm text-purple-600 hover:text-purple-800"
+                        >
+                          Clear all filters
+                        </button>
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
-              </div>
-
-              <!-- Pagination -->
-              <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <p class="text-sm text-gray-500">
-                  Showing {{ filteredPending.length }} of {{ pendingApprovals.length }} requests
-                </p>
               </div>
             </div>
           </div>
@@ -455,77 +514,159 @@
             </div>
           </div>
 
-          <!-- COI Decisions Tab -->
-          <div v-if="activeTab === 'decisions'" class="space-y-6">
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h2 class="font-semibold text-gray-900">COI Decisions</h2>
-                  <p class="text-sm text-gray-500 mt-1">All approval and rejection decisions with reasons</p>
+          <!-- COI Decisions Tab - Enterprise Design -->
+          <div v-if="activeTab === 'decisions'" class="space-y-4">
+            <!-- Filters Bar -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div class="flex flex-wrap items-center gap-3">
+                <!-- Search -->
+                <div class="relative flex-1 min-w-[200px] max-w-xs">
+                  <input 
+                    v-model="decisionsSearchQuery"
+                    type="text" 
+                    placeholder="Search client or request..." 
+                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
                 </div>
-                <div class="flex items-center gap-2">
-                  <select v-model="decisionFilter" class="text-sm border border-gray-300 rounded-md px-3 py-1.5">
-                    <option value="all">All Decisions</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Approved with Restrictions">With Restrictions</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                </div>
-              </div>
 
+                <!-- Decision Filter -->
+                <select v-model="decisionFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="all">All Decisions</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Approved with Restrictions">With Restrictions</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Active">Active</option>
+                </select>
+
+                <!-- Service Type Filter -->
+                <select v-model="decisionsServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="all">All Services</option>
+                  <option v-for="serviceType in uniqueServiceTypes" :key="serviceType" :value="serviceType">
+                    {{ serviceType }}
+                  </option>
+                </select>
+
+                <!-- Date Range -->
+                <input 
+                  v-model="decisionsDateFilter" 
+                  type="date" 
+                  class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="From date"
+                />
+
+                <!-- Restrictions Only -->
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    v-model="decisionsRestrictionsOnly"
+                    class="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                  />
+                  <span class="text-sm text-gray-700">With restrictions</span>
+                </label>
+
+                <!-- Clear Filters -->
+                <button 
+                  v-if="hasActiveDecisionFilters"
+                  @click="clearDecisionFilters"
+                  class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Clear filters
+                </button>
+              </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-4 gap-3">
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-gray-900">{{ enhancedFilteredDecisions.length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Total Decisions</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-green-600">{{ enhancedFilteredDecisions.filter(r => r.status === 'Approved' || r.status === 'Active').length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Approved</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-amber-600">{{ enhancedFilteredDecisions.filter(r => r.compliance_restrictions || r.partner_restrictions).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">With Restrictions</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-red-600">{{ enhancedFilteredDecisions.filter(r => r.status === 'Rejected').length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Rejected</div>
+              </div>
+            </div>
+
+            <!-- Decisions Table -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="overflow-x-auto">
                 <table class="w-full">
                   <thead class="bg-gray-50">
                     <tr>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Compliance Decision</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partner Decision</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Restrictions/Reason</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Compliance</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partner</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Restrictions</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16"></th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-for="request in filteredDecisions" :key="request.id" class="hover:bg-gray-50">
-                      <td class="px-6 py-4">
+                    <tr v-for="request in enhancedFilteredDecisions" :key="request.id" class="hover:bg-gray-50">
+                      <td class="px-4 py-3">
                         <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
                       </td>
-                      <td class="px-6 py-4">
+                      <td class="px-4 py-3">
                         <span class="text-sm text-gray-600">{{ request.client_name || 'Not specified' }}</span>
                       </td>
-                      <td class="px-6 py-4">
+                      <td class="px-4 py-3">
                         <span class="text-sm text-gray-600">{{ request.service_type || 'General' }}</span>
                       </td>
-                      <td class="px-6 py-4">
-                        <span :class="getDecisionBadgeClass(request.compliance_approval_status || 'Pending')" class="px-2 py-1 text-xs font-medium rounded border">
+                      <td class="px-4 py-3">
+                        <span :class="getDecisionBadgeClass(request.compliance_approval_status || 'Pending')" class="px-2 py-0.5 text-xs font-medium rounded border">
                           {{ request.compliance_approval_status || 'Pending' }}
                         </span>
                       </td>
-                      <td class="px-6 py-4">
-                        <span :class="getDecisionBadgeClass(request.partner_approval_status || request.status)" class="px-2 py-1 text-xs font-medium rounded border">
+                      <td class="px-4 py-3">
+                        <span :class="getDecisionBadgeClass(request.partner_approval_status || request.status)" class="px-2 py-0.5 text-xs font-medium rounded border">
                           {{ request.partner_approval_status || request.status }}
                         </span>
                       </td>
-                      <td class="px-6 py-4">
-                        <span v-if="request.compliance_restrictions || request.partner_restrictions || request.rejection_reason" class="text-sm text-gray-600 max-w-xs truncate block" :title="request.compliance_restrictions || request.partner_restrictions || request.rejection_reason">
-                          {{ request.compliance_restrictions || request.partner_restrictions || request.rejection_reason || '-' }}
+                      <td class="px-4 py-3">
+                        <span 
+                          v-if="request.compliance_restrictions || request.partner_restrictions || request.rejection_reason" 
+                          class="text-xs text-gray-600 max-w-[150px] truncate block" 
+                          :title="request.compliance_restrictions || request.partner_restrictions || request.rejection_reason"
+                        >
+                          {{ request.compliance_restrictions || request.partner_restrictions || request.rejection_reason }}
                         </span>
-                        <span v-else class="text-sm text-gray-400">-</span>
+                        <span v-else class="text-xs text-gray-400">-</span>
                       </td>
-                      <td class="px-6 py-4">
-                        <span class="text-sm text-gray-500">{{ formatDate(request.partner_approval_date || request.compliance_approval_date || request.updated_at) }}</span>
+                      <td class="px-4 py-3">
+                        <span class="text-xs text-gray-500">{{ formatDate(request.partner_approval_date || request.compliance_approval_date || request.updated_at) }}</span>
                       </td>
-                      <td class="px-6 py-4">
-                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                      <td class="px-4 py-3">
+                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-xs font-medium">
                           View →
                         </button>
                       </td>
                     </tr>
-                    <tr v-if="filteredDecisions.length === 0">
-                      <td colspan="8" class="px-6 py-8 text-center text-gray-500">
-                        No decisions found
+                    <tr v-if="enhancedFilteredDecisions.length === 0">
+                      <td colspan="8" class="px-4 py-12 text-center">
+                        <svg class="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-gray-500 text-sm">No decisions match your filters</p>
+                        <button 
+                          v-if="hasActiveDecisionFilters"
+                          @click="clearDecisionFilters" 
+                          class="mt-3 text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          Clear all filters
+                        </button>
                       </td>
                     </tr>
                   </tbody>
@@ -534,95 +675,155 @@
             </div>
           </div>
 
-          <!-- Engagement Letters Tab -->
-          <div v-if="activeTab === 'letters'" class="space-y-6">
-            <!-- Summary Stats -->
-            <div class="grid grid-cols-4 gap-4">
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <div class="text-2xl font-bold text-gray-900">{{ engagementLetters.filter(r => r.proposal_sent_date && !r.client_response_date).length }}</div>
-                <div class="text-sm text-gray-500">Awaiting Response</div>
-              </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <div class="text-2xl font-bold text-green-600">{{ engagementLetters.filter(r => r.client_response_status === 'Accepted').length }}</div>
-                <div class="text-sm text-gray-500">Signed</div>
-              </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <div class="text-2xl font-bold text-amber-600">{{ engagementLetters.filter(r => r.proposal_sent_date && getDaysWaiting(r.proposal_sent_date) >= 20 && !r.client_response_date).length }}</div>
-                <div class="text-sm text-gray-500">Near 30-Day Limit</div>
-              </div>
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <div class="text-2xl font-bold text-blue-600">{{ engagementLetters.filter(r => r.engagement_letter_issued).length }}</div>
-                <div class="text-sm text-gray-500">Letters Issued</div>
+          <!-- Engagement Letters Tab - Enterprise Design -->
+          <div v-if="activeTab === 'letters'" class="space-y-4">
+            <!-- Filters Bar -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div class="flex flex-wrap items-center gap-3">
+                <!-- Search -->
+                <div class="relative flex-1 min-w-[200px] max-w-xs">
+                  <input 
+                    v-model="lettersSearchQuery"
+                    type="text" 
+                    placeholder="Search client or request..." 
+                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
+                </div>
+
+                <!-- Letter Status Filter -->
+                <select v-model="lettersStatusFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="all">All Status</option>
+                  <option value="awaiting">Awaiting Response</option>
+                  <option value="signed">Signed</option>
+                  <option value="urgent">Near 30-Day Limit</option>
+                  <option value="issued">Letter Issued</option>
+                </select>
+
+                <!-- Service Type Filter -->
+                <select v-model="lettersServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="all">All Services</option>
+                  <option v-for="serviceType in uniqueServiceTypes" :key="serviceType" :value="serviceType">
+                    {{ serviceType }}
+                  </option>
+                </select>
+
+                <!-- Urgent Only Toggle -->
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    v-model="lettersUrgentOnly"
+                    class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                  />
+                  <span class="text-sm text-gray-700">Urgent only (20+ days)</span>
+                </label>
+
+                <!-- Clear Filters -->
+                <button 
+                  v-if="hasActiveLetterFilters"
+                  @click="clearLetterFilters"
+                  class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Clear filters
+                </button>
               </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="font-semibold text-gray-900">Engagement Letter Status</h2>
-                <p class="text-sm text-gray-500 mt-1">Track proposal lifecycle and client signatures (30-day countdown)</p>
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-4 gap-3">
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-gray-900">{{ filteredEngagementLetters.filter(r => r.proposal_sent_date && !r.client_response_date).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Awaiting Response</div>
               </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-green-600">{{ filteredEngagementLetters.filter(r => r.client_response_status === 'Accepted').length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Signed</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-red-600">{{ filteredEngagementLetters.filter(r => r.proposal_sent_date && getDaysWaiting(r.proposal_sent_date) >= 20 && !r.client_response_date).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Near 30-Day Limit</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-blue-600">{{ filteredEngagementLetters.length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Total Shown</div>
+              </div>
+            </div>
 
+            <!-- Letters Table -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="overflow-x-auto">
                 <table class="w-full">
                   <thead class="bg-gray-50">
                     <tr>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proposal Sent</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Waiting</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Letter Status</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eng. Code</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proposal Sent</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Waiting</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eng. Code</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16"></th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-for="request in engagementLetters" :key="request.id" class="hover:bg-gray-50">
-                      <td class="px-6 py-4">
+                    <tr v-for="request in filteredEngagementLetters" :key="request.id" class="hover:bg-gray-50">
+                      <td class="px-4 py-3">
                         <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
                       </td>
-                      <td class="px-6 py-4">
+                      <td class="px-4 py-3">
                         <span class="text-sm text-gray-600">{{ request.client_name || 'Not specified' }}</span>
                       </td>
-                      <td class="px-6 py-4">
+                      <td class="px-4 py-3">
                         <span class="text-sm text-gray-600">{{ request.service_type || 'General' }}</span>
                       </td>
-                      <td class="px-6 py-4">
-                        <span class="text-sm text-gray-500">{{ request.proposal_sent_date ? formatDate(request.proposal_sent_date) : 'Not sent' }}</span>
+                      <td class="px-4 py-3">
+                        <span class="text-xs text-gray-500">{{ request.proposal_sent_date ? formatDate(request.proposal_sent_date) : 'Not sent' }}</span>
                       </td>
-                      <td class="px-6 py-4">
+                      <td class="px-4 py-3">
                         <div v-if="request.proposal_sent_date && !request.client_response_date" class="flex items-center">
-                          <div class="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                          <div class="w-16 bg-gray-200 rounded-full h-1.5 mr-2">
                             <div 
-                              class="h-2 rounded-full transition-all"
+                              class="h-1.5 rounded-full transition-all"
                               :class="getDaysWaiting(request.proposal_sent_date) >= 25 ? 'bg-red-500' : getDaysWaiting(request.proposal_sent_date) >= 15 ? 'bg-orange-500' : 'bg-green-500'"
                               :style="`width: ${Math.min(100, (getDaysWaiting(request.proposal_sent_date) / 30) * 100)}%`"
                             ></div>
                           </div>
-                          <span class="text-sm font-medium" :class="getDaysWaiting(request.proposal_sent_date) >= 25 ? 'text-red-600' : 'text-gray-600'">
+                          <span class="text-xs font-medium" :class="getDaysWaiting(request.proposal_sent_date) >= 25 ? 'text-red-600' : getDaysWaiting(request.proposal_sent_date) >= 15 ? 'text-orange-600' : 'text-gray-600'">
                             {{ getDaysWaiting(request.proposal_sent_date) }}/30
                           </span>
                         </div>
-                        <span v-else-if="request.client_response_date" class="text-sm text-green-600">Complete</span>
-                        <span v-else class="text-sm text-gray-400">-</span>
+                        <span v-else-if="request.client_response_date" class="text-xs text-green-600 font-medium">Complete</span>
+                        <span v-else class="text-xs text-gray-400">-</span>
                       </td>
-                      <td class="px-6 py-4">
-                        <span :class="getLetterStatusClass(request)" class="px-2 py-1 text-xs font-medium rounded">
+                      <td class="px-4 py-3">
+                        <span :class="getLetterStatusClass(request)" class="px-2 py-0.5 text-xs font-medium rounded">
                           {{ getLetterStatusLabel(request) }}
                         </span>
                       </td>
-                      <td class="px-6 py-4">
-                        <span class="text-sm text-gray-600 font-mono">{{ request.engagement_code || '-' }}</span>
+                      <td class="px-4 py-3">
+                        <span class="text-xs text-gray-600 font-mono">{{ request.engagement_code || '-' }}</span>
                       </td>
-                      <td class="px-6 py-4">
-                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                      <td class="px-4 py-3">
+                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-xs font-medium">
                           View →
                         </button>
                       </td>
                     </tr>
-                    <tr v-if="engagementLetters.length === 0">
-                      <td colspan="8" class="px-6 py-8 text-center text-gray-500">
-                        No engagement letters to track
+                    <tr v-if="filteredEngagementLetters.length === 0">
+                      <td colspan="8" class="px-4 py-12 text-center">
+                        <svg class="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        <p class="text-gray-500 text-sm">No engagement letters match your filters</p>
+                        <button 
+                          v-if="hasActiveLetterFilters"
+                          @click="clearLetterFilters" 
+                          class="mt-3 text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          Clear all filters
+                        </button>
                       </td>
                     </tr>
                   </tbody>
@@ -631,27 +832,95 @@
             </div>
           </div>
 
-          <!-- Red Flags Tab -->
-          <div v-if="activeTab === 'redflags'" class="space-y-6">
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200 bg-red-50">
-                <h2 class="font-semibold text-red-900">Red Flags & Conflicts</h2>
-                <p class="text-sm text-red-700 mt-1">Requests with independence threats, conflicts, or compliance issues</p>
-              </div>
+          <!-- Red Flags Tab - Enterprise Design -->
+          <div v-if="activeTab === 'redflags'" class="space-y-4">
+            <!-- Filters Bar -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div class="flex flex-wrap items-center gap-3">
+                <!-- Search -->
+                <div class="relative flex-1 min-w-[200px] max-w-xs">
+                  <input 
+                    v-model="redFlagsSearchQuery"
+                    type="text" 
+                    placeholder="Search client or request..." 
+                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  />
+                  <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
+                </div>
 
+                <!-- Severity Filter -->
+                <select v-model="redFlagsSeverityFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                  <option value="all">All Severity</option>
+                  <option value="HIGH">High Severity</option>
+                  <option value="MEDIUM">Medium Severity</option>
+                </select>
+
+                <!-- Service Type Filter -->
+                <select v-model="redFlagsServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                  <option value="all">All Services</option>
+                  <option v-for="serviceType in uniqueServiceTypes" :key="serviceType" :value="serviceType">
+                    {{ serviceType }}
+                  </option>
+                </select>
+
+                <!-- Status Filter -->
+                <select v-model="redFlagsStatusFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                  <option value="all">All Status</option>
+                  <option value="Pending Director Approval">Pending Director</option>
+                  <option value="Pending Compliance">Pending Compliance</option>
+                  <option value="Pending Partner">Pending Partner</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Active">Active</option>
+                </select>
+
+                <!-- Clear Filters -->
+                <button 
+                  v-if="hasActiveRedFlagsFilters"
+                  @click="clearRedFlagsFilters"
+                  class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Clear filters
+                </button>
+              </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-4 gap-3">
+              <div class="bg-white rounded-lg border border-red-200 p-3">
+                <div class="text-2xl font-semibold text-red-600">{{ filteredRedFlagRequests.length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Total Flags</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-red-700">{{ filteredRedFlagRequests.filter(r => getRedFlagDetails(r).some(f => f.severity === 'HIGH')).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">High Severity</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-amber-600">{{ filteredRedFlagRequests.filter(r => getRedFlagDetails(r).some(f => f.severity === 'MEDIUM')).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Medium Severity</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-gray-900">{{ [...new Set(filteredRedFlagRequests.map(r => r.client_name))].length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Clients Affected</div>
+              </div>
+            </div>
+
+            <!-- Red Flags List -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="divide-y divide-gray-200">
-                <div v-for="request in redFlagRequests" :key="request.id" class="p-6">
-                  <div class="flex items-start justify-between mb-4">
+                <div v-for="request in filteredRedFlagRequests" :key="request.id" class="p-4">
+                  <div class="flex items-start justify-between mb-3">
                     <div>
-                      <div class="flex items-center gap-3">
-                        <span class="text-sm font-bold text-gray-900">{{ request.request_id }}</span>
-                        <span :class="getStatusClass(request.status)" class="px-2 py-1 text-xs font-medium rounded">
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-gray-900">{{ request.request_id }}</span>
+                        <span :class="getStatusClass(request.status)" class="px-2 py-0.5 text-xs font-medium rounded">
                           {{ request.status }}
                         </span>
                       </div>
-                      <p class="text-sm text-gray-600 mt-1">{{ request.client_name }} • {{ request.service_type }}</p>
+                      <p class="text-sm text-gray-600 mt-1">{{ request.client_name }} · {{ request.service_type }}</p>
                     </div>
-                    <button @click="viewDetails(request)" class="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700">
+                    <button @click="viewDetails(request)" class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors">
                       Investigate
                     </button>
                   </div>
@@ -660,166 +929,377 @@
                     <div 
                       v-for="(flag, idx) in getRedFlagDetails(request)" 
                       :key="idx"
-                      class="flex items-start p-3 rounded-lg"
+                      class="flex items-start p-2 rounded-lg text-sm"
                       :class="flag.severity === 'HIGH' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'"
                     >
-                      <div class="flex-shrink-0 mr-3">
-                        <span v-if="flag.severity === 'HIGH'" class="text-red-500">🚨</span>
-                        <span v-else class="text-amber-500">⚠️</span>
+                      <div class="flex-shrink-0 mr-2">
+                        <span v-if="flag.severity === 'HIGH'" class="text-red-500 text-xs">●</span>
+                        <span v-else class="text-amber-500 text-xs">●</span>
                       </div>
                       <div class="flex-1">
                         <div class="flex items-center gap-2">
-                          <span class="text-sm font-medium" :class="flag.severity === 'HIGH' ? 'text-red-800' : 'text-amber-800'">
+                          <span class="text-xs font-medium" :class="flag.severity === 'HIGH' ? 'text-red-800' : 'text-amber-800'">
                             {{ flag.type }}
                           </span>
-                          <span class="px-1.5 py-0.5 text-xs rounded" :class="flag.severity === 'HIGH' ? 'bg-red-200 text-red-700' : 'bg-amber-200 text-amber-700'">
+                          <span class="px-1 py-0.5 text-[10px] rounded" :class="flag.severity === 'HIGH' ? 'bg-red-200 text-red-700' : 'bg-amber-200 text-amber-700'">
                             {{ flag.severity }}
                           </span>
                         </div>
-                        <p class="text-sm mt-1" :class="flag.severity === 'HIGH' ? 'text-red-700' : 'text-amber-700'">
+                        <p class="text-xs mt-0.5" :class="flag.severity === 'HIGH' ? 'text-red-700' : 'text-amber-700'">
                           {{ flag.message }}
-                        </p>
-                        <p v-if="flag.details" class="text-xs mt-1" :class="flag.severity === 'HIGH' ? 'text-red-600' : 'text-amber-600'">
-                          {{ flag.details }}
                         </p>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <div v-if="redFlagRequests.length === 0" class="p-8 text-center text-gray-500">
-                  <svg class="w-12 h-12 mx-auto text-green-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <div v-if="filteredRedFlagRequests.length === 0" class="p-12 text-center">
+                  <svg class="w-12 h-12 mx-auto text-green-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                   </svg>
-                  <p>No red flags or conflicts detected</p>
+                  <p class="text-gray-500 text-sm">No red flags match your filters</p>
+                  <button 
+                    v-if="hasActiveRedFlagsFilters"
+                    @click="clearRedFlagsFilters" 
+                    class="mt-3 text-sm text-red-600 hover:text-red-800"
+                  >
+                    Clear all filters
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Group Services Tab -->
-          <div v-if="activeTab === 'group'" class="space-y-6">
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="font-semibold text-gray-900">Group-Level Services</h2>
-                <p class="text-sm text-gray-500 mt-1">All services across client groups and parent companies</p>
-              </div>
+          <!-- Group Services Tab - Enterprise Design -->
+          <div v-if="activeTab === 'group'" class="space-y-4">
+            <!-- Filters Bar -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div class="flex flex-wrap items-center gap-3">
+                <!-- Search -->
+                <div class="relative flex-1 min-w-[200px] max-w-xs">
+                  <input 
+                    v-model="groupSearchQuery"
+                    type="text" 
+                    placeholder="Search client or request..." 
+                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
+                </div>
 
+                <!-- Status Filter -->
+                <select 
+                  v-model="groupStatusFilter" 
+                  class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Pending Director Approval">Pending Director</option>
+                  <option value="Pending Compliance">Pending Compliance</option>
+                  <option value="Pending Partner">Pending Partner</option>
+                  <option value="Pending Finance">Pending Finance</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+
+                <!-- Service Type Filter -->
+                <select 
+                  v-model="groupServiceFilter" 
+                  class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Services</option>
+                  <option v-for="serviceType in uniqueServiceTypes" :key="serviceType" :value="serviceType">
+                    {{ serviceType }}
+                  </option>
+                </select>
+
+                <!-- Conflicts Only Toggle -->
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    v-model="groupConflictsOnly"
+                    class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                  />
+                  <span class="text-sm text-gray-700">Conflicts only</span>
+                </label>
+
+                <!-- Clear Filters -->
+                <button 
+                  v-if="hasActiveGroupFilters"
+                  @click="clearGroupFilters"
+                  class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Clear filters
+                </button>
+              </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-4 gap-3">
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-gray-900">{{ Object.keys(filteredGroupedServices).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Client Groups</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-gray-900">{{ totalFilteredEngagements }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Engagements</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-green-600">{{ filteredActiveCount }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Active</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-red-600">{{ filteredConflictCount }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">With Conflicts</div>
+              </div>
+            </div>
+
+            <!-- Client Groups List -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="divide-y divide-gray-200">
-                <div v-for="(services, groupName) in groupedServices" :key="groupName" class="p-6">
-                  <div class="flex items-center justify-between mb-4">
+                <div 
+                  v-for="(services, groupName) in filteredGroupedServices" 
+                  :key="groupName" 
+                  class="group"
+                >
+                  <!-- Client Header - Collapsible -->
+                  <button 
+                    @click="toggleGroupExpand(groupName)"
+                    class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                  >
                     <div class="flex items-center gap-3">
-                      <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                        </svg>
+                      <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <span class="text-xs font-medium text-gray-600">{{ getInitials(groupName) }}</span>
                       </div>
-                      <div>
-                        <h3 class="font-medium text-gray-900">{{ groupName }}</h3>
-                        <p class="text-sm text-gray-500">{{ services.length }} engagement(s)</p>
+                      <div class="text-left">
+                        <h3 class="text-sm font-medium text-gray-900">{{ groupName }}</h3>
+                        <p class="text-xs text-gray-500">
+                          {{ services.length }} engagement(s) · {{ [...new Set(services.map(s => s.service_type))].length }} service type(s)
+                        </p>
                       </div>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span v-if="services.some(s => hasRedFlags(s))" class="px-2 py-1 text-xs font-medium rounded bg-red-100 text-red-700">
-                        Has Conflicts
+                      <span 
+                        v-if="services.some(s => hasRedFlags(s))" 
+                        class="px-2 py-0.5 text-xs font-medium rounded bg-red-50 text-red-700 border border-red-200"
+                      >
+                        Conflicts
                       </span>
-                      <span class="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-600">
-                        {{ [...new Set(services.map(s => s.service_type))].length }} service type(s)
+                      <span 
+                        v-if="services.filter(s => s.status === 'Active').length > 0"
+                        class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-700 border border-green-200"
+                      >
+                        {{ services.filter(s => s.status === 'Active').length }} Active
                       </span>
+                      <svg 
+                        class="w-4 h-4 text-gray-400 transition-transform"
+                        :class="expandedGroups.includes(groupName) ? 'rotate-180' : ''"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                      </svg>
                     </div>
-                  </div>
-                  
-                  <div class="ml-13 space-y-2">
-                    <div 
-                      v-for="service in services" 
-                      :key="service.id"
-                      class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div class="flex items-center gap-3">
-                        <span class="text-sm font-medium text-gray-900">{{ service.request_id }}</span>
-                        <span class="text-sm text-gray-600">{{ service.service_type || 'General' }}</span>
-                        <span :class="getStatusClass(service.status)" class="px-2 py-0.5 text-xs font-medium rounded">
-                          {{ service.status }}
-                        </span>
-                      </div>
-                      <button @click="viewDetails(service)" class="text-blue-600 hover:text-blue-800 text-sm">
-                        View →
-                      </button>
-                    </div>
+                  </button>
+
+                  <!-- Engagements Table - Expandable -->
+                  <div v-if="expandedGroups.includes(groupName)" class="border-t border-gray-100 bg-gray-50">
+                    <table class="w-full text-sm">
+                      <thead>
+                        <tr class="text-left text-xs text-gray-500 uppercase tracking-wide">
+                          <th class="px-4 py-2 font-medium">Request ID</th>
+                          <th class="px-4 py-2 font-medium">Service</th>
+                          <th class="px-4 py-2 font-medium">Status</th>
+                          <th class="px-4 py-2 font-medium">Eng. Code</th>
+                          <th class="px-4 py-2 font-medium">Created</th>
+                          <th class="px-4 py-2 font-medium w-16"></th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-gray-100">
+                        <tr 
+                          v-for="service in services" 
+                          :key="service.id"
+                          class="hover:bg-white transition-colors"
+                        >
+                          <td class="px-4 py-2">
+                            <span class="font-medium text-gray-900">{{ service.request_id }}</span>
+                          </td>
+                          <td class="px-4 py-2 text-gray-600">{{ service.service_type || 'General' }}</td>
+                          <td class="px-4 py-2">
+                            <span :class="getStatusClass(service.status)" class="px-2 py-0.5 text-xs font-medium rounded">
+                              {{ service.status }}
+                            </span>
+                          </td>
+                          <td class="px-4 py-2">
+                            <span class="font-mono text-xs text-gray-500">{{ service.engagement_code || '-' }}</span>
+                          </td>
+                          <td class="px-4 py-2 text-gray-500 text-xs">{{ formatDate(service.created_at) }}</td>
+                          <td class="px-4 py-2">
+                            <button 
+                              @click="viewDetails(service)" 
+                              class="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                            >
+                              View →
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
                 
-                <div v-if="Object.keys(groupedServices).length === 0" class="p-8 text-center text-gray-500">
-                  No group services found
+                <!-- Empty State -->
+                <div v-if="Object.keys(filteredGroupedServices).length === 0" class="p-12 text-center">
+                  <svg class="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                  </svg>
+                  <p class="text-gray-500 text-sm">No client groups match your filters</p>
+                  <button 
+                    v-if="hasActiveGroupFilters"
+                    @click="clearGroupFilters" 
+                    class="mt-3 text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    Clear all filters
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- 3-Year Renewals Tab -->
-          <div v-if="activeTab === 'renewals'" class="space-y-6">
-            <!-- Alert Banner -->
-            <div v-if="renewalAlerts.length > 0" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div class="flex items-center">
-                <svg class="w-5 h-5 text-amber-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-                <span class="text-amber-800 font-medium">{{ renewalAlerts.length }} engagement(s) approaching 3-year renewal</span>
+          <!-- 3-Year Renewals Tab - Enterprise Design -->
+          <div v-if="activeTab === 'renewals'" class="space-y-4">
+            <!-- Filters Bar -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div class="flex flex-wrap items-center gap-3">
+                <!-- Search -->
+                <div class="relative flex-1 min-w-[200px] max-w-xs">
+                  <input 
+                    v-model="renewalsSearchQuery"
+                    type="text" 
+                    placeholder="Search client or request..." 
+                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
+                  <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
+                </div>
+
+                <!-- Urgency Filter -->
+                <select v-model="renewalsUrgencyFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="all">All Urgency</option>
+                  <option value="critical">Critical (≤7 days)</option>
+                  <option value="urgent">Urgent (≤30 days)</option>
+                  <option value="upcoming">Upcoming (≤90 days)</option>
+                </select>
+
+                <!-- Service Type Filter -->
+                <select v-model="renewalsServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="all">All Services</option>
+                  <option v-for="serviceType in uniqueServiceTypes" :key="serviceType" :value="serviceType">
+                    {{ serviceType }}
+                  </option>
+                </select>
+
+                <!-- Clear Filters -->
+                <button 
+                  v-if="hasActiveRenewalsFilters"
+                  @click="clearRenewalsFilters"
+                  class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Clear filters
+                </button>
               </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="font-semibold text-gray-900">3-Year Engagement Renewals</h2>
-                <p class="text-sm text-gray-500 mt-1">Engagements requiring renewal review (alerts at 90, 30, 14, 7 days)</p>
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-4 gap-3">
+              <div class="bg-white rounded-lg border border-amber-200 p-3">
+                <div class="text-2xl font-semibold text-amber-600">{{ filteredRenewalAlerts.length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Total Renewals</div>
               </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-red-600">{{ filteredRenewalAlerts.filter(r => getDaysUntilRenewal(r) <= 7).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Critical (≤7 days)</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-amber-600">{{ filteredRenewalAlerts.filter(r => getDaysUntilRenewal(r) > 7 && getDaysUntilRenewal(r) <= 30).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Urgent (8-30 days)</div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="text-2xl font-semibold text-blue-600">{{ filteredRenewalAlerts.filter(r => getDaysUntilRenewal(r) > 30).length }}</div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Upcoming (31-90 days)</div>
+              </div>
+            </div>
 
-              <div class="divide-y divide-gray-200">
-                <div v-for="request in renewalAlerts" :key="request.id" class="p-6">
-                  <div class="flex items-start justify-between">
-                    <div>
-                      <div class="flex items-center gap-3 mb-2">
-                        <span class="text-sm font-bold text-gray-900">{{ request.request_id }}</span>
+            <!-- Renewals Table -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Left</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Renewal Date</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eng. Code</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32"></th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr v-for="request in filteredRenewalAlerts" :key="request.id" class="hover:bg-gray-50">
+                      <td class="px-4 py-3">
+                        <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class="text-sm text-gray-600">{{ request.client_name || 'Not specified' }}</span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class="text-sm text-gray-600">{{ request.service_type || 'General' }}</span>
+                      </td>
+                      <td class="px-4 py-3">
                         <span 
-                          class="px-2 py-1 text-xs font-medium rounded"
-                          :class="getDaysUntilRenewal(request) <= 7 ? 'bg-red-100 text-red-700' : getDaysUntilRenewal(request) <= 30 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'"
+                          class="px-2 py-0.5 text-xs font-semibold rounded"
+                          :class="getDaysUntilRenewal(request) <= 7 ? 'bg-red-100 text-red-700 border border-red-200' : getDaysUntilRenewal(request) <= 30 ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-blue-100 text-blue-700 border border-blue-200'"
                         >
-                          {{ getDaysUntilRenewal(request) }} days until renewal
+                          {{ getDaysUntilRenewal(request) }} days
                         </span>
-                      </div>
-                      <p class="text-sm text-gray-600">{{ request.client_name }} • {{ request.service_type }}</p>
-                      <div class="mt-3 grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span class="text-gray-500">Engagement Start:</span>
-                          <span class="ml-2 text-gray-900">{{ formatDate(request.engagement_start_date) }}</span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class="text-xs text-gray-600">{{ getRenewalDate(request) }}</span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class="text-xs text-gray-600 font-mono">{{ request.engagement_code || '-' }}</span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                          <button @click="viewDetails(request)" class="px-2 py-1 bg-amber-600 text-white text-xs font-medium rounded hover:bg-amber-700 transition-colors">
+                            Review
+                          </button>
+                          <button class="px-2 py-1 border border-amber-300 text-amber-700 text-xs font-medium rounded hover:bg-amber-50 transition-colors">
+                            Renew
+                          </button>
                         </div>
-                        <div>
-                          <span class="text-gray-500">Renewal Date:</span>
-                          <span class="ml-2 text-gray-900 font-medium">{{ getRenewalDate(request) }}</span>
-                        </div>
-                        <div>
-                          <span class="text-gray-500">Eng. Code:</span>
-                          <span class="ml-2 text-gray-900 font-mono">{{ request.engagement_code || '-' }}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                      <button @click="viewDetails(request)" class="px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded hover:bg-amber-700">
-                        Review
-                      </button>
-                      <button class="px-3 py-1.5 border border-amber-300 text-amber-700 text-sm font-medium rounded hover:bg-amber-50">
-                        Initiate Renewal
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div v-if="renewalAlerts.length === 0" class="p-8 text-center text-gray-500">
-                  <svg class="w-12 h-12 mx-auto text-green-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  <p>No engagements due for 3-year renewal</p>
-                </div>
+                      </td>
+                    </tr>
+                    <tr v-if="filteredRenewalAlerts.length === 0">
+                      <td colspan="7" class="px-4 py-12 text-center">
+                        <svg class="w-12 h-12 mx-auto text-green-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-gray-500 text-sm">No renewals match your filters</p>
+                        <button 
+                          v-if="hasActiveRenewalsFilters"
+                          @click="clearRenewalsFilters" 
+                          class="mt-3 text-sm text-amber-600 hover:text-amber-800"
+                        >
+                          Clear all filters
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -865,6 +1345,40 @@
               </div>
             </div>
           </div>
+
+          <!-- Business Development Tab -->
+          <div v-if="activeTab === 'business-dev'" class="space-y-6">
+            <!-- Sub-tab Navigation -->
+            <div class="bg-white rounded border border-gray-200">
+              <div class="border-b border-gray-200">
+                <nav class="flex -mb-px">
+                  <button
+                    v-for="subTab in bdSubTabs"
+                    :key="subTab.id"
+                    @click="activeBDSubTab = subTab.id"
+                    class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
+                    :class="activeBDSubTab === subTab.id 
+                      ? 'border-blue-500 text-blue-600' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                  >
+                    {{ subTab.label }}
+                  </button>
+                </nav>
+              </div>
+              
+              <!-- Sub-tab Content -->
+              <div class="p-6">
+                <!-- Prospects Sub-tab -->
+                <BusinessDevProspects v-if="activeBDSubTab === 'prospects'" />
+                
+                <!-- Pipeline & Analytics Sub-tab -->
+                <BusinessDevPipelineAnalytics v-else-if="activeBDSubTab === 'pipeline-analytics'" @viewReport="handleViewReport" />
+                
+                <!-- AI Insights Sub-tab -->
+                <BusinessDevAIInsights v-else-if="activeBDSubTab === 'ai-insights'" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -875,13 +1389,74 @@
 import { ref, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
+import { useAuthStore } from '@/stores/auth'
+import CRMInsightsCards from '@/components/dashboard/CRMInsightsCards.vue'
+import BusinessDevProspects from '@/components/business-dev/BusinessDevProspects.vue'
+import BusinessDevPipelineAnalytics from '@/components/business-dev/BusinessDevPipelineAnalytics.vue'
+import BusinessDevAIInsights from '@/components/business-dev/BusinessDevAIInsights.vue'
+import GlobalSearch from '@/components/ui/GlobalSearch.vue'
+import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()
+const authStore = useAuthStore()
+
+const showSearch = ref(false)
+
+// Keyboard shortcuts
+const { 
+  registerShortcuts, 
+  showHelpModal, 
+  toggleHelp, 
+  getShortcutGroups, 
+  formatShortcutKey 
+} = useKeyboardShortcuts()
+
+// Handle CRM report view navigation
+function handleViewReport(reportType: string) {
+  router.push({ path: '/coi/reports', query: { report: reportType } })
+}
 
 const activeTab = ref('overview')
 const searchQuery = ref('')
 const decisionFilter = ref('all')
+
+// Group Services filters
+const groupSearchQuery = ref('')
+const groupStatusFilter = ref('all')
+const groupServiceFilter = ref('all')
+const groupConflictsOnly = ref(false)
+const expandedGroups = ref<string[]>([])
+
+// COI Decisions filters
+const decisionsSearchQuery = ref('')
+const decisionsServiceFilter = ref('all')
+const decisionsDateFilter = ref('')
+const decisionsRestrictionsOnly = ref(false)
+
+// Engagement Letters filters
+const lettersSearchQuery = ref('')
+const lettersStatusFilter = ref('all')
+const lettersServiceFilter = ref('all')
+const lettersUrgentOnly = ref(false)
+
+// Pending Approvals filters
+const pendingSearchQuery = ref('')
+const pendingServiceFilter = ref('all')
+const pendingDepartmentFilter = ref('all')
+const pendingRiskFilter = ref('all')
+
+// Red Flags filters
+const redFlagsSearchQuery = ref('')
+const redFlagsSeverityFilter = ref('all')
+const redFlagsServiceFilter = ref('all')
+const redFlagsStatusFilter = ref('all')
+
+// 3-Year Renewals filters
+const renewalsSearchQuery = ref('')
+const renewalsUrgencyFilter = ref('all')
+const renewalsServiceFilter = ref('all')
 
 const loading = computed(() => coiStore.loading)
 const requests = computed(() => coiStore.requests)
@@ -974,18 +1549,35 @@ const RenewalIcon = {
   }
 }
 
+const BusinessDevIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' })
+    ])
+  }
+}
+
 const tabs = computed(() => [
-  { id: 'overview', label: 'Overview', icon: OverviewIcon, count: 0, alertColor: '' },
-  { id: 'pending', label: 'Pending Approval', icon: PendingIcon, count: pendingApprovals.value.length, alertColor: 'bg-purple-100 text-purple-700' },
-  { id: 'decisions', label: 'COI Decisions', icon: DecisionsIcon, count: coiDecisions.value.length, alertColor: 'bg-green-100 text-green-700' },
-  { id: 'letters', label: 'Engagement Letters', icon: LettersIcon, count: engagementLetters.value.length, alertColor: 'bg-indigo-100 text-indigo-700' },
-  { id: 'redflags', label: 'Red Flags', icon: RedFlagIcon, count: redFlagRequests.value.length, alertColor: 'bg-red-100 text-red-700' },
-  { id: 'group', label: 'Group Services', icon: GroupIcon, count: 0, alertColor: '' },
-  { id: 'renewals', label: '3-Year Renewals', icon: RenewalIcon, count: renewalAlerts.value.length, alertColor: 'bg-amber-100 text-amber-700' },
-  { id: 'status', label: 'Engagement Status', icon: StatusIcon, count: approvedByMe.value.length, alertColor: 'bg-blue-100 text-blue-700' },
-  { id: 'engagements', label: 'All History', icon: EngagementsIcon, count: allRequestsHistory.value.length, alertColor: 'bg-gray-100 text-gray-600' },
-  { id: 'expiring', label: 'Expiring Soon', icon: ExpiringIcon, count: expiringSoon.value.length, alertColor: 'bg-orange-100 text-orange-700' }
+  { id: 'overview', label: 'Overview', icon: OverviewIcon, count: 0, alertColor: '', divider: false },
+  { id: 'pending', label: 'Pending Approval', icon: PendingIcon, count: pendingApprovals.value.length, alertColor: 'bg-purple-100 text-purple-700', divider: false },
+  { id: 'decisions', label: 'COI Decisions', icon: DecisionsIcon, count: coiDecisions.value.length, alertColor: 'bg-green-100 text-green-700', divider: false },
+  { id: 'letters', label: 'Engagement Letters', icon: LettersIcon, count: engagementLetters.value.length, alertColor: 'bg-indigo-100 text-indigo-700', divider: false },
+  { id: 'redflags', label: 'Red Flags', icon: RedFlagIcon, count: redFlagRequests.value.length, alertColor: 'bg-red-100 text-red-700', divider: false },
+  { id: 'group', label: 'Group Services', icon: GroupIcon, count: 0, alertColor: '', divider: false },
+  { id: 'renewals', label: '3-Year Renewals', icon: RenewalIcon, count: renewalAlerts.value.length, alertColor: 'bg-amber-100 text-amber-700', divider: false },
+  { id: 'status', label: 'Engagement Status', icon: StatusIcon, count: approvedByMe.value.length, alertColor: 'bg-blue-100 text-blue-700', divider: false },
+  { id: 'engagements', label: 'All History', icon: EngagementsIcon, count: allRequestsHistory.value.length, alertColor: 'bg-gray-100 text-gray-600', divider: false },
+  { id: 'expiring', label: 'Expiring Soon', icon: ExpiringIcon, count: expiringSoon.value.length, alertColor: 'bg-orange-100 text-orange-700', divider: false },
+  { id: 'business-dev', label: 'Business Development', icon: BusinessDevIcon, count: 0, alertColor: '', divider: true }
 ])
+
+// Business Development sub-tabs
+const activeBDSubTab = ref('prospects')
+const bdSubTabs = [
+  { id: 'prospects', label: 'Prospects' },
+  { id: 'pipeline-analytics', label: 'Pipeline & Analytics' },
+  { id: 'ai-insights', label: 'AI Insights' }
+]
 
 const pendingApprovals = computed(() => requests.value.filter(r => r.status === 'Pending Partner'))
 const activeProposals = computed(() => requests.value.filter(r => r.stage === 'Proposal' && ['Approved', 'Pending Finance'].includes(r.status)))
@@ -1037,16 +1629,383 @@ const allRequestsHistory = computed(() => [...requests.value].sort((a, b) =>
   new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
 ))
 
-// NEW: Group services by client parent
-const groupedServices = computed(() => {
-  const groups: Record<string, any[]> = {}
+// Unique service types for filter dropdown
+const uniqueServiceTypes = computed(() => {
+  const types = new Set<string>()
   requests.value.forEach(r => {
+    if (r.service_type) types.add(r.service_type)
+  })
+  return Array.from(types).sort()
+})
+
+// Filtered group services based on all filters
+const filteredGroupedServices = computed(() => {
+  const groups: Record<string, any[]> = {}
+  
+  requests.value.forEach(r => {
+    // Apply search filter
+    if (groupSearchQuery.value) {
+      const query = groupSearchQuery.value.toLowerCase()
+      const matchesSearch = 
+        (r.client_name?.toLowerCase().includes(query)) ||
+        (r.request_id?.toLowerCase().includes(query)) ||
+        (r.parent_company?.toLowerCase().includes(query))
+      if (!matchesSearch) return
+    }
+    
+    // Apply status filter
+    if (groupStatusFilter.value !== 'all' && r.status !== groupStatusFilter.value) {
+      return
+    }
+    
+    // Apply service type filter
+    if (groupServiceFilter.value !== 'all' && r.service_type !== groupServiceFilter.value) {
+      return
+    }
+    
+    // Apply conflicts filter
+    if (groupConflictsOnly.value && !hasRedFlags(r)) {
+      return
+    }
+    
     const parentKey = r.parent_company || r.client_name || 'Unknown'
     if (!groups[parentKey]) groups[parentKey] = []
     groups[parentKey].push(r)
   })
-  return groups
+  
+  // Sort groups by name
+  const sortedGroups: Record<string, any[]> = {}
+  Object.keys(groups).sort().forEach(key => {
+    sortedGroups[key] = groups[key]
+  })
+  
+  return sortedGroups
 })
+
+// Check if any filters are active
+const hasActiveGroupFilters = computed(() => {
+  return groupSearchQuery.value !== '' ||
+    groupStatusFilter.value !== 'all' ||
+    groupServiceFilter.value !== 'all' ||
+    groupConflictsOnly.value
+})
+
+// Summary counts for filtered data
+const totalFilteredEngagements = computed(() => {
+  return Object.values(filteredGroupedServices.value).flat().length
+})
+
+const filteredActiveCount = computed(() => {
+  return Object.values(filteredGroupedServices.value).flat().filter(r => r.status === 'Active').length
+})
+
+const filteredConflictCount = computed(() => {
+  return Object.values(filteredGroupedServices.value).flat().filter(r => hasRedFlags(r)).length
+})
+
+// Toggle group expansion
+function toggleGroupExpand(groupName: string) {
+  const index = expandedGroups.value.indexOf(groupName)
+  if (index === -1) {
+    expandedGroups.value.push(groupName)
+  } else {
+    expandedGroups.value.splice(index, 1)
+  }
+}
+
+// Clear all group filters
+function clearGroupFilters() {
+  groupSearchQuery.value = ''
+  groupStatusFilter.value = 'all'
+  groupServiceFilter.value = 'all'
+  groupConflictsOnly.value = false
+}
+
+// ============================================
+// COI Decisions Enhanced Filtering
+// ============================================
+
+const enhancedFilteredDecisions = computed(() => {
+  let filtered = coiDecisions.value
+  
+  // Search filter
+  if (decisionsSearchQuery.value) {
+    const query = decisionsSearchQuery.value.toLowerCase()
+    filtered = filtered.filter(r => 
+      r.client_name?.toLowerCase().includes(query) ||
+      r.request_id?.toLowerCase().includes(query)
+    )
+  }
+  
+  // Decision type filter
+  if (decisionFilter.value !== 'all') {
+    filtered = filtered.filter(r => {
+      const status = r.partner_approval_status || r.status
+      return status === decisionFilter.value
+    })
+  }
+  
+  // Service type filter
+  if (decisionsServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === decisionsServiceFilter.value)
+  }
+  
+  // Date filter
+  if (decisionsDateFilter.value) {
+    const filterDate = new Date(decisionsDateFilter.value)
+    filtered = filtered.filter(r => {
+      const date = new Date(r.partner_approval_date || r.compliance_approval_date || r.updated_at)
+      return date >= filterDate
+    })
+  }
+  
+  // Restrictions only
+  if (decisionsRestrictionsOnly.value) {
+    filtered = filtered.filter(r => r.compliance_restrictions || r.partner_restrictions)
+  }
+  
+  return filtered
+})
+
+const hasActiveDecisionFilters = computed(() => {
+  return decisionsSearchQuery.value !== '' ||
+    decisionFilter.value !== 'all' ||
+    decisionsServiceFilter.value !== 'all' ||
+    decisionsDateFilter.value !== '' ||
+    decisionsRestrictionsOnly.value
+})
+
+function clearDecisionFilters() {
+  decisionsSearchQuery.value = ''
+  decisionFilter.value = 'all'
+  decisionsServiceFilter.value = 'all'
+  decisionsDateFilter.value = ''
+  decisionsRestrictionsOnly.value = false
+}
+
+// ============================================
+// Engagement Letters Enhanced Filtering
+// ============================================
+
+const filteredEngagementLetters = computed(() => {
+  let filtered = engagementLetters.value
+  
+  // Search filter
+  if (lettersSearchQuery.value) {
+    const query = lettersSearchQuery.value.toLowerCase()
+    filtered = filtered.filter(r => 
+      r.client_name?.toLowerCase().includes(query) ||
+      r.request_id?.toLowerCase().includes(query)
+    )
+  }
+  
+  // Status filter
+  if (lettersStatusFilter.value !== 'all') {
+    filtered = filtered.filter(r => {
+      switch (lettersStatusFilter.value) {
+        case 'awaiting':
+          return r.proposal_sent_date && !r.client_response_date
+        case 'signed':
+          return r.client_response_status === 'Accepted'
+        case 'urgent':
+          return r.proposal_sent_date && getDaysWaiting(r.proposal_sent_date) >= 20 && !r.client_response_date
+        case 'issued':
+          return r.engagement_letter_issued
+        default:
+          return true
+      }
+    })
+  }
+  
+  // Service type filter
+  if (lettersServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === lettersServiceFilter.value)
+  }
+  
+  // Urgent only
+  if (lettersUrgentOnly.value) {
+    filtered = filtered.filter(r => 
+      r.proposal_sent_date && getDaysWaiting(r.proposal_sent_date) >= 20 && !r.client_response_date
+    )
+  }
+  
+  return filtered
+})
+
+const hasActiveLetterFilters = computed(() => {
+  return lettersSearchQuery.value !== '' ||
+    lettersStatusFilter.value !== 'all' ||
+    lettersServiceFilter.value !== 'all' ||
+    lettersUrgentOnly.value
+})
+
+function clearLetterFilters() {
+  lettersSearchQuery.value = ''
+  lettersStatusFilter.value = 'all'
+  lettersServiceFilter.value = 'all'
+  lettersUrgentOnly.value = false
+}
+
+// ============================================
+// Pending Approvals Enhanced Filtering
+// ============================================
+
+// Unique departments for filter
+const uniqueDepartments = computed(() => {
+  const depts = new Set<string>()
+  requests.value.forEach(r => {
+    if (r.department) depts.add(r.department)
+  })
+  return Array.from(depts).sort()
+})
+
+const enhancedFilteredPending = computed(() => {
+  let filtered = pendingApprovals.value
+  
+  // Search filter
+  if (pendingSearchQuery.value) {
+    const query = pendingSearchQuery.value.toLowerCase()
+    filtered = filtered.filter(r => 
+      r.client_name?.toLowerCase().includes(query) ||
+      r.request_id?.toLowerCase().includes(query)
+    )
+  }
+  
+  // Service type filter
+  if (pendingServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === pendingServiceFilter.value)
+  }
+  
+  // Department filter
+  if (pendingDepartmentFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.department === pendingDepartmentFilter.value)
+  }
+  
+  // Risk filter
+  if (pendingRiskFilter.value !== 'all') {
+    if (pendingRiskFilter.value === 'high') {
+      filtered = filtered.filter(r => hasRedFlags(r))
+    } else {
+      filtered = filtered.filter(r => !hasRedFlags(r))
+    }
+  }
+  
+  return filtered
+})
+
+const hasActivePendingFilters = computed(() => {
+  return pendingSearchQuery.value !== '' ||
+    pendingServiceFilter.value !== 'all' ||
+    pendingDepartmentFilter.value !== 'all' ||
+    pendingRiskFilter.value !== 'all'
+})
+
+function clearPendingFilters() {
+  pendingSearchQuery.value = ''
+  pendingServiceFilter.value = 'all'
+  pendingDepartmentFilter.value = 'all'
+  pendingRiskFilter.value = 'all'
+}
+
+// ============================================
+// Red Flags Enhanced Filtering
+// ============================================
+
+const filteredRedFlagRequests = computed(() => {
+  let filtered = redFlagRequests.value
+  
+  // Search filter
+  if (redFlagsSearchQuery.value) {
+    const query = redFlagsSearchQuery.value.toLowerCase()
+    filtered = filtered.filter(r => 
+      r.client_name?.toLowerCase().includes(query) ||
+      r.request_id?.toLowerCase().includes(query)
+    )
+  }
+  
+  // Severity filter
+  if (redFlagsSeverityFilter.value !== 'all') {
+    filtered = filtered.filter(r => {
+      const flags = getRedFlagDetails(r)
+      return flags.some(f => f.severity === redFlagsSeverityFilter.value)
+    })
+  }
+  
+  // Service type filter
+  if (redFlagsServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === redFlagsServiceFilter.value)
+  }
+  
+  // Status filter
+  if (redFlagsStatusFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.status === redFlagsStatusFilter.value)
+  }
+  
+  return filtered
+})
+
+const hasActiveRedFlagsFilters = computed(() => {
+  return redFlagsSearchQuery.value !== '' ||
+    redFlagsSeverityFilter.value !== 'all' ||
+    redFlagsServiceFilter.value !== 'all' ||
+    redFlagsStatusFilter.value !== 'all'
+})
+
+function clearRedFlagsFilters() {
+  redFlagsSearchQuery.value = ''
+  redFlagsSeverityFilter.value = 'all'
+  redFlagsServiceFilter.value = 'all'
+  redFlagsStatusFilter.value = 'all'
+}
+
+// ============================================
+// 3-Year Renewals Enhanced Filtering
+// ============================================
+
+const filteredRenewalAlerts = computed(() => {
+  let filtered = renewalAlerts.value
+  
+  // Search filter
+  if (renewalsSearchQuery.value) {
+    const query = renewalsSearchQuery.value.toLowerCase()
+    filtered = filtered.filter(r => 
+      r.client_name?.toLowerCase().includes(query) ||
+      r.request_id?.toLowerCase().includes(query)
+    )
+  }
+  
+  // Urgency filter
+  if (renewalsUrgencyFilter.value !== 'all') {
+    filtered = filtered.filter(r => {
+      const days = getDaysUntilRenewal(r)
+      switch (renewalsUrgencyFilter.value) {
+        case 'critical': return days <= 7
+        case 'urgent': return days <= 30
+        case 'upcoming': return days <= 90
+        default: return true
+      }
+    })
+  }
+  
+  // Service type filter
+  if (renewalsServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === renewalsServiceFilter.value)
+  }
+  
+  return filtered
+})
+
+const hasActiveRenewalsFilters = computed(() => {
+  return renewalsSearchQuery.value !== '' ||
+    renewalsUrgencyFilter.value !== 'all' ||
+    renewalsServiceFilter.value !== 'all'
+})
+
+function clearRenewalsFilters() {
+  renewalsSearchQuery.value = ''
+  renewalsUrgencyFilter.value = 'all'
+  renewalsServiceFilter.value = 'all'
+}
 
 // Filters for history tab
 const historyStatusFilter = ref('all')
@@ -1584,5 +2543,22 @@ function printTrackingReport() {
 
 onMounted(() => {
   coiStore.fetchRequests()
+  
+  registerShortcuts([
+    {
+      key: 'k',
+      description: 'Open search',
+      handler: () => { showSearch.value = true },
+      modifier: 'ctrl',
+      group: 'Navigation'
+    },
+    {
+      key: '/',
+      description: 'Show keyboard shortcuts',
+      handler: toggleHelp,
+      modifier: 'ctrl',
+      group: 'General'
+    }
+  ])
 })
 </script>

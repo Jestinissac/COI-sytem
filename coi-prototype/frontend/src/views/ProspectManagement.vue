@@ -80,16 +80,16 @@
               </select>
             </div>
 
-            <!-- PRMS Sync Filter -->
+            <!-- Existing Client Filter -->
             <div>
-              <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">PRMS Status</label>
+              <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Existing Client</label>
               <select
                 v-model="filters.prmsSynced"
                 class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">All</option>
-                <option value="synced">PRMS Synced</option>
-                <option value="not_synced">Not Synced</option>
+                <option value="synced">Existing Client</option>
+                <option value="not_synced">New Prospect</option>
               </select>
             </div>
           </div>
@@ -105,7 +105,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prospect Name</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Industry</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Linked Client</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PRMS Code</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Code</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group Services</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -195,6 +195,60 @@
                 Check PRMS
               </button>
             </div>
+            
+            <!-- Lead Source Attribution (CRM Feature) -->
+            <div class="border-t pt-4 mt-4">
+              <h4 class="text-sm font-semibold text-gray-900 mb-3">Lead Source Attribution</h4>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Lead Source</label>
+                  <select v-model="newProspect.lead_source_id" class="w-full px-3 py-2 border rounded-lg">
+                    <option :value="null">Auto-detect based on role</option>
+                    <optgroup label="Referrals">
+                      <option v-for="source in leadSourcesByCategory.referral" :key="source.id" :value="source.id">
+                        {{ source.source_name }}
+                      </option>
+                    </optgroup>
+                    <optgroup label="System">
+                      <option v-for="source in leadSourcesByCategory.system" :key="source.id" :value="source.id">
+                        {{ source.source_name }}
+                      </option>
+                    </optgroup>
+                    <optgroup label="Outbound">
+                      <option v-for="source in leadSourcesByCategory.outbound" :key="source.id" :value="source.id">
+                        {{ source.source_name }}
+                      </option>
+                    </optgroup>
+                  </select>
+                  <p class="text-xs text-gray-500 mt-1">
+                    <span v-if="isPartnerOrDirector" class="text-green-600">
+                      Will auto-set to "Internal Referral" if not selected
+                    </span>
+                    <span v-else>
+                      Optional - system will auto-detect
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Referred by Client</label>
+                  <select v-model="newProspect.referred_by_client_id" class="w-full px-3 py-2 border rounded-lg">
+                    <option :value="null">None (not a client referral)</option>
+                    <option v-for="client in clients" :key="client.id" :value="client.id">
+                      {{ client.client_name }}
+                    </option>
+                  </select>
+                  <p class="text-xs text-gray-500 mt-1">
+                    If selected, lead source auto-sets to "Client Referral"
+                  </p>
+                </div>
+              </div>
+              <div class="mt-3">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Source Notes</label>
+                <textarea v-model="newProspect.source_notes" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm"
+                          placeholder="Optional: How did this prospect come to you?"></textarea>
+              </div>
+            </div>
+            
             <div class="flex gap-3 justify-end pt-4 border-t">
               <button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
                 Cancel
@@ -214,10 +268,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const prospects = ref<any[]>([])
+const clients = ref<any[]>([])
+const leadSources = ref<any[]>([])
 const loading = ref(false)
 const creating = ref(false)
 const showCreateModal = ref(false)
@@ -235,7 +293,35 @@ const newProspect = ref({
   prospect_name: '',
   commercial_registration: '',
   industry: '',
-  prms_client_code: ''
+  prms_client_code: '',
+  lead_source_id: null as number | null,
+  referred_by_client_id: null as number | null,
+  source_notes: ''
+})
+
+// Computed properties
+const isPartnerOrDirector = computed(() => {
+  return ['Partner', 'Director'].includes(authStore.user?.role || '')
+})
+
+const leadSourcesByCategory = computed(() => {
+  const grouped: Record<string, any[]> = {
+    referral: [],
+    system: [],
+    outbound: [],
+    other: []
+  }
+  
+  leadSources.value.forEach((source: any) => {
+    const category = source.source_category || 'other'
+    if (grouped[category]) {
+      grouped[category].push(source)
+    } else {
+      grouped.other.push(source)
+    }
+  })
+  
+  return grouped
 })
 
 const filteredProspects = computed(() => {
@@ -355,7 +441,11 @@ function convertToClient(prospect: any) {
   }
 }
 
-onMounted(() => {
-  fetchProspects()
+onMounted(async () => {
+  await Promise.all([
+    fetchProspects(),
+    fetchLeadSources(),
+    fetchClients()
+  ])
 })
 </script>

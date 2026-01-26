@@ -44,7 +44,7 @@
                 @click.prevent="scrollToSection(section.id)"
                 class="flex items-center px-4 py-3 text-sm transition-colors border-l-2"
                 :class="activeSection === section.id 
-                  ? 'bg-blue-50 border-blue-600 text-blue-700 font-medium' 
+                  ? 'bg-gray-50 border-gray-300 text-gray-900 font-medium' 
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
               >
                 <span 
@@ -91,7 +91,7 @@
           <!-- Workflow Notice -->
           <div v-if="isTeamMember" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div class="flex items-start">
-              <svg class="w-5 h-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-5 h-5 text-gray-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
               <div class="flex-1">
@@ -198,8 +198,8 @@
             <div class="p-6">
               <div class="grid grid-cols-2 gap-4 mb-6">
                 <label 
-                  class="relative flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all"
-                  :class="formData.requested_document === 'Proposal' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                  class="relative flex items-center p-4 border rounded cursor-pointer transition-colors"
+                  :class="formData.requested_document === 'Proposal' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'"
                 >
                   <input 
                     type="radio" 
@@ -208,25 +208,23 @@
                     class="sr-only"
                   />
                   <div class="flex items-center">
-                    <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
-                      <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                      </svg>
-                    </div>
+                    <svg class="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
                     <div>
                       <p class="font-medium text-gray-900">Proposal</p>
                       <p class="text-xs text-gray-500">For new client engagements</p>
                     </div>
                   </div>
                   <div v-if="formData.requested_document === 'Proposal'" class="absolute top-2 right-2">
-                    <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                     </svg>
                   </div>
                 </label>
                 <label 
-                  class="relative flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all"
-                  :class="formData.requested_document === 'Engagement Letter' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                  class="relative flex items-center p-4 border rounded cursor-pointer transition-colors"
+                  :class="formData.requested_document === 'Engagement Letter' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'"
                 >
                   <input 
                     type="radio" 
@@ -246,22 +244,82 @@
                     </div>
                   </div>
                   <div v-if="formData.requested_document === 'Engagement Letter'" class="absolute top-2 right-2">
-                    <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                     </svg>
                   </div>
                 </label>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Language</label>
-                <select 
-                  v-model="formData.language"
-                  class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option>English</option>
-                  <option>Arabic</option>
-                  <option>Bilingual</option>
-                </select>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Language</label>
+                  <select 
+                    v-model="formData.language"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option>English</option>
+                    <option>Arabic</option>
+                    <option>Bilingual</option>
+                  </select>
+                </div>
+                
+                <!-- Lead Source (only for Proposals) -->
+                <div v-if="formData.requested_document === 'Proposal'">
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                    Lead Source
+                    <span class="text-xs font-normal text-gray-500 ml-1">(How did this opportunity come to you?)</span>
+                  </label>
+                  <select 
+                    v-model="formData.lead_source_id"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option :value="null">Select lead source...</option>
+                    <optgroup label="Referrals">
+                      <option 
+                        v-for="source in leadSourcesByCategory.referral" 
+                        :key="source.id" 
+                        :value="source.id"
+                      >
+                        {{ source.source_name }}
+                      </option>
+                    </optgroup>
+                    <optgroup label="System">
+                      <option 
+                        v-for="source in leadSourcesByCategory.system" 
+                        :key="source.id" 
+                        :value="source.id"
+                      >
+                        {{ source.source_name }}
+                      </option>
+                    </optgroup>
+                    <optgroup label="Outbound">
+                      <option 
+                        v-for="source in leadSourcesByCategory.outbound" 
+                        :key="source.id" 
+                        :value="source.id"
+                      >
+                        {{ source.source_name }}
+                      </option>
+                    </optgroup>
+                    <optgroup label="Other">
+                      <option 
+                        v-for="source in leadSourcesByCategory.other" 
+                        :key="source.id" 
+                        :value="source.id"
+                      >
+                        {{ source.source_name }}
+                      </option>
+                    </optgroup>
+                  </select>
+                  <p class="text-xs text-gray-500 mt-1">
+                    <span v-if="isPartnerOrDirector" class="text-green-600">
+                      Will auto-set to "Internal Referral" if not selected
+                    </span>
+                    <span v-else>
+                      Optional - helps track marketing effectiveness
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
           </section>
@@ -281,25 +339,39 @@
             <div class="p-6">
               <div class="space-y-6">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Select Client <span class="text-red-500">*</span></label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Select Client or Prospect <span class="text-red-500">*</span></label>
                   <div class="flex gap-3">
                     <select 
-                      v-model="formData.client_id"
-                      @change="onClientSelect"
+                      v-model="smartSelectValue"
+                      @change="onSmartSelect"
                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option :value="null">Search or select client...</option>
-                      <option v-for="client in clients" :key="client.id" :value="client.id">
-                        {{ client.client_name || client.name }} ({{ client.client_code || client.code || '' }})
-                      </option>
+                      <option value="">Search or select...</option>
+                      
+                      <!-- PRMS Clients Section -->
+                      <optgroup label="PRMS Clients">
+                        <option v-for="client in clients" :key="'c-'+client.id" :value="'client:'+client.id">
+                          {{ client.client_name || client.name }} ({{ client.client_code || client.code || '' }})
+                        </option>
+                      </optgroup>
+                      
+                      <!-- Prospects Section (CRM) -->
+                      <optgroup v-if="prospects.length > 0" label="Prospects (CRM)">
+                        <option v-for="prospect in prospects" :key="'p-'+prospect.id" :value="'prospect:'+prospect.id">
+                          {{ prospect.prospect_name }} [Prospect]
+                        </option>
+                      </optgroup>
+                      
+                      <!-- Create New Option -->
+                      <optgroup label="New">
+                        <option value="new:prospect">+ Create New Prospect</option>
+                      </optgroup>
                     </select>
-                    <button 
-                      type="button"
-                      class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      + Request New Client
-                    </button>
                   </div>
+                  <!-- Selection indicator -->
+                  <p v-if="selectedEntityType === 'prospect'" class="mt-1.5 text-xs text-blue-600">
+                    Using prospect from CRM. A COI request will be linked to this prospect.
+                  </p>
                 </div>
                 
                 <div class="grid grid-cols-3 gap-4">
@@ -423,8 +495,8 @@
                     </p>
                     
                     <div class="space-y-2">
-                      <label class="flex items-center p-3 bg-white border-2 rounded-lg cursor-pointer transition-all"
-                             :class="formData.group_structure === 'standalone' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'">
+                      <label class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
+                             :class="formData.group_structure === 'standalone' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
                         <input type="radio" v-model="formData.group_structure" value="standalone" 
                                class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
                         <div class="ml-3">
@@ -433,8 +505,8 @@
                         </div>
                       </label>
                       
-                      <label class="flex items-center p-3 bg-white border-2 rounded-lg cursor-pointer transition-all"
-                             :class="formData.group_structure === 'has_parent' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'">
+                      <label class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
+                             :class="formData.group_structure === 'has_parent' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
                         <input type="radio" v-model="formData.group_structure" value="has_parent" 
                                class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
                         <div class="ml-3">
@@ -473,14 +545,84 @@
                 </div>
 
                 <!-- Simple Parent Company field (for non-PIE/non-Audit) -->
-                <div v-else>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Parent Company (if any)</label>
-                  <input
-                    v-model="formData.parent_company"
-                    type="text"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter parent company name..."
-                  />
+                <div v-else class="space-y-4">
+                  <!-- Company Type -->
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                      Company Type
+                      <span class="text-gray-400 font-normal text-xs ml-1">(Industry Standard Classification)</span>
+                    </label>
+                    <select
+                      v-model="formData.company_type"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      @change="onCompanyTypeChange"
+                    >
+                      <option value="">Select company type...</option>
+                      <option value="Standalone">Standalone (Independent Entity)</option>
+                      <option value="Subsidiary">Subsidiary (≥50% owned by parent)</option>
+                      <option value="Affiliate">Affiliate (20-50% owned, significant influence)</option>
+                      <option value="Sister">Sister Company (Shares same parent)</option>
+                      <option value="Parent">Parent Company (Controls subsidiaries)</option>
+                    </select>
+                    <p v-if="formData.company_type" class="text-xs text-gray-500 mt-1">
+                      <span v-if="formData.company_type === 'Subsidiary'">
+                        Requires parent company with ≥50% ownership
+                      </span>
+                      <span v-else-if="formData.company_type === 'Affiliate'">
+                        Requires parent company with 20-50% ownership (significant influence)
+                      </span>
+                      <span v-else-if="formData.company_type === 'Sister'">
+                        Requires parent company (both entities share same parent)
+                      </span>
+                      <span v-else-if="formData.company_type === 'Standalone'">
+                        Independent entity with no parent company
+                      </span>
+                      <span v-else-if="formData.company_type === 'Parent'">
+                        This entity controls subsidiaries
+                      </span>
+                    </p>
+                  </div>
+
+                  <!-- Parent Company (shown when needed) -->
+                  <div v-if="formData.company_type && formData.company_type !== 'Standalone' && formData.company_type !== 'Parent'">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                      Parent Company
+                      <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      v-model="formData.parent_company"
+                      type="text"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter parent company name..."
+                      :required="formData.company_type !== 'Standalone'"
+                    />
+                    <p class="text-xs text-gray-500 mt-1">Name of the controlling parent entity</p>
+                  </div>
+
+                  <!-- Ownership Percentage (for Subsidiary/Affiliate) -->
+                  <div v-if="formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate'">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                      Ownership Percentage (%)
+                      <span class="text-gray-400 font-normal text-xs ml-1">(Industry Standard: ≥50% = Subsidiary, 20-50% = Affiliate)</span>
+                    </label>
+                    <input
+                      v-model.number="formData.ownership_percentage"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g., 75.5"
+                    />
+                    <p class="text-xs text-gray-500 mt-1">
+                      <span v-if="formData.company_type === 'Subsidiary'">
+                        Must be ≥50% for control (Subsidiary)
+                      </span>
+                      <span v-else>
+                        Must be 20-50% for significant influence (Affiliate)
+                      </span>
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -586,6 +728,54 @@
                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
+              </div>
+
+              <!-- External Deadline (Priority Scoring) -->
+              <div class="border-t border-gray-200 pt-6 mt-4">
+                <div class="flex items-start gap-3 mb-4">
+                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-medium text-gray-900">External Deadline</h3>
+                    <p class="text-xs text-gray-500">If this request has an external deadline (e.g., regulatory filing, client commitment), specify it here. This helps prioritize the request appropriately.</p>
+                  </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Deadline Date</label>
+                    <input
+                      v-model="formData.external_deadline"
+                      type="date"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Reason for Deadline</label>
+                    <select
+                      v-model="formData.deadline_reason"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">None / No external deadline</option>
+                      <option value="Regulatory Filing">Regulatory Filing</option>
+                      <option value="Client Board Meeting">Client Board Meeting</option>
+                      <option value="AGM/Shareholder Meeting">AGM/Shareholder Meeting</option>
+                      <option value="Statutory Requirement">Statutory Requirement</option>
+                      <option value="Client Contract">Client Contract Commitment</option>
+                      <option value="Tender/Bid Deadline">Tender/Bid Deadline</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <p v-if="formData.external_deadline" class="mt-2 text-xs text-amber-600">
+                  <svg class="inline-block w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  External deadline will be factored into request prioritization.
+                </p>
               </div>
             </div>
           </section>
@@ -807,6 +997,79 @@
       </div>
     </div>
   </div>
+
+  <!-- Create Prospect Modal (Smart Suggest) -->
+  <div v-if="showCreateProspectModal" class="fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showCreateProspectModal = false"></div>
+      
+      <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto z-10">
+        <div class="p-6 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900">Create New Prospect</h3>
+          <p class="mt-1 text-sm text-gray-500">Add a new prospect to the CRM. This prospect will be automatically selected for your COI request.</p>
+        </div>
+        
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Prospect Name <span class="text-red-500">*</span></label>
+            <input
+              v-model="newProspect.prospect_name"
+              type="text"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter prospect name"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Industry</label>
+            <select
+              v-model="newProspect.industry"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select industry...</option>
+              <option value="Financial Services">Financial Services</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Technology">Technology</option>
+              <option value="Manufacturing">Manufacturing</option>
+              <option value="Retail">Retail</option>
+              <option value="Real Estate">Real Estate</option>
+              <option value="Energy">Energy</option>
+              <option value="Government">Government</option>
+              <option value="Education">Education</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Commercial Registration</label>
+            <input
+              v-model="newProspect.commercial_registration"
+              type="text"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Optional"
+            />
+          </div>
+        </div>
+        
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+          <button
+            @click="showCreateProspectModal = false"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="createAndSelectProspect"
+            :disabled="!newProspect.prospect_name.trim() || creatingProspect"
+            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            <span v-if="creatingProspect">Creating...</span>
+            <span v-else>Create & Select</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -832,6 +1095,7 @@ const activeSection = ref('section-1')
 const totalSteps = 7
 
 const clients = ref<any[]>([])
+const prospects = ref<any[]>([]) // Prospects from CRM for Smart Suggest
 const selectedClientCode = ref('')
 const directorName = ref('')
 const allUsers = ref<any[]>([])
@@ -840,6 +1104,18 @@ const serviceTypes = ref<any[]>([])
 const countries = ref<any[]>([])
 const serviceSubCategories = ref<any>({}) // Store sub-categories by service type
 const loadingServices = ref(false)
+const leadSources = ref<any[]>([]) // Lead sources for proposals
+
+// Smart Suggest: Track selection type (client, prospect, or new)
+const selectedEntityType = ref<'client' | 'prospect' | null>(null)
+const selectedProspectId = ref<number | null>(null)
+const showCreateProspectModal = ref(false)
+const creatingProspect = ref(false)
+const newProspect = ref({
+  prospect_name: '',
+  industry: '',
+  commercial_registration: ''
+})
 
 // Computed properties for user role
 const isTeamMember = computed(() => {
@@ -848,6 +1124,31 @@ const isTeamMember = computed(() => {
 
 const isDirector = computed(() => {
   return authStore.user?.role === 'Director'
+})
+
+const isPartnerOrDirector = computed(() => {
+  return ['Partner', 'Director'].includes(authStore.user?.role || '')
+})
+
+// Lead sources grouped by category
+const leadSourcesByCategory = computed(() => {
+  const grouped: Record<string, any[]> = {
+    referral: [],
+    system: [],
+    outbound: [],
+    other: []
+  }
+  
+  leadSources.value.forEach((source: any) => {
+    const category = source.source_category || 'other'
+    if (grouped[category]) {
+      grouped[category].push(source)
+    } else {
+      grouped.other.push(source)
+    }
+  })
+  
+  return grouped
 })
 
 // Get services filtered by selected category
@@ -902,19 +1203,26 @@ const formData = ref({
   pie_status: 'No',
   group_structure: '',  // 'standalone', 'has_parent', 'research_required'
   parent_company: '',
+  company_type: '',  // 'Standalone', 'Subsidiary', 'Parent', 'Sister', 'Affiliate'
+  parent_company_id: null as number | null,
+  ownership_percentage: null as number | null,
+  control_type: '',  // 'Majority', 'Minority', 'Joint', 'Significant Influence', 'None'
   service_type: '',
   service_category: '',
   service_sub_category: '',
   service_description: '',
   requested_service_period_start: '',
   requested_service_period_end: '',
+  external_deadline: '',
+  deadline_reason: '',
   full_ownership_structure: '',
   related_affiliated_entities: '',
   international_operations: false,
   country_code: '',
   foreign_subsidiaries: '',
   global_clearance_status: 'Not Required',
-  global_coi_form_data: null as any
+  global_coi_form_data: null as any,
+  lead_source_id: null as number | null  // Lead source for proposals (CRM feature)
 })
 
 // Global COI Form data (for international operations)
@@ -1058,7 +1366,64 @@ function scrollToSection(sectionId: string) {
   }
 }
 
-// Handle client selection
+// Smart Suggest: Combined value for the dropdown
+const smartSelectValue = ref('')
+
+// Handle Smart Suggest selection
+function onSmartSelect() {
+  const value = smartSelectValue.value
+  
+  if (!value) {
+    // Clear selection
+    formData.value.client_id = null
+    selectedClientCode.value = ''
+    formData.value.client_name = ''
+    selectedEntityType.value = null
+    selectedProspectId.value = null
+    return
+  }
+  
+  const [type, id] = value.split(':')
+  
+  if (type === 'client') {
+    // PRMS Client selected
+    const clientId = parseInt(id)
+    const client = clients.value.find(c => c.id === clientId)
+    if (client) {
+      formData.value.client_id = clientId
+      selectedClientCode.value = client.client_code || client.code || ''
+      formData.value.client_name = client.client_name || client.name || ''
+      selectedEntityType.value = 'client'
+      selectedProspectId.value = null
+    }
+  } else if (type === 'prospect') {
+    // Prospect selected from CRM
+    const prospectId = parseInt(id)
+    const prospect = prospects.value.find(p => p.id === prospectId)
+    if (prospect) {
+      // For prospects, we don't have a client_id yet
+      // Store prospect info in form data
+      formData.value.client_id = null
+      formData.value.client_name = prospect.prospect_name
+      selectedClientCode.value = prospect.commercial_registration || ''
+      selectedEntityType.value = 'prospect'
+      selectedProspectId.value = prospectId
+    }
+  } else if (type === 'new' && id === 'prospect') {
+    // Open create prospect modal
+    showCreateProspectModal.value = true
+    // Reset the dropdown to previous selection
+    if (selectedEntityType.value === 'client' && formData.value.client_id) {
+      smartSelectValue.value = `client:${formData.value.client_id}`
+    } else if (selectedEntityType.value === 'prospect' && selectedProspectId.value) {
+      smartSelectValue.value = `prospect:${selectedProspectId.value}`
+    } else {
+      smartSelectValue.value = ''
+    }
+  }
+}
+
+// Legacy function for backward compatibility
 function onClientSelect() {
   const client = clients.value.find(c => c.id === formData.value.client_id)
   if (client) {
@@ -1085,6 +1450,75 @@ async function fetchClients() {
     console.error('Error response:', err.response?.data)
     console.error('Error status:', err.response?.status)
     clients.value = []
+  }
+}
+
+// Fetch prospects for Smart Suggest dropdown
+async function fetchProspects() {
+  try {
+    console.log('[Frontend] Fetching prospects for dropdown...')
+    const response = await api.get('/prospects/dropdown')
+    prospects.value = response.data || []
+    console.log('[Frontend] Prospects fetched:', prospects.value.length, 'prospects')
+  } catch (err: any) {
+    console.error('Failed to fetch prospects:', err)
+    prospects.value = []
+  }
+}
+
+// Create new prospect and auto-select it (Smart Suggest)
+async function createAndSelectProspect() {
+  if (!newProspect.value.prospect_name.trim()) {
+    showError('Prospect name is required')
+    return
+  }
+  
+  creatingProspect.value = true
+  
+  try {
+    // Create the prospect via API
+    const response = await api.post('/prospects', {
+      prospect_name: newProspect.value.prospect_name.trim(),
+      industry: newProspect.value.industry || null,
+      commercial_registration: newProspect.value.commercial_registration || null,
+      status: 'Active',
+      lead_source_id: null // Will be auto-detected as COI Form
+    })
+    
+    const createdProspect = response.data
+    console.log('[Frontend] Created prospect:', createdProspect)
+    
+    // Add to prospects list
+    prospects.value.unshift({
+      id: createdProspect.id,
+      prospect_name: createdProspect.prospect_name,
+      industry: createdProspect.industry,
+      commercial_registration: createdProspect.commercial_registration,
+      status: 'Active'
+    })
+    
+    // Auto-select the new prospect
+    smartSelectValue.value = `prospect:${createdProspect.id}`
+    formData.value.client_id = null
+    formData.value.client_name = createdProspect.prospect_name
+    selectedClientCode.value = createdProspect.commercial_registration || ''
+    selectedEntityType.value = 'prospect'
+    selectedProspectId.value = createdProspect.id
+    
+    // Close modal and reset form
+    showCreateProspectModal.value = false
+    newProspect.value = {
+      prospect_name: '',
+      industry: '',
+      commercial_registration: ''
+    }
+    
+    success('Prospect created and selected')
+  } catch (err: any) {
+    console.error('Failed to create prospect:', err)
+    showError(err.response?.data?.error || 'Failed to create prospect')
+  } finally {
+    creatingProspect.value = false
   }
 }
 
@@ -1204,6 +1638,40 @@ function onServiceTypeChange() {
   formData.value.service_sub_category = ''
 }
 
+// Handle company type change - auto-infer control type and sync with group_structure
+function onCompanyTypeChange() {
+  const companyType = formData.value.company_type
+  
+  // Auto-sync group_structure based on company type
+  if (companyType === 'Standalone') {
+    formData.value.group_structure = 'standalone'
+    formData.value.parent_company = ''
+    formData.value.parent_company_id = null
+    formData.value.ownership_percentage = null
+    formData.value.control_type = 'None'
+  } else if (companyType === 'Subsidiary' || companyType === 'Affiliate' || companyType === 'Sister') {
+    formData.value.group_structure = 'has_parent'
+    // Keep parent_company if already set
+  } else if (companyType === 'Parent') {
+    formData.value.group_structure = 'standalone' // Parent is standalone, but controls others
+    formData.value.parent_company = ''
+    formData.value.parent_company_id = null
+    formData.value.ownership_percentage = null
+    formData.value.control_type = 'None'
+  }
+  
+  // Auto-infer control type from ownership percentage
+  if (formData.value.ownership_percentage !== null && formData.value.ownership_percentage !== undefined) {
+    if (formData.value.ownership_percentage >= 50) {
+      formData.value.control_type = 'Majority'
+    } else if (formData.value.ownership_percentage >= 20) {
+      formData.value.control_type = 'Significant Influence'
+    } else {
+      formData.value.control_type = 'Minority'
+    }
+  }
+}
+
 // Handle entity change
 function onEntityChange() {
   fetchServiceTypes()
@@ -1280,12 +1748,22 @@ async function handleSubmit() {
     const result = await coiStore.createRequest(formData.value)
     pendingRequestId.value = result.id
     
-    // Try to submit with justification if provided
-    const submitPayload = duplicateJustification.value 
-      ? { duplicate_justification: duplicateJustification.value }
-      : undefined
+    // Try to submit with justification and lead_source_id if provided
+    const submitPayload: any = {}
     
-    const submitResult = await coiStore.submitRequest(result.id, submitPayload)
+    if (duplicateJustification.value) {
+      submitPayload.duplicate_justification = duplicateJustification.value
+    }
+    
+    // Include lead_source_id for proposals (CRM attribution feature)
+    if (formData.value.requested_document === 'Proposal' && formData.value.lead_source_id) {
+      submitPayload.lead_source_id = formData.value.lead_source_id
+    }
+    
+    const submitResult = await coiStore.submitRequest(
+      result.id, 
+      Object.keys(submitPayload).length > 0 ? submitPayload : undefined
+    )
     
     // Check for duplicates - handle both array and object formats
     const dupes = submitResult?.duplicates
@@ -1467,13 +1945,27 @@ watch([
   }
 }, { deep: true })
 
+// Fetch lead sources for proposals (CRM feature)
+async function fetchLeadSources() {
+  try {
+    const response = await api.get('/prospects/lead-sources')
+    leadSources.value = response.data
+    console.log('[Frontend] Loaded lead sources:', leadSources.value.length)
+  } catch (e) {
+    console.error('Failed to fetch lead sources:', e)
+    // Don't block form - lead source is optional
+  }
+}
+
 // Lifecycle
 onMounted(async () => {
   console.log('[Frontend] onMounted called, formData.value.entity:', formData.value.entity)
   
   try {
     await fetchClients()
+    await fetchProspects() // Smart Suggest: Load prospects from CRM
     await fetchCountries()
+    await fetchLeadSources()
   } catch (e) {
     console.error('Failed to fetch clients:', e)
   }
@@ -1538,11 +2030,14 @@ onMounted(async () => {
         service_description: request.service_description || '',
         requested_service_period_start: request.requested_service_period_start || '',
         requested_service_period_end: request.requested_service_period_end || '',
+        external_deadline: request.external_deadline || '',
+        deadline_reason: request.deadline_reason || '',
         full_ownership_structure: request.full_ownership_structure || '',
         related_affiliated_entities: request.related_affiliated_entities || '',
         international_operations: request.international_operations === 1 || request.international_operations === true || false,
         foreign_subsidiaries: request.foreign_subsidiaries || '',
-        global_clearance_status: request.global_clearance_status || 'Not Required'
+        global_clearance_status: request.global_clearance_status || 'Not Required',
+        lead_source_id: request.lead_source_id || null
       }
       onClientSelect()
       localStorage.removeItem('coi-edit-request')

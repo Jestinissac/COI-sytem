@@ -21,6 +21,16 @@
       <div class="bg-white rounded-lg shadow-xl p-8">
         <h2 class="text-xl font-semibold text-gray-900 text-center mb-6">SIGN IN</h2>
         
+        <!-- Environment Info (Read-only) -->
+        <div v-if="environment" class="mb-4 p-2 rounded-lg text-xs text-center" :class="{
+          'bg-red-50 text-red-700 border border-red-200': environment === 'production',
+          'bg-orange-50 text-orange-700 border border-orange-200': environment === 'staging',
+          'bg-blue-50 text-blue-700 border border-blue-200': environment === 'development',
+          'bg-purple-50 text-purple-700 border border-purple-200': environment === 'test'
+        }">
+          <span class="font-medium">{{ environment.toUpperCase() }} Environment</span>
+        </div>
+        
         <form @submit.prevent="handleLogin" class="space-y-4">
           <div>
             <input
@@ -54,6 +64,18 @@
             {{ loading ? 'Signing in...' : 'Sign In' }}
           </button>
         </form>
+
+        <!-- Test Environment Quick Login (Only shown in test environment) -->
+        <div v-if="environment === 'test'" class="mt-6 pt-6 border-t">
+          <p class="text-xs text-gray-500 text-center mb-3">Test Environment Quick Login</p>
+          <button
+            @click="fillTestLogin"
+            class="w-full px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+          >
+            Login as Test User
+          </button>
+          <p class="text-xs text-gray-400 text-center mt-2">test@example.com / test123</p>
+        </div>
 
         <!-- Demo Users -->
         <div class="mt-6 pt-6 border-t">
@@ -95,9 +117,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import api from '@/services/api'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -106,21 +129,25 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
+const environment = ref<string | null>(null)
+
+// Fetch environment from backend on mount
+onMounted(async () => {
+  try {
+    const response = await api.get('/health')
+    environment.value = response.data.environment || 'development'
+  } catch (error) {
+    // If health endpoint doesn't exist, default to development
+    environment.value = 'development'
+  }
+})
 
 async function handleLogin() {
   loading.value = true
   error.value = ''
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Login.vue:106',message:'Login form submission',data:{email:email.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-  // #endregion
-  
   try {
     const result = await authStore.login(email.value, password.value)
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Login.vue:111',message:'Login result',data:{success:result.success,error:result.error,userRole:authStore.user?.role},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-    // #endregion
     
     if (!result.success) {
       error.value = result.error || 'Invalid credentials'
@@ -148,10 +175,6 @@ async function handleLogin() {
     }
     const targetRoute = routes[role] || '/coi/requester'
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Login.vue:124',message:'Routing decision',data:{role,targetRoute,routeExists:!!routes[role]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-    // #endregion
-    
     router.push(targetRoute)
   } catch (e: any) {
     console.error('Login error:', e)
@@ -164,5 +187,10 @@ async function handleLogin() {
 function fillDemo(demoEmail: string) {
   email.value = demoEmail
   password.value = 'password'
+}
+
+function fillTestLogin() {
+  email.value = 'test@example.com'
+  password.value = 'test123'
 }
 </script>

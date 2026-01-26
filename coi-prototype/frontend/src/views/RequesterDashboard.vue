@@ -53,35 +53,48 @@
           
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6 h-full md:h-auto overflow-y-auto md:overflow-y-visible">
             <nav class="py-2" role="tablist">
-              <button
-                v-for="tab in tabs"
-                :key="tab.id"
-                @click="activeTab = tab.id; sidebarOpen = false"
-                @keydown.enter="activeTab = tab.id; sidebarOpen = false"
-                @keydown.space.prevent="activeTab = tab.id; sidebarOpen = false"
-                :aria-selected="activeTab === tab.id"
-                :aria-label="`${tab.label} tab`"
-                role="tab"
-                class="w-full flex items-center px-4 py-3 text-sm transition-colors border-l-2 text-left"
-                :class="activeTab === tab.id 
-                  ? 'bg-blue-50 border-blue-600 text-blue-700 font-medium' 
-                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
-              >
-                <component :is="tab.icon" class="w-5 h-5 mr-3" aria-hidden="true" />
-                {{ tab.label }}
-                <span 
-                  v-if="tab.count > 0" 
-                  class="ml-auto px-2 py-0.5 text-xs font-medium rounded-full"
-                  :class="tab.alertColor"
-                  :aria-label="`${tab.count} items`"
+              <template v-for="tab in tabs" :key="tab.id">
+                <!-- Divider before CRM tab -->
+                <div v-if="tab.divider" class="border-t border-gray-200 my-2 mx-4"></div>
+                <button
+                  @click="activeTab = tab.id; sidebarOpen = false"
+                  @keydown.enter="activeTab = tab.id; sidebarOpen = false"
+                  @keydown.space.prevent="activeTab = tab.id; sidebarOpen = false"
+                  :aria-selected="activeTab === tab.id"
+                  :aria-label="`${tab.label} tab`"
+                  role="tab"
+                  class="w-full flex items-center px-4 py-3 text-sm transition-colors border-l-2 text-left"
+                  :class="activeTab === tab.id 
+                    ? 'bg-gray-50 border-gray-300 text-gray-900 font-medium' 
+                    : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
                 >
-                  {{ tab.count }}
-                </span>
-              </button>
+                  <component :is="tab.icon" class="w-5 h-5 mr-3" aria-hidden="true" />
+                  {{ tab.label }}
+                  <span 
+                    v-if="tab.count > 0" 
+                    class="ml-auto px-2 py-0.5 text-xs font-medium rounded-full"
+                    :class="tab.alertColor"
+                    :aria-label="`${tab.count} items`"
+                  >
+                    {{ tab.count }}
+                  </span>
+                </button>
+              </template>
             </nav>
 
             <!-- Quick Actions -->
-            <div class="px-4 py-4 border-t border-gray-200">
+            <div class="px-4 py-4 border-t border-gray-200 space-y-2">
+              <router-link 
+                to="/coi/my-tasks"
+                @click="sidebarOpen = false"
+                class="flex items-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                aria-label="My Tasks"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+                My Tasks
+              </router-link>
               <router-link 
                 to="/coi/request/new"
                 @click="sidebarOpen = false"
@@ -103,7 +116,7 @@
           <div v-if="activeTab === 'overview'" class="space-y-8">
             <!-- Stats Cards - Minimal Design -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div @click="activeTab = 'all'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-blue-500 transition-colors group">
+              <div @click="activeTab = 'all'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-gray-400 transition-colors">
                 <div class="flex items-start justify-between">
                   <div class="flex-1">
                     <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Total Requests</p>
@@ -115,9 +128,8 @@
                     </svg>
                   </div>
                 </div>
-                <div class="mt-4 h-0.5 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
-              <div @click="activeTab = 'pending'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-amber-500 transition-colors group">
+              <div @click="activeTab = 'pending'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-gray-400 transition-colors">
                 <div class="flex items-start justify-between">
                   <div class="flex-1">
                     <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">In Progress</p>
@@ -129,9 +141,8 @@
                     </svg>
                   </div>
                 </div>
-                <div class="mt-4 h-0.5 bg-amber-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
-              <div @click="activeTab = 'active'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-green-500 transition-colors group">
+              <div @click="activeTab = 'active'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-gray-400 transition-colors">
                 <div class="flex items-start justify-between">
                   <div class="flex-1">
                     <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Approved</p>
@@ -143,7 +154,6 @@
                     </svg>
                   </div>
                 </div>
-                <div class="mt-4 h-0.5 bg-green-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
               <div @click="activeTab = 'drafts'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-gray-500 transition-colors group">
                 <div class="flex items-start justify-between">
@@ -237,9 +247,9 @@
           <!-- All Requests Tab -->
           <div v-if="activeTab === 'all'" class="space-y-6">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 class="font-semibold text-gray-900">All My Requests</h2>
-                <div class="flex items-center gap-3">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between mb-4">
+                  <h2 class="font-semibold text-gray-900">All My Requests</h2>
                   <button 
                     class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     aria-label="Export requests"
@@ -249,16 +259,76 @@
                     </svg>
                     Export
                   </button>
-                  <div class="relative">
+                </div>
+                
+                <!-- Filters Bar -->
+                <div class="flex flex-wrap items-center gap-3">
+                  <!-- Search -->
+                  <div class="relative flex-1 min-w-[200px] max-w-[300px]">
                     <input 
                       v-model="searchQuery"
                       type="text" 
-                      placeholder="Search requests..." 
-                      class="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Search by ID, client, service..." 
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
+                  </div>
+                  
+                  <!-- Status Filter -->
+                  <select 
+                    v-model="allStatusFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Pending">In Progress</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Active">Active</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                  
+                  <!-- Service Type Filter -->
+                  <select 
+                    v-model="allServiceFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Services</option>
+                    <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
+                  </select>
+                  
+                  <!-- Clear Filters -->
+                  <button 
+                    v-if="hasActiveAllFilters"
+                    @click="clearAllFilters"
+                    class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div class="flex items-center gap-6 mt-4 pt-4 border-t border-gray-100">
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-gray-900">{{ enhancedFilteredRequests.length }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Total</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-gray-600">{{ allDraftCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Drafts</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-yellow-600">{{ allPendingCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">In Progress</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-green-600">{{ allApprovedCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Approved</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-red-600">{{ allRejectedCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Rejected</div>
                   </div>
                 </div>
               </div>
@@ -294,7 +364,7 @@
                         />
                       </td>
                     </tr>
-                    <tr v-for="request in paginatedRequests" :key="request.id" class="hover:bg-gray-50">
+                    <tr v-for="request in paginatedEnhancedRequests" :key="request.id" class="hover:bg-gray-50">
                       <td class="px-6 py-4">
                         <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
                       </td>
@@ -339,7 +409,7 @@
                   :action="{ label: 'Create Request', to: '/coi/request/new' }"
                 />
                 <div 
-                  v-for="request in paginatedRequests" 
+                  v-for="request in paginatedEnhancedRequests" 
                   :key="request.id" 
                   class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
                 >
@@ -375,7 +445,7 @@
               <!-- Pagination -->
               <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
                 <p class="text-sm text-gray-500">
-                  Showing {{ startIndex + 1 }} to {{ endIndex }} of {{ filteredRequests.length }} requests
+                  Showing {{ enhancedStartIndex + 1 }} to {{ enhancedEndIndex }} of {{ enhancedFilteredRequests.length }} requests
                 </p>
                 <div class="flex items-center gap-2">
                   <button 
@@ -459,8 +529,78 @@
           <div v-if="activeTab === 'pending'" class="space-y-6">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="font-semibold text-gray-900">Pending Requests</h2>
-                <p class="text-sm text-gray-500 mt-1">Requests awaiting approval</p>
+                <h2 class="font-semibold text-gray-900 mb-4">Pending Requests</h2>
+                <p class="text-sm text-gray-500 mb-4">Requests awaiting approval</p>
+                
+                <!-- Filters Bar -->
+                <div class="flex flex-wrap items-center gap-3">
+                  <!-- Search -->
+                  <div class="relative flex-1 min-w-[200px] max-w-[300px]">
+                    <input 
+                      v-model="pendingSearchQuery"
+                      type="text" 
+                      placeholder="Search by ID, client..." 
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                  </div>
+                  
+                  <!-- Stage Filter -->
+                  <select 
+                    v-model="pendingStageFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Stages</option>
+                    <option value="Pending Director Approval">Director Review</option>
+                    <option value="Pending Compliance">Compliance Review</option>
+                    <option value="Pending Partner">Partner Approval</option>
+                    <option value="Pending Finance">Finance Review</option>
+                  </select>
+                  
+                  <!-- Service Type Filter -->
+                  <select 
+                    v-model="pendingServiceFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Services</option>
+                    <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
+                  </select>
+                  
+                  <!-- Clear Filters -->
+                  <button 
+                    v-if="hasActivePendingFilters"
+                    @click="clearPendingFilters"
+                    class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div class="flex items-center gap-6 mt-4 pt-4 border-t border-gray-100">
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-gray-900">{{ filteredPendingRequests.length }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">In Progress</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-orange-600">{{ pendingDirectorCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Director</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-blue-600">{{ pendingComplianceCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Compliance</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-purple-600">{{ pendingPartnerCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Partner</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-indigo-600">{{ pendingFinanceCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Finance</div>
+                  </div>
+                </div>
               </div>
 
               <div class="overflow-x-auto">
@@ -469,18 +609,23 @@
                     <tr>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stage</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Pending</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-for="request in pendingRequests" :key="request.id" class="hover:bg-gray-50">
+                    <tr v-for="request in filteredPendingRequests" :key="request.id" class="hover:bg-gray-50">
                       <td class="px-6 py-4">
                         <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
                       </td>
                       <td class="px-6 py-4">
                         <span class="text-sm text-gray-600">{{ request.client_name || 'Not specified' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ request.service_type || 'General' }}</span>
                       </td>
                       <td class="px-6 py-4">
                         <span :class="getStatusClass(request.status)" class="px-2 py-1 text-xs font-medium rounded">
@@ -491,18 +636,38 @@
                         <span class="text-sm text-gray-500">{{ formatDate(request.created_at || '') }}</span>
                       </td>
                       <td class="px-6 py-4">
+                        <span 
+                          :class="getDaysPendingClass(request)"
+                          class="text-sm font-medium"
+                        >
+                          {{ getDaysPending(request) }} {{ getDaysPending(request) === 1 ? 'day' : 'days' }}
+                        </span>
+                        <p v-if="getDaysPending(request) > 14" class="text-xs text-red-600 font-medium mt-1">Overdue</p>
+                      </td>
+                      <td class="px-6 py-4">
                         <button @click="viewRequest(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                           Track →
                         </button>
                       </td>
                     </tr>
-                    <tr v-if="pendingRequests.length === 0">
-                      <td colspan="5" class="px-6 py-8 text-center text-gray-500">
-                        No pending requests
+                    <tr v-if="filteredPendingRequests.length === 0">
+                      <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                        <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p>No pending requests</p>
+                        <p v-if="hasActivePendingFilters" class="text-sm mt-1">Try adjusting your filters</p>
                       </td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              
+              <!-- Pagination -->
+              <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                <p class="text-sm text-gray-500">
+                  Showing {{ filteredPendingRequests.length }} of {{ pendingRequests.length }} requests
+                </p>
               </div>
             </div>
           </div>
@@ -698,7 +863,7 @@
           <div v-if="showSendProposalModal && selectedProposalRequest" class="fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">
               <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="closeSendProposalModal"></div>
-              <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+              <div class="relative bg-white rounded border border-gray-200 w-full max-w-md p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Send Proposal</h3>
                 <p class="text-sm text-gray-600 mb-4">
                   Send proposal to client for <strong>{{ selectedProposalRequest.request_id }}</strong>
@@ -738,7 +903,7 @@
           <div v-if="showFollowUpModal && selectedProposalRequest" class="fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">
               <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="closeFollowUpModal"></div>
-              <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+              <div class="relative bg-white rounded border border-gray-200 w-full max-w-md p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Record Follow-Up</h3>
                 <p class="text-sm text-gray-600 mb-4">
                   Record a follow-up for <strong>{{ selectedProposalRequest.request_id }}</strong>
@@ -782,7 +947,7 @@
           <div v-if="showRecordResponseModal && selectedProposalRequest" class="fixed inset-0 z-50 overflow-y-auto">
             <div class="flex items-center justify-center min-h-screen px-4">
               <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="closeRecordResponseModal"></div>
-              <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+              <div class="relative bg-white rounded border border-gray-200 w-full max-w-md p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Record Client Response</h3>
                 <p class="text-sm text-gray-600 mb-4">
                   Record client response for <strong>{{ selectedProposalRequest.request_id }}</strong>
@@ -799,7 +964,7 @@
                         <input type="radio" v-model="responseType" value="Rejected" class="text-red-600">
                         <span class="text-sm font-medium text-red-700">✗ Rejected</span>
                       </label>
-                      <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-blue-50" :class="responseType === 'Negotiating' ? 'border-blue-500 bg-blue-50' : ''">
+                      <label class="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50" :class="responseType === 'Negotiating' ? 'border-gray-300 bg-gray-50' : ''">
                         <input type="radio" v-model="responseType" value="Negotiating" class="text-blue-600">
                         <span class="text-sm font-medium text-blue-700">⟳ Negotiating</span>
                       </label>
@@ -835,8 +1000,68 @@
           <div v-if="activeTab === 'rejected'" class="space-y-6">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="font-semibold text-gray-900">Rejected Requests</h2>
-                <p class="text-sm text-gray-500 mt-1">Requests that were rejected - some may be resubmitted</p>
+                <h2 class="font-semibold text-gray-900 mb-4">Rejected Requests</h2>
+                <p class="text-sm text-gray-500 mb-4">Requests that were rejected - some may be resubmitted</p>
+                
+                <!-- Filters Bar -->
+                <div class="flex flex-wrap items-center gap-3">
+                  <!-- Search -->
+                  <div class="relative flex-1 min-w-[200px] max-w-[300px]">
+                    <input 
+                      v-model="rejectedSearchQuery"
+                      type="text" 
+                      placeholder="Search by ID, client..." 
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                  </div>
+                  
+                  <!-- Rejection Type Filter -->
+                  <select 
+                    v-model="rejectedTypeFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="fixable">Fixable</option>
+                    <option value="permanent">Permanent</option>
+                  </select>
+                  
+                  <!-- Service Type Filter -->
+                  <select 
+                    v-model="rejectedServiceFilter"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Services</option>
+                    <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
+                  </select>
+                  
+                  <!-- Clear Filters -->
+                  <button 
+                    v-if="hasActiveRejectedFilters"
+                    @click="clearRejectedFilters"
+                    class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div class="flex items-center gap-6 mt-4 pt-4 border-t border-gray-100">
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-gray-900">{{ filteredRejectedRequests.length }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Total Rejected</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-amber-600">{{ rejectedFixableCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Fixable</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-red-600">{{ rejectedPermanentCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Permanent</div>
+                  </div>
+                </div>
               </div>
 
               <div class="overflow-x-auto">
@@ -845,18 +1070,22 @@
                     <tr>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rejection Type</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-for="request in rejectedRequests" :key="request.id" class="hover:bg-gray-50">
+                    <tr v-for="request in filteredRejectedRequests" :key="request.id" class="hover:bg-gray-50">
                       <td class="px-6 py-4">
                         <span class="text-sm font-medium text-gray-900">{{ request.request_id }}</span>
                       </td>
                       <td class="px-6 py-4">
                         <span class="text-sm text-gray-600">{{ request.client_name || 'Not specified' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ request.service_type || 'General' }}</span>
                       </td>
                       <td class="px-6 py-4">
                         <span 
@@ -893,13 +1122,51 @@
                         </div>
                       </td>
                     </tr>
-                    <tr v-if="rejectedRequests.length === 0">
-                      <td colspan="5" class="px-6 py-8 text-center text-gray-500">
-                        No rejected requests
+                    <tr v-if="filteredRejectedRequests.length === 0">
+                      <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p>No rejected requests</p>
+                        <p v-if="hasActiveRejectedFilters" class="text-sm mt-1">Try adjusting your filters</p>
                       </td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Business Development Tab -->
+          <div v-if="activeTab === 'business-dev'" class="space-y-6">
+            <!-- Sub-tab Navigation -->
+            <div class="bg-white rounded border border-gray-200">
+              <div class="border-b border-gray-200">
+                <nav class="flex -mb-px">
+                  <button
+                    v-for="subTab in bdSubTabs"
+                    :key="subTab.id"
+                    @click="activeBDSubTab = subTab.id"
+                    class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
+                    :class="activeBDSubTab === subTab.id 
+                      ? 'border-blue-500 text-blue-600' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                  >
+                    {{ subTab.label }}
+                  </button>
+                </nav>
+              </div>
+              
+              <!-- Sub-tab Content -->
+              <div class="p-6">
+                <!-- Prospects Sub-tab -->
+                <BusinessDevProspects v-if="activeBDSubTab === 'prospects'" />
+                
+                <!-- Pipeline & Analytics Sub-tab -->
+                <BusinessDevPipelineAnalytics v-else-if="activeBDSubTab === 'pipeline-analytics'" @viewReport="handleViewReport" />
+                
+                <!-- AI Insights Sub-tab -->
+                <BusinessDevAIInsights v-else-if="activeBDSubTab === 'ai-insights'" />
               </div>
             </div>
           </div>
@@ -909,6 +1176,33 @@
     
     <!-- Toast Container -->
     <ToastContainer />
+    
+    <!-- Chart Data Modal -->
+    <ChartDataModal
+      :is-open="showDataModal"
+      :title="modalTitle"
+      :data="modalData"
+      :loading="modalLoading"
+      @close="showDataModal = false"
+      @export="handleExportData"
+    />
+
+    <!-- Keyboard Shortcuts Modal -->
+    <KeyboardShortcutsModal
+      :is-open="showHelpModal"
+      :shortcut-groups="getShortcutGroups()"
+      :format-key="formatShortcutKey"
+      @close="showHelpModal = false"
+    />
+
+    <!-- Global Search -->
+    <GlobalSearch
+      :is-open="showSearch"
+      :user-role="authStore.user?.role"
+      :user-id="authStore.user?.id"
+      :user-department="authStore.user?.department"
+      @close="showSearch = false"
+    />
   </div>
 </template>
 
@@ -920,10 +1214,18 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import api from '@/services/api'
 import ReportCharts from '@/components/reports/ReportCharts.vue'
+import BusinessDevProspects from '@/components/business-dev/BusinessDevProspects.vue'
+import BusinessDevPipelineAnalytics from '@/components/business-dev/BusinessDevPipelineAnalytics.vue'
+import BusinessDevAIInsights from '@/components/business-dev/BusinessDevAIInsights.vue'
 import { getLandingPageSummary } from '@/services/landingPageService'
+import { getReportData, exportReportExcel, downloadBlob } from '@/services/reportService'
 import ToastContainer from '@/components/ui/ToastContainer.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SkeletonCard from '@/components/ui/SkeletonCard.vue'
+import ChartDataModal from '@/components/dashboard/ChartDataModal.vue'
+import GlobalSearch from '@/components/ui/GlobalSearch.vue'
+import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()
@@ -935,9 +1237,37 @@ const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const sidebarOpen = ref(false)
+const showSearch = ref(false)
+
+// Keyboard shortcuts
+const { 
+  registerShortcuts, 
+  showHelpModal, 
+  toggleHelp, 
+  getShortcutGroups, 
+  formatShortcutKey 
+} = useKeyboardShortcuts()
 
 // Phase filter for Active tab
 const activePhase = ref<'proposal' | 'engagement'>('proposal')
+
+// ============================================
+// Enhanced Filter State Variables
+// ============================================
+
+// All Requests filters
+const allStatusFilter = ref('all')
+const allServiceFilter = ref('all')
+
+// Pending Requests filters
+const pendingSearchQuery = ref('')
+const pendingStageFilter = ref('all')
+const pendingServiceFilter = ref('all')
+
+// Rejected Requests filters
+const rejectedSearchQuery = ref('')
+const rejectedTypeFilter = ref('all')
+const rejectedServiceFilter = ref('all')
 
 // Modal states for execution tracking
 const showSendProposalModal = ref(false)
@@ -1018,14 +1348,31 @@ const ActiveIcon = {
   }
 }
 
+const BusinessDevIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' })
+    ])
+  }
+}
+
 const tabs = computed(() => [
-  { id: 'overview', label: 'Overview', icon: OverviewIcon, count: 0, alertColor: '' },
-  { id: 'all', label: 'All Requests', icon: AllIcon, count: totalRequests.value, alertColor: 'bg-gray-100 text-gray-600' },
-  { id: 'drafts', label: 'Drafts', icon: DraftsIcon, count: draftCount.value, alertColor: 'bg-gray-100 text-gray-600' },
-  { id: 'pending', label: 'Pending', icon: PendingIcon, count: inProgressCount.value, alertColor: 'bg-yellow-100 text-yellow-700' },
-  { id: 'active', label: 'Active', icon: ActiveIcon, count: activeEngagementsCount.value, alertColor: 'bg-green-100 text-green-700' },
-  { id: 'rejected', label: 'Rejected', icon: RejectedIcon, count: rejectedCount.value, alertColor: 'bg-red-100 text-red-700' }
+  { id: 'overview', label: 'Overview', icon: OverviewIcon, count: 0, alertColor: '', divider: false },
+  { id: 'all', label: 'All Requests', icon: AllIcon, count: totalRequests.value, alertColor: 'bg-gray-100 text-gray-600', divider: false },
+  { id: 'drafts', label: 'Drafts', icon: DraftsIcon, count: draftCount.value, alertColor: 'bg-gray-100 text-gray-600', divider: false },
+  { id: 'pending', label: 'Pending', icon: PendingIcon, count: inProgressCount.value, alertColor: 'bg-yellow-100 text-yellow-700', divider: false },
+  { id: 'active', label: 'Active', icon: ActiveIcon, count: activeEngagementsCount.value, alertColor: 'bg-green-100 text-green-700', divider: false },
+  { id: 'rejected', label: 'Rejected', icon: RejectedIcon, count: rejectedCount.value, alertColor: 'bg-red-100 text-red-700', divider: false },
+  { id: 'business-dev', label: 'Business Development', icon: BusinessDevIcon, count: 0, alertColor: '', divider: true }
 ])
+
+// Business Development sub-tabs
+const activeBDSubTab = ref('prospects')
+const bdSubTabs = [
+  { id: 'prospects', label: 'Prospects' },
+  { id: 'pipeline-analytics', label: 'Pipeline & Analytics' },
+  { id: 'ai-insights', label: 'AI Insights' }
+]
 
 // Stats
 const totalRequests = computed(() => requests.value.length)
@@ -1079,6 +1426,191 @@ const totalPages = computed(() => Math.ceil(filteredRequests.value.length / page
 const startIndex = computed(() => (currentPage.value - 1) * pageSize.value)
 const endIndex = computed(() => Math.min(startIndex.value + pageSize.value, filteredRequests.value.length))
 const paginatedRequests = computed(() => filteredRequests.value.slice(startIndex.value, endIndex.value))
+
+// ============================================
+// Unique Values for Filters
+// ============================================
+const uniqueServiceTypes = computed(() => {
+  const services = new Set<string>()
+  requests.value.forEach(r => {
+    if (r.service_type) services.add(r.service_type)
+  })
+  return Array.from(services).sort()
+})
+
+// ============================================
+// Enhanced All Requests Filtering
+// ============================================
+const enhancedFilteredRequests = computed(() => {
+  let filtered = requests.value
+  
+  // Search filter
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(r => 
+      r.request_id?.toLowerCase().includes(q) ||
+      r.client_name?.toLowerCase().includes(q) ||
+      r.service_type?.toLowerCase().includes(q)
+    )
+  }
+  
+  // Status filter
+  if (allStatusFilter.value !== 'all') {
+    if (allStatusFilter.value === 'Pending') {
+      filtered = filtered.filter(r => r.status?.includes('Pending'))
+    } else {
+      filtered = filtered.filter(r => r.status === allStatusFilter.value)
+    }
+  }
+  
+  // Service type filter
+  if (allServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === allServiceFilter.value)
+  }
+  
+  return filtered
+})
+
+const hasActiveAllFilters = computed(() => {
+  return searchQuery.value !== '' ||
+    allStatusFilter.value !== 'all' ||
+    allServiceFilter.value !== 'all'
+})
+
+const allDraftCount = computed(() => requests.value.filter(r => r.status === 'Draft').length)
+const allPendingCount = computed(() => requests.value.filter(r => r.status?.includes('Pending')).length)
+const allApprovedCount = computed(() => requests.value.filter(r => r.status === 'Approved' || r.status === 'Active').length)
+const allRejectedCount = computed(() => requests.value.filter(r => r.status === 'Rejected').length)
+
+const enhancedTotalPages = computed(() => Math.ceil(enhancedFilteredRequests.value.length / pageSize.value))
+const enhancedStartIndex = computed(() => (currentPage.value - 1) * pageSize.value)
+const enhancedEndIndex = computed(() => Math.min(enhancedStartIndex.value + pageSize.value, enhancedFilteredRequests.value.length))
+const paginatedEnhancedRequests = computed(() => enhancedFilteredRequests.value.slice(enhancedStartIndex.value, enhancedEndIndex.value))
+
+function clearAllFilters() {
+  searchQuery.value = ''
+  allStatusFilter.value = 'all'
+  allServiceFilter.value = 'all'
+  currentPage.value = 1
+}
+
+// ============================================
+// Enhanced Pending Requests Filtering
+// ============================================
+function getDaysPending(request: any): number {
+  if (!request.created_at) return 0
+  const created = new Date(request.created_at)
+  const now = new Date()
+  const diffTime = Math.abs(now.getTime() - created.getTime())
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24))
+}
+
+function getDaysPendingClass(request: any): string {
+  const days = getDaysPending(request)
+  if (days > 14) return 'text-red-600'
+  if (days > 7) return 'text-amber-600'
+  return 'text-gray-600'
+}
+
+const filteredPendingRequests = computed(() => {
+  let filtered = pendingRequests.value
+  
+  // Search filter
+  if (pendingSearchQuery.value) {
+    const q = pendingSearchQuery.value.toLowerCase()
+    filtered = filtered.filter(r => 
+      r.request_id?.toLowerCase().includes(q) ||
+      r.client_name?.toLowerCase().includes(q)
+    )
+  }
+  
+  // Stage filter
+  if (pendingStageFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.status === pendingStageFilter.value)
+  }
+  
+  // Service type filter
+  if (pendingServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === pendingServiceFilter.value)
+  }
+  
+  // Sort by urgency: overdue first (>14 days), then by days pending (descending)
+  filtered.sort((a, b) => {
+    const aDays = getDaysPending(a)
+    const bDays = getDaysPending(b)
+    const aOverdue = aDays > 14
+    const bOverdue = bDays > 14
+    
+    // Overdue items first
+    if (aOverdue && !bOverdue) return -1
+    if (!aOverdue && bOverdue) return 1
+    
+    // Then sort by days pending (most pending first)
+    return bDays - aDays
+  })
+  
+  return filtered
+})
+
+const hasActivePendingFilters = computed(() => {
+  return pendingSearchQuery.value !== '' ||
+    pendingStageFilter.value !== 'all' ||
+    pendingServiceFilter.value !== 'all'
+})
+
+const pendingDirectorCount = computed(() => pendingRequests.value.filter(r => r.status === 'Pending Director Approval').length)
+const pendingComplianceCount = computed(() => pendingRequests.value.filter(r => r.status === 'Pending Compliance').length)
+const pendingPartnerCount = computed(() => pendingRequests.value.filter(r => r.status === 'Pending Partner').length)
+const pendingFinanceCount = computed(() => pendingRequests.value.filter(r => r.status === 'Pending Finance').length)
+
+function clearPendingFilters() {
+  pendingSearchQuery.value = ''
+  pendingStageFilter.value = 'all'
+  pendingServiceFilter.value = 'all'
+}
+
+// ============================================
+// Enhanced Rejected Requests Filtering
+// ============================================
+const filteredRejectedRequests = computed(() => {
+  let filtered = rejectedRequests.value
+  
+  // Search filter
+  if (rejectedSearchQuery.value) {
+    const q = rejectedSearchQuery.value.toLowerCase()
+    filtered = filtered.filter(r => 
+      r.request_id?.toLowerCase().includes(q) ||
+      r.client_name?.toLowerCase().includes(q)
+    )
+  }
+  
+  // Type filter
+  if (rejectedTypeFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.rejection_type === rejectedTypeFilter.value)
+  }
+  
+  // Service type filter
+  if (rejectedServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === rejectedServiceFilter.value)
+  }
+  
+  return filtered
+})
+
+const hasActiveRejectedFilters = computed(() => {
+  return rejectedSearchQuery.value !== '' ||
+    rejectedTypeFilter.value !== 'all' ||
+    rejectedServiceFilter.value !== 'all'
+})
+
+const rejectedFixableCount = computed(() => rejectedRequests.value.filter(r => r.rejection_type !== 'permanent').length)
+const rejectedPermanentCount = computed(() => rejectedRequests.value.filter(r => r.rejection_type === 'permanent').length)
+
+function clearRejectedFilters() {
+  rejectedSearchQuery.value = ''
+  rejectedTypeFilter.value = 'all'
+  rejectedServiceFilter.value = 'all'
+}
 
 function getStatusClass(status: string | undefined) {
   if (!status) return 'bg-gray-100 text-gray-700'
@@ -1344,42 +1876,121 @@ async function loadSummaryData() {
   }
 }
 
-// Handle chart clicks - navigate to reports with filters
-function handleStatusClick(status: string) {
-  router.push({
-    path: '/coi/reports',
-    query: {
-      report: 'my-requests-summary',
-      role: 'requester',
-      status: status
-    }
-  })
+// Modal state for chart data
+const showDataModal = ref(false)
+const modalData = ref<any[]>([])
+const modalTitle = ref('')
+const modalLoading = ref(false)
+const currentFilter = ref<{ status?: string; serviceType?: string; clientName?: string }>({})
+
+// Handle chart clicks - open modal with filtered data
+async function handleStatusClick(status: string) {
+  modalTitle.value = `Requests with Status: ${status}`
+  modalLoading.value = true
+  showDataModal.value = true
+  currentFilter.value = { status }
+  
+  try {
+    const reportData = await getReportData(
+      'requester',
+      'my-requests-summary',
+      { status, includeData: true, pageSize: 500 }
+    )
+    modalData.value = reportData.requests || []
+  } catch (error) {
+    console.error('Error loading chart data:', error)
+    toast.error('Failed to load request data')
+    modalData.value = []
+  } finally {
+    modalLoading.value = false
+  }
 }
 
-function handleServiceTypeClick(serviceType: string) {
-  router.push({
-    path: '/coi/reports',
-    query: {
-      report: 'my-requests-summary',
-      role: 'requester',
-      serviceType: serviceType
-    }
-  })
+async function handleServiceTypeClick(serviceType: string) {
+  modalTitle.value = `Requests for Service Type: ${serviceType}`
+  modalLoading.value = true
+  showDataModal.value = true
+  currentFilter.value = { serviceType }
+  
+  try {
+    const reportData = await getReportData(
+      'requester',
+      'my-requests-summary',
+      { serviceType, includeData: true, pageSize: 500 }
+    )
+    modalData.value = reportData.requests || []
+  } catch (error) {
+    console.error('Error loading chart data:', error)
+    toast.error('Failed to load request data')
+    modalData.value = []
+  } finally {
+    modalLoading.value = false
+  }
 }
 
-function handleClientClick(clientName: string) {
-  router.push({
-    path: '/coi/reports',
-    query: {
-      report: 'my-requests-summary',
-      role: 'requester',
-      clientName: clientName
-    }
-  })
+async function handleClientClick(clientName: string) {
+  modalTitle.value = `Requests for Client: ${clientName}`
+  modalLoading.value = true
+  showDataModal.value = true
+  currentFilter.value = { clientName }
+  
+  try {
+    const reportData = await getReportData(
+      'requester',
+      'my-requests-summary',
+      { clientName, includeData: true, pageSize: 500 }
+    )
+    modalData.value = reportData.requests || []
+  } catch (error) {
+    console.error('Error loading chart data:', error)
+    toast.error('Failed to load request data')
+    modalData.value = []
+  } finally {
+    modalLoading.value = false
+  }
 }
 
+// Handle export from modal
+async function handleExportData() {
+  try {
+    const blob = await exportReportExcel(
+      'requester',
+      'my-requests-summary',
+      { ...currentFilter.value, includeData: true }
+    )
+    downloadBlob(blob, `coi-requests-${Date.now()}.xlsx`)
+    toast.success('Data exported successfully')
+  } catch (error) {
+    console.error('Error exporting data:', error)
+    toast.error('Failed to export data')
+  }
+}
+
+// Handle CRM card click - navigate to reports
+function handleViewReport(reportType: string) {
+  router.push({ path: '/coi/reports', query: { report: reportType } })
+}
+
+// Register keyboard shortcuts
 onMounted(() => {
   coiStore.fetchRequests()
   loadSummaryData()
+  
+  registerShortcuts([
+    {
+      key: 'k',
+      description: 'Open search',
+      handler: () => { showSearch.value = true },
+      modifier: 'ctrl',
+      group: 'Navigation'
+    },
+    {
+      key: '/',
+      description: 'Show keyboard shortcuts',
+      handler: toggleHelp,
+      modifier: 'ctrl',
+      group: 'General'
+    }
+  ])
 })
 </script>

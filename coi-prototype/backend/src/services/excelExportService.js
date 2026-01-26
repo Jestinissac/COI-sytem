@@ -136,6 +136,49 @@ export async function generateGlobalCOIFormExcel(requestId) {
       formSheet.getCell(`B${field.row}`).value = field.value
     })
     
+    // Add International Operations entities section if available
+    let currentRow = 16
+    if (request.global_coi_form_data) {
+      try {
+        const globalData = JSON.parse(request.global_coi_form_data)
+        if (globalData.countries && Array.isArray(globalData.countries) && globalData.countries.length > 0) {
+          formSheet.getRow(currentRow).values = ['International Operations Entities:']
+          formSheet.getRow(currentRow).font = { bold: true }
+          currentRow++
+          
+          // Headers for entities table
+          formSheet.getRow(currentRow).values = ['Country', 'Entity Name', 'Relationship Type', 'Ownership %', 'Control Type', 'Details']
+          formSheet.getRow(currentRow).font = { bold: true }
+          formSheet.getRow(currentRow).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' }
+          }
+          currentRow++
+          
+          // Entity rows
+          globalData.countries.forEach(country => {
+            const entities = country.entities || []
+            entities.forEach(entity => {
+              formSheet.getRow(currentRow).values = [
+                country.country_code || '',
+                entity.name || '',
+                entity.relationship_type || '',
+                entity.ownership_percentage !== null && entity.ownership_percentage !== undefined 
+                  ? `${entity.ownership_percentage}%` 
+                  : '',
+                entity.control_type || '',
+                entity.details || ''
+              ]
+              currentRow++
+            })
+          })
+        }
+      } catch (parseError) {
+        console.warn('Error parsing global_coi_form_data for Excel export:', parseError)
+      }
+    }
+    
     // Sheet 2: Services List
     const servicesSheet = workbook.addWorksheet('Services List')
     

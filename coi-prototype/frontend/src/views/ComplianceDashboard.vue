@@ -25,7 +25,7 @@
                 @click.prevent="activeTab = tab.id"
                 class="flex items-center px-4 py-3 text-sm transition-colors border-l-2"
                 :class="activeTab === tab.id 
-                  ? 'bg-blue-50 border-blue-600 text-blue-700 font-medium' 
+                  ? 'bg-gray-50 border-gray-300 text-gray-900 font-medium' 
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
               >
                 <component :is="tab.icon" class="w-5 h-5 mr-3" />
@@ -48,56 +48,48 @@
           <div v-if="activeTab === 'overview'" class="space-y-6">
             <!-- Stats Cards - Clickable -->
             <div class="grid grid-cols-4 gap-4">
-              <div @click="activeTab = 'pending'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all">
+              <div @click="activeTab = 'pending'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-gray-400 transition-colors">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Pending Review</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ pendingRequests.length }}</p>
+                    <p class="text-2xl font-semibold text-gray-900 mt-1">{{ pendingRequests.length }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                    </svg>
-                  </div>
+                  <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                  </svg>
                 </div>
               </div>
-              <div @click="activeTab = 'conflicts'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-red-300 transition-all">
+              <div @click="activeTab = 'conflicts'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-gray-400 transition-colors">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Conflicts Flagged</p>
-                    <p class="text-2xl font-bold text-red-600 mt-1">{{ conflictsCount }}</p>
+                    <p class="text-2xl font-semibold text-gray-900 mt-1">{{ conflictsCount }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                    </svg>
-                  </div>
+                  <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                  </svg>
                 </div>
               </div>
-              <div @click="activeTab = 'duplications'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-yellow-300 transition-all">
+              <div @click="activeTab = 'duplications'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-gray-400 transition-colors">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Duplications</p>
-                    <p class="text-2xl font-bold text-yellow-600 mt-1">{{ duplicationsCount }}</p>
+                    <p class="text-2xl font-semibold text-gray-900 mt-1">{{ duplicationsCount }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                    </svg>
-                  </div>
+                  <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                  </svg>
                 </div>
               </div>
-              <div @click="activeTab = 'pipeline'" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md hover:border-purple-300 transition-all">
+              <div @click="activeTab = 'pipeline'" class="bg-white rounded border border-gray-200 p-6 cursor-pointer hover:border-gray-400 transition-colors">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm text-gray-500">Global Clearance</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">{{ globalClearanceCount }}</p>
+                    <p class="text-2xl font-semibold text-gray-900 mt-1">{{ globalClearanceCount }}</p>
                   </div>
-                  <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
-                    </svg>
-                  </div>
+                  <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                  </svg>
                 </div>
               </div>
             </div>
@@ -162,25 +154,81 @@
           <!-- Pending Review Tab -->
           <div v-if="activeTab === 'pending'" class="space-y-6">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 class="font-semibold text-gray-900">Pending Compliance Review</h2>
-                <div class="flex items-center gap-3">
-                  <select v-model="filterType" class="px-3 py-2 text-sm border border-gray-300 rounded-md">
-                    <option value="all">All Requests</option>
-                    <option value="conflicts">With Conflicts</option>
-                    <option value="duplications">With Duplications</option>
-                    <option value="clean">Clean Requests</option>
-                  </select>
-                  <div class="relative">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="font-semibold text-gray-900 mb-4">Pending Compliance Review</h2>
+                
+                <!-- Filters Bar -->
+                <div class="flex flex-wrap items-center gap-3">
+                  <!-- Search -->
+                  <div class="relative flex-1 min-w-[200px] max-w-[300px]">
                     <input 
                       v-model="searchQuery"
                       type="text" 
-                      placeholder="Search requests..." 
-                      class="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Search by ID, client, requester..." 
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
+                  </div>
+                  
+                  <!-- Validation Type Filter -->
+                  <select v-model="filterType" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="all">All Requests</option>
+                    <option value="conflicts">With Conflicts</option>
+                    <option value="duplications">With Duplications</option>
+                    <option value="stale">Stale (Re-evaluation)</option>
+                    <option value="recommendations">Has Recommendations</option>
+                    <option value="clean">Clean Requests</option>
+                  </select>
+                  
+                  <!-- Service Type Filter -->
+                  <select v-model="pendingServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="all">All Services</option>
+                    <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
+                  </select>
+                  
+                  <!-- International Only -->
+                  <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      v-model="pendingInternationalOnly"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    International only
+                  </label>
+                  
+                  <!-- Clear Filters -->
+                  <button 
+                    v-if="hasActivePendingFilters"
+                    @click="clearPendingFilters"
+                    class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div class="flex items-center gap-6 mt-4 pt-4 border-t border-gray-100">
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-gray-900">{{ filteredRequests.length }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Pending Review</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-red-600">{{ pendingConflictsCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">With Conflicts</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-yellow-600">{{ pendingDuplicationsCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Duplications</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-amber-600">{{ pendingStaleCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Stale</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-green-600">{{ pendingCleanCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Clean</div>
                   </div>
                 </div>
               </div>
@@ -583,7 +631,61 @@
           <div v-if="activeTab === 'history'" class="space-y-6">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="font-semibold text-gray-900">Review History</h2>
+                <h2 class="font-semibold text-gray-900 mb-4">Review History</h2>
+                
+                <!-- Filters Bar -->
+                <div class="flex flex-wrap items-center gap-3">
+                  <!-- Search -->
+                  <div class="relative flex-1 min-w-[200px] max-w-[300px]">
+                    <input 
+                      v-model="historySearchQuery"
+                      type="text" 
+                      placeholder="Search by ID, client..." 
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                  </div>
+                  
+                  <!-- Decision Type Filter -->
+                  <select v-model="historyDecisionFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="all">All Decisions</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                  
+                  <!-- Service Type Filter -->
+                  <select v-model="historyServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="all">All Services</option>
+                    <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
+                  </select>
+                  
+                  <!-- Clear Filters -->
+                  <button 
+                    v-if="hasActiveHistoryFilters"
+                    @click="clearHistoryFilters"
+                    class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div class="flex items-center gap-6 mt-4 pt-4 border-t border-gray-100">
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-gray-900">{{ filteredHistoryRequests.length }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Total Reviews</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-green-600">{{ historyApprovedCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Approved</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-semibold text-red-600">{{ historyRejectedCount }}</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">Rejected</div>
+                  </div>
+                </div>
               </div>
 
               <div class="overflow-x-auto">
@@ -592,18 +694,22 @@
                     <tr>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request ID</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Decision</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-for="item in reviewHistory" :key="item.id" class="hover:bg-gray-50">
+                    <tr v-for="item in filteredHistoryRequests" :key="item.id" class="hover:bg-gray-50">
                       <td class="px-6 py-4">
                         <span class="text-sm font-medium text-gray-900">{{ item.request_id }}</span>
                       </td>
                       <td class="px-6 py-4">
                         <span class="text-sm text-gray-600">{{ item.client_name || 'Not specified' }}</span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="text-sm text-gray-600">{{ item.service_type || 'General' }}</span>
                       </td>
                       <td class="px-6 py-4">
                         <span 
@@ -622,13 +728,24 @@
                         </button>
                       </td>
                     </tr>
-                    <tr v-if="reviewHistory.length === 0">
-                      <td colspan="5" class="px-6 py-8 text-center text-gray-500">
-                        No review history found
+                    <tr v-if="filteredHistoryRequests.length === 0">
+                      <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p>No review history found</p>
+                        <p v-if="hasActiveHistoryFilters" class="text-sm mt-1">Try adjusting your filters</p>
                       </td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              
+              <!-- Pagination -->
+              <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                <p class="text-sm text-gray-500">
+                  Showing {{ filteredHistoryRequests.length }} of {{ reviewHistory.length }} reviews
+                </p>
               </div>
             </div>
           </div>
@@ -738,6 +855,23 @@
     @requested="handleInfoRequested"
     @cancel="showInfoRequestModal = false"
   />
+
+  <!-- Keyboard Shortcuts Modal -->
+  <KeyboardShortcutsModal
+    :is-open="showHelpModal"
+    :shortcut-groups="getShortcutGroups()"
+    :format-key="formatShortcutKey"
+    @close="showHelpModal = false"
+  />
+
+  <!-- Global Search -->
+  <GlobalSearch
+    :is-open="showSearch"
+    :user-role="authStore.user?.role"
+    :user-id="authStore.user?.id"
+    :user-department="authStore.user?.department"
+    @close="showSearch = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -748,10 +882,15 @@ import RuleBuilder from '@/components/RuleBuilder.vue'
 import ComplianceActionPanel from '@/components/compliance/ComplianceActionPanel.vue'
 import RestrictionsModal from '@/components/compliance/RestrictionsModal.vue'
 import InfoRequestModal from '@/components/compliance/InfoRequestModal.vue'
+import GlobalSearch from '@/components/ui/GlobalSearch.vue'
+import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()
+const authStore = useAuthStore()
 
 // Modal state for reviewing requests
 const showReviewModal = ref(false)
@@ -759,10 +898,33 @@ const selectedRequest = ref<COIRequest | null>(null)
 const exportingRequestId = ref<number | null>(null)
 const showRestrictionsModal = ref(false)
 const showInfoRequestModal = ref(false)
+const showSearch = ref(false)
+
+// Keyboard shortcuts
+const { 
+  registerShortcuts, 
+  showHelpModal, 
+  toggleHelp, 
+  getShortcutGroups, 
+  formatShortcutKey 
+} = useKeyboardShortcuts()
 
 const activeTab = ref('overview')
 const searchQuery = ref('')
 const filterType = ref('all')
+
+// ============================================
+// Enhanced Filter State Variables
+// ============================================
+
+// Pending Review filters
+const pendingServiceFilter = ref('all')
+const pendingInternationalOnly = ref(false)
+
+// History filters
+const historySearchQuery = ref('')
+const historyDecisionFilter = ref('all')
+const historyServiceFilter = ref('all')
 
 const loading = computed(() => coiStore.loading)
 const requests = computed(() => coiStore.requests)
@@ -962,6 +1124,17 @@ const tabs = computed(() => [
   { id: 'history', label: 'History', icon: HistoryIcon, count: 0, alertColor: '' }
 ])
 
+// ============================================
+// Unique Values for Filters
+// ============================================
+const uniqueServiceTypes = computed(() => {
+  const services = new Set<string>()
+  requests.value.forEach(r => {
+    if (r.service_type) services.add(r.service_type)
+  })
+  return Array.from(services).sort()
+})
+
 const filteredRequests = computed(() => {
   let filtered = pendingRequests.value
   
@@ -970,8 +1143,22 @@ const filteredRequests = computed(() => {
     filtered = filtered.filter(r => hasConflict(r))
   } else if (filterType.value === 'duplications') {
     filtered = filtered.filter(r => hasDuplication(r))
+  } else if (filterType.value === 'stale') {
+    filtered = filtered.filter(r => r.requires_re_evaluation)
+  } else if (filterType.value === 'recommendations') {
+    filtered = filtered.filter(r => hasRecommendations(r))
   } else if (filterType.value === 'clean') {
-    filtered = filtered.filter(r => !hasConflict(r) && !hasDuplication(r))
+    filtered = filtered.filter(r => !hasConflict(r) && !hasDuplication(r) && !r.requires_re_evaluation && !hasRecommendations(r))
+  }
+  
+  // Apply service type filter
+  if (pendingServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === pendingServiceFilter.value)
+  }
+  
+  // Apply international only filter
+  if (pendingInternationalOnly.value) {
+    filtered = filtered.filter(r => r.international_operations)
   }
   
   // Apply search
@@ -986,6 +1173,84 @@ const filteredRequests = computed(() => {
   
   return filtered
 })
+
+// ============================================
+// Pending Review Stats
+// ============================================
+const hasActivePendingFilters = computed(() => {
+  return searchQuery.value !== '' ||
+    filterType.value !== 'all' ||
+    pendingServiceFilter.value !== 'all' ||
+    pendingInternationalOnly.value
+})
+
+const pendingConflictsCount = computed(() => pendingRequests.value.filter(r => hasConflict(r)).length)
+const pendingDuplicationsCount = computed(() => pendingRequests.value.filter(r => hasDuplication(r)).length)
+const pendingStaleCount = computed(() => pendingRequests.value.filter(r => r.requires_re_evaluation).length)
+const pendingCleanCount = computed(() => pendingRequests.value.filter(r => 
+  !hasConflict(r) && !hasDuplication(r) && !r.requires_re_evaluation && !hasRecommendations(r)
+).length)
+
+function clearPendingFilters() {
+  searchQuery.value = ''
+  filterType.value = 'all'
+  pendingServiceFilter.value = 'all'
+  pendingInternationalOnly.value = false
+}
+
+// ============================================
+// History Filtering
+// ============================================
+const filteredHistoryRequests = computed(() => {
+  let filtered = reviewHistory.value
+  
+  // Search filter
+  if (historySearchQuery.value) {
+    const q = historySearchQuery.value.toLowerCase()
+    filtered = filtered.filter(r => 
+      r.request_id?.toLowerCase().includes(q) ||
+      r.client_name?.toLowerCase().includes(q)
+    )
+  }
+  
+  // Decision filter
+  if (historyDecisionFilter.value !== 'all') {
+    if (historyDecisionFilter.value === 'approved') {
+      filtered = filtered.filter(r => 
+        r.status === 'Approved' || r.status === 'Active' || 
+        r.status === 'Pending Partner' || r.status === 'Pending Finance'
+      )
+    } else if (historyDecisionFilter.value === 'rejected') {
+      filtered = filtered.filter(r => r.status === 'Rejected')
+    }
+  }
+  
+  // Service type filter
+  if (historyServiceFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.service_type === historyServiceFilter.value)
+  }
+  
+  return filtered
+})
+
+const hasActiveHistoryFilters = computed(() => {
+  return historySearchQuery.value !== '' ||
+    historyDecisionFilter.value !== 'all' ||
+    historyServiceFilter.value !== 'all'
+})
+
+const historyApprovedCount = computed(() => reviewHistory.value.filter(r => 
+  r.status === 'Approved' || r.status === 'Active' || 
+  r.status === 'Pending Partner' || r.status === 'Pending Finance'
+).length)
+
+const historyRejectedCount = computed(() => reviewHistory.value.filter(r => r.status === 'Rejected').length)
+
+function clearHistoryFilters() {
+  historySearchQuery.value = ''
+  historyDecisionFilter.value = 'all'
+  historyServiceFilter.value = 'all'
+}
 
 function hasConflict(request: any): boolean {
   // First, check if duplication_matches contains conflicts (from backend evaluation)
@@ -1321,5 +1586,22 @@ async function exportGlobalCOIForm(request: any) {
 
 onMounted(() => {
   coiStore.fetchRequests()
+  
+  registerShortcuts([
+    {
+      key: 'k',
+      description: 'Open search',
+      handler: () => { showSearch.value = true },
+      modifier: 'ctrl',
+      group: 'Navigation'
+    },
+    {
+      key: '/',
+      description: 'Show keyboard shortcuts',
+      handler: toggleHelp,
+      modifier: 'ctrl',
+      group: 'General'
+    }
+  ])
 })
 </script>

@@ -1,23 +1,80 @@
 import nodemailer from 'nodemailer'
+import { getDatabase } from '../database/init.js'
 
 /**
  * Email Service
  * Handles email notifications for COI workflow
  */
 
-// Email configuration (use environment variables in production)
-const EMAIL_CONFIG = {
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || ''
+// Cache for email config
+let cachedConfig = null
+let configCacheTime = 0
+const CACHE_TTL = 60000 // 1 minute
+
+/**
+ * Get email configuration from database or environment variables
+ */
+function getEmailConfig() {
+  // Check cache first
+  const now = Date.now()
+  if (cachedConfig && (now - configCacheTime) < CACHE_TTL) {
+    return cachedConfig
   }
+  
+  try {
+    const db = getDatabase()
+    const config = db.prepare(`
+      SELECT * FROM email_config 
+      WHERE config_name = 'default' AND is_active = 1
+      ORDER BY id DESC LIMIT 1
+    `).get()
+    
+    if (config && config.smtp_user && config.smtp_password) {
+      cachedConfig = {
+        host: config.smtp_host,
+        port: config.smtp_port,
+        secure: config.smtp_secure === 1,
+        auth: {
+          user: config.smtp_user,
+          pass: config.smtp_password
+        },
+        from: config.from_email,
+        fromName: config.from_name || 'COI System',
+        replyTo: config.reply_to
+      }
+      configCacheTime = now
+      return cachedConfig
+    }
+  } catch (error) {
+    console.error('Error loading email config from database:', error.message)
+  }
+  
+  // Fallback to environment variables
+  const envConfig = {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS || ''
+    },
+    from: process.env.SMTP_USER || 'noreply@coi-system.com',
+    fromName: 'COI System',
+    replyTo: null
+  }
+  
+  cachedConfig = envConfig
+  configCacheTime = now
+  return envConfig
 }
 
-// Whether email is enabled (disable in development if no SMTP configured)
-const EMAIL_ENABLED = process.env.EMAIL_ENABLED === 'true' || !!EMAIL_CONFIG.auth.user
+// Whether email is enabled
+function isEmailEnabled() {
+  const config = getEmailConfig()
+  return !!(config.auth.user && config.auth.pass)
+}
+
+const EMAIL_ENABLED = process.env.EMAIL_ENABLED === 'true' || isEmailEnabled()
 
 // Email templates
 const EMAIL_TEMPLATES = {
@@ -406,8 +463,14 @@ const EMAIL_TEMPLATES = {
 let transporter = null
 
 function getTransporter() {
-  if (!transporter && EMAIL_ENABLED) {
-    transporter = nodemailer.createTransport(EMAIL_CONFIG)
+  const config = getEmailConfig()
+  if (!transporter || transporter.options.host !== config.host) {
+    transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.auth
+    })
   }
   return transporter
 }
@@ -444,8 +507,9 @@ export async function sendEmail(templateName, to, variables) {
   
   const subject = parseTemplate(template.subject, variables)
   const html = parseTemplate(template.html, variables)
+  const config = getEmailConfig()
   
-  if (!EMAIL_ENABLED) {
+  if (!EMAIL_ENABLED && !isEmailEnabled()) {
     console.log('📧 [EMAIL MOCK] Would send email:')
     console.log(`   To: ${to}`)
     console.log(`   Subject: ${subject}`)
@@ -716,10 +780,55 @@ export async function notifyClientRejectedProposal(request, recipient, rejection
 }
 
 /**
+ * Send test email
+ */
+export async function sendTestEmail(testEmail, config = null) {
+  const emailConfig = config || getEmailConfig()
+  
+  if (!emailConfig.auth.user || !emailConfig.auth.pass) {
+    throw new Error('Email configuration is incomplete')
+  }
+  
+  const testTransporter = nodemailer.createTransport({
+    host: emailConfig.smtp_host || emailConfig.host,
+    port: emailConfig.smtp_port || emailConfig.port,
+    secure: emailConfig.smtp_secure === 1 || emailConfig.secure,
+    auth: {
+      user: emailConfig.smtp_user || emailConfig.auth.user,
+      pass: emailConfig.smtp_password || emailConfig.auth.pass
+    }
+  })
+  
+  const fromEmail = emailConfig.from_email || emailConfig.from
+  const fromName = emailConfig.from_name || emailConfig.fromName || 'COI System'
+  
+  await testTransporter.sendMail({
+    from: `"${fromName}" <${fromEmail}>`,
+    to: testEmail,
+    subject: 'COI System - Test Email',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1a237e; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">Email Configuration Test</h1>
+        </div>
+        <div style="padding: 20px; background: #f5f5f5;">
+          <p>Hello,</p>
+          <p>This is a test email from the COI System to verify that email configuration is working correctly.</p>
+          <p>If you received this email, your SMTP configuration is properly set up.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 20px;">
+            This is an automated test message from the COI Management System.
+          </p>
+        </div>
+      </div>
+    `
+  })
+}
+
+/**
  * Verify email configuration
  */
 export async function verifyEmailConfig() {
-  if (!EMAIL_ENABLED) {
+  if (!EMAIL_ENABLED && !isEmailEnabled()) {
     return { configured: false, message: 'Email is disabled or not configured' }
   }
   
@@ -730,6 +839,15 @@ export async function verifyEmailConfig() {
   } catch (error) {
     return { configured: false, message: error.message }
   }
+}
+
+/**
+ * Clear email config cache (call after updating config)
+ */
+export function clearEmailConfigCache() {
+  cachedConfig = null
+  configCacheTime = 0
+  transporter = null
 }
 
 export default {
@@ -746,6 +864,8 @@ export default {
   notifyProposalLapsed,
   notifyClientAcceptedProposal,
   notifyClientRejectedProposal,
-  verifyEmailConfig
+  sendTestEmail,
+  verifyEmailConfig,
+  clearEmailConfigCache
 }
 

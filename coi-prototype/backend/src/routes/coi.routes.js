@@ -25,7 +25,8 @@ import {
   verifyGroupStructure,
   clearConflictFlag,
   getResolvedConflicts,
-  dismissResolvedConflict
+  dismissResolvedConflict,
+  getApproversForBackup
 } from '../controllers/coiController.js'
 import { findSimilarCases, findCasesByCriteria, getClientDecisionHistory } from '../services/similarCasesService.js'
 import { getRegulation, getAllRegulations, searchRegulations, getApplicableRegulations } from '../services/regulationService.js'
@@ -98,6 +99,9 @@ const router = express.Router()
 
 // All routes require authentication
 router.use(authenticateToken)
+
+// Approvers for backup selection (Section 6)
+router.get('/approvers', getApproversForBackup)
 
 // Request CRUD
 router.get('/requests', getMyRequests)

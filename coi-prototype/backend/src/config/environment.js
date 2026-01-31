@@ -88,6 +88,21 @@ export function validateEnvironment() {
 }
 
 /**
+ * Dynamic approval flow: first level from AD, second level local, employee status from HRMS.
+ * When false (default): use local DB only for approvers and is_active.
+ */
+export function useADApprovers() {
+  return process.env.USE_AD_APPROVERS === 'true' || process.env.USE_AD_APPROVERS === '1'
+}
+
+/**
+ * When true: HRMS sync and getEmployeeStatuses use HRMS data; prototype still reads from users table after sync.
+ */
+export function useHRMSStatus() {
+  return process.env.USE_HRMS_STATUS === 'true' || process.env.USE_HRMS_STATUS === '1'
+}
+
+/**
  * Get environment-specific configuration
  * @returns {object} Environment configuration
  */
@@ -102,6 +117,8 @@ export function getEnvironmentConfig() {
     isTest: isTest(),
     loadTestingAllowed: isLoadTestingAllowed(),
     databaseName: getDatabaseName(),
-    enableLoadTesting: isLoadTestingAllowed()
+    enableLoadTesting: isLoadTestingAllowed(),
+    useADApprovers: useADApprovers(),
+    useHRMSStatus: useHRMSStatus()
   }
 }

@@ -98,6 +98,20 @@ export const useCOIRequestsStore = defineStore('coiRequests', () => {
     }
   }
 
+  async function updateRequest(id: number, data: any) {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await api.put(`/coi/requests/${id}`, data)
+      return response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.error || 'Failed to update request'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function approveRequest(id: number) {
     loading.value = true
     error.value = null
@@ -119,6 +133,7 @@ export const useCOIRequestsStore = defineStore('coiRequests', () => {
     error,
     fetchRequests,
     createRequest,
+    updateRequest,
     submitRequest,
     approveRequest,
     getRequestById

@@ -1,50 +1,19 @@
 <template>
-  <div class="bg-white rounded-lg shadow-sm border-2 border-blue-200">
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200">
     <!-- Card Header -->
-    <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 border-b border-blue-800">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          <div>
-            <h3 class="text-lg font-semibold text-white">Global COI Form</h3>
-            <p class="text-sm text-blue-100">Required for international operations</p>
-          </div>
+    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+      <div class="flex items-center space-x-3">
+        <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900">Global COI Form</h3>
         </div>
-        <button
-          v-if="hasData"
-          @click="exportToExcel"
-          :disabled="exporting"
-          class="flex items-center px-4 py-2 bg-white text-blue-600 rounded-md text-sm font-medium hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <svg v-if="!exporting" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-          </svg>
-          <svg v-else class="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          {{ exporting ? 'Exporting...' : 'Export to Excel' }}
-        </button>
       </div>
     </div>
 
     <!-- Card Content -->
     <div class="p-6 space-y-6">
-      <!-- Info Banner -->
-      <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-        <div class="flex items-start">
-          <svg class="w-5 h-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          <div class="text-sm text-blue-800">
-            <p class="font-medium mb-1">Global COI Form Required</p>
-            <p>This form will be exported to Excel format for submission to BDO Global COI Portal. Please complete all required fields below.</p>
-          </div>
-        </div>
-      </div>
-
       <!-- Form Fields -->
       <div class="grid grid-cols-2 gap-6">
         <!-- Client Information -->
@@ -56,8 +25,9 @@
             <input
               v-model="formData.clientName"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter client name"
+              readonly
+              class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-700"
+              placeholder="Synced from main request"
             />
           </div>
 
@@ -66,8 +36,9 @@
             <input
               v-model="formData.ultimateParentCompany"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter parent company name"
+              readonly
+              class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-700"
+              placeholder="Synced from main request"
             />
           </div>
 
@@ -76,8 +47,9 @@
             <input
               v-model="formData.location"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter location"
+              readonly
+              class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-700"
+              placeholder="Synced from main request"
             />
           </div>
 
@@ -85,7 +57,8 @@
             <label class="block text-sm font-medium text-gray-700 mb-1.5">Client Type <span class="text-red-500">*</span></label>
             <select
               v-model="formData.clientType"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled
+              class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-700"
             >
               <option value="">Select client type...</option>
               <option value="Existing">Existing</option>
@@ -97,7 +70,8 @@
             <label class="block text-sm font-medium text-gray-700 mb-1.5">Client is PIE <span class="text-red-500">*</span></label>
             <select
               v-model="formData.clientIsPIE"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled
+              class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-700"
             >
               <option value="">Select...</option>
               <option value="Yes">Yes</option>
@@ -115,8 +89,9 @@
             <textarea
               v-model="formData.servicesDetails"
               rows="3"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Describe the services to be provided"
+              readonly
+              class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-700"
+              placeholder="Synced from main request"
             ></textarea>
           </div>
 
@@ -125,8 +100,9 @@
             <input
               v-model="formData.natureOfEngagement"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter engagement nature"
+              readonly
+              class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-700"
+              placeholder="Synced from main request"
             />
           </div>
 
@@ -135,8 +111,9 @@
             <input
               v-model="formData.industrySector"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter industry sector"
+              readonly
+              class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-700"
+              placeholder="Synced from main request"
             />
           </div>
 
@@ -145,8 +122,9 @@
             <input
               v-model="formData.website"
               type="url"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="https://example.com"
+              readonly
+              class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-700"
+              placeholder="Synced from main request"
             />
           </div>
 
@@ -154,7 +132,8 @@
             <label class="block text-sm font-medium text-gray-700 mb-1.5">Engagement Involves Another Party</label>
             <select
               v-model="formData.engagementInvolvesAnotherParty"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled
+              class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-700"
             >
               <option value="">Select...</option>
               <option value="Yes">Yes</option>
@@ -171,7 +150,7 @@
           <button
             type="button"
             @click="addCountry"
-            class="w-full max-w-xs flex items-center justify-center px-4 py-3 text-sm font-medium text-blue-600 bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg hover:bg-blue-100 hover:border-blue-400 transition-colors"
+            class="w-full max-w-xs flex items-center justify-center px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-dashed border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors"
           >
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -191,10 +170,10 @@
             <button
               type="button"
               @click="toggleCountry(countryIndex)"
-              class="w-full px-4 py-3 bg-gradient-to-r from-gray-50 to-white hover:from-gray-100 hover:to-gray-50 transition-colors flex items-center justify-between"
+              class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between border-b border-gray-200"
             >
               <div class="flex items-center space-x-3">
-                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-medium text-sm">
+                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-700 font-medium text-sm">
                   {{ countryIndex + 1 }}
                 </div>
                 <div class="text-left">
@@ -384,14 +363,6 @@
                             placeholder="e.g., 75.5"
                             @blur="validateEntityOwnership(countryIndex, entityIndex)"
                           />
-                          <p class="mt-1 text-xs text-gray-500">
-                            <span v-if="entity.relationship_type === 'subsidiary'">
-                              Must be ≥50% for control (Subsidiary)
-                            </span>
-                            <span v-else>
-                              Must be 20-50% for significant influence (Affiliate)
-                            </span>
-                          </p>
                           <p v-if="entity.ownership_error" class="mt-1 text-xs text-red-600">
                             {{ entity.ownership_error }}
                           </p>
@@ -445,7 +416,6 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                     </svg>
                     <p>No related entities added yet.</p>
-                    <p class="text-xs mt-1">Click "+ Add Entity" to add a parent company, subsidiary, or sister company.</p>
                   </div>
                 </div>
               </div>
@@ -462,7 +432,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
           <p class="font-medium text-gray-700 mb-1">No countries added yet</p>
-          <p class="text-xs">Click "Add Country" above to get started.</p>
         </div>
       </div>
     </div>
@@ -485,7 +454,6 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const exporting = ref(false)
 
 const formData = ref({
   clientName: '',
@@ -549,31 +517,34 @@ if (props.initialData) {
   }
 }
 
-// Watch for changes to initialData prop to update form (for auto-population)
+// Fields replicated from main form — always sync when parent sends new data (e.g. PIE from Section 3)
+const REPLICATED_FROM_MAIN = [
+  'clientName', 'ultimateParentCompany', 'location', 'clientType', 'clientIsPIE',
+  'servicesDetails', 'natureOfEngagement', 'industrySector', 'website', 'engagementInvolvesAnotherParty'
+]
+
+// Watch for changes to initialData prop to update form (replicate main form context)
 watch(() => props.initialData, (newData) => {
   if (newData) {
-    // Only update if fields are empty (don't overwrite user input)
     Object.keys(newData).forEach(key => {
       const typedKey = key as keyof typeof newData
-      if (newData[typedKey] && (!(formData.value as any)[key] || (formData.value as any)[key] === '')) {
-        if (key === 'countries') {
-          formData.value.countries = transformCountries(newData.countries || [])
-        } else {
-          (formData.value as any)[key] = newData[typedKey]
+      const value = newData[typedKey]
+      if (key === 'countries') {
+        if (value && Array.isArray(value) && value.length > 0) {
+          formData.value.countries = transformCountries(value)
         }
+      } else if (REPLICATED_FROM_MAIN.includes(key)) {
+        // Always replicate from main form so UI/UX state is consistent (e.g. PIE Yes in Section 3 → Client is PIE Yes here)
+        if (value !== undefined && value !== null) {
+          (formData.value as any)[key] = value
+        }
+      } else if (value && (!(formData.value as any)[key] || (formData.value as any)[key] === '')) {
+        // Other fields: only fill when empty
+        (formData.value as any)[key] = value
       }
     })
   }
 }, { deep: true, immediate: true })
-
-const hasData = computed(() => {
-  return formData.value.clientName && 
-         formData.value.location && 
-         formData.value.clientType &&
-         formData.value.clientIsPIE &&
-         formData.value.servicesDetails &&
-         formData.value.natureOfEngagement
-})
 
 // Watch for changes and emit updates
 watch(formData, (newData) => {
@@ -747,60 +718,8 @@ function validateEntityOwnership(countryIndex: number, entityIndex: number) {
   return true
 }
 
-async function exportToExcel() {
-  if (!hasData.value) {
-    toast.error('Please complete all required fields before exporting')
-    return
-  }
-
-  exporting.value = true
-  try {
-    if (props.requestId) {
-      // Export existing request
-      const response = await api.get(`/global/export-excel/${props.requestId}`, {
-        responseType: 'blob'
-      })
-      
-      // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `Global_COI_Form_${props.requestId}_${new Date().toISOString().split('T')[0]}.xlsx`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
-      
-      toast.success('Excel file downloaded successfully!')
-    } else {
-      // Export form data (new request)
-      const response = await api.post('/global/generate-excel', formData.value, {
-        responseType: 'blob'
-      })
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `Global_COI_Form_${new Date().toISOString().split('T')[0]}.xlsx`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
-      
-      toast.success('Excel file downloaded successfully!')
-    }
-  } catch (error: any) {
-    console.error('Error exporting to Excel:', error)
-    toast.error(error.response?.data?.error || 'Failed to export Excel file')
-  } finally {
-    exporting.value = false
-  }
-}
-
-// Expose form data for parent component
+// Expose form data for parent component (export removed — Compliance does Excel separately)
 defineExpose({
-  formData,
-  exportToExcel,
-  hasData
+  formData
 })
 </script>

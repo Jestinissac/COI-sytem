@@ -209,6 +209,28 @@ const FieldMappingService = {
         if (typeof pieValue === 'boolean') return pieValue ? 'Yes' : 'No'
         return String(pieValue)
 
+      case 'is_cma_regulated':
+        // Get from client data or request data
+        if (requestData.is_cma_regulated !== undefined) {
+          return parseBoolean(requestData.is_cma_regulated)
+        }
+        if (requestData.client?.is_cma_regulated !== undefined) {
+          return parseBoolean(requestData.client.is_cma_regulated)
+        }
+        // Fallback: check regulated_body
+        const regulatedBody = requestData.regulated_body || 
+                             requestData.client?.regulated_body
+        if (regulatedBody && (regulatedBody.includes('CMA') || 
+                              regulatedBody.includes('Capital Markets Authority'))) {
+          return true
+        }
+        return false
+
+      case 'regulated_body':
+        return requestData.regulated_body || 
+               requestData.client?.regulated_body ||
+               null
+
       case 'service_type':
         return requestData.service_type || null
 
@@ -334,6 +356,8 @@ const FieldMappingService = {
       'family_relationship',
       'is_international',
       'pie_status',
+      'is_cma_regulated',
+      'regulated_body',
       'service_type',
       'service_category',
       'service_description',

@@ -16,11 +16,12 @@ const CRM_TEST_USERS = {
   requester: { email: 'patricia.white@company.com', password: 'password123', role: 'Requester' }
 }
 
-// Lead sources as defined in the system
+// Lead sources as defined in the system (COI request form shows "System generated" for insights_module)
 const LEAD_SOURCES = [
   'Internal Referral',
-  'Client Referral', 
-  'Client Intelligence Module',
+  'Client Referral',
+  'BDO Global',
+  'System generated',
   'Cold Outreach',
   'Marketing Campaign',
   'Event / Conference',

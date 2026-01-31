@@ -404,6 +404,11 @@
             <PendingClientCreationsPanel @refresh="loadPendingClientCreations" />
           </div>
 
+          <!-- Parent Company Updates Tab (PRMS Admin) -->
+          <div v-if="activeTab === 'parent-updates'" class="space-y-6">
+            <ParentCompanyUpdateRequestsPanel @refresh="loadPendingParentUpdates" />
+          </div>
+
           <!-- User Management Tab (Approver Availability) -->
           <div v-if="activeTab === 'users'" class="space-y-6">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -690,6 +695,7 @@ import { ref, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
 import PendingClientCreationsPanel from '@/components/admin/PendingClientCreationsPanel.vue'
+import ParentCompanyUpdateRequestsPanel from '@/components/admin/ParentCompanyUpdateRequestsPanel.vue'
 import api from '@/services/api'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
@@ -839,6 +845,13 @@ const GlobalIcon = {
   }
 }
 
+const ParentCompanyIcon = {
+  render() {
+    return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' })
+    ])
+  }
+}
 const ClientCreationsIcon = {
   render() {
     return h('svg', { class: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
@@ -881,6 +894,7 @@ const globalEngagements = computed(() => requests.value.filter(r => r.internatio
 
 // Client creation requests
 const pendingClientCreations = ref(0)
+const pendingParentUpdates = ref(0)
 
 const UserIcon = {
   render() {
@@ -900,6 +914,7 @@ const tabs = computed(() => [
   { id: 'renewals', label: '3-Year Renewals', icon: RenewalIcon, count: renewalsDue.value, alertColor: 'bg-purple-100 text-purple-700' },
   { id: 'users', label: 'User Management', icon: UserIcon, count: approverUsers.value.filter(u => !u.is_active).length, alertColor: approverUsers.value.filter(u => !u.is_active).length > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600' },
   { id: 'client-creations', label: 'Client Creations', icon: ClientCreationsIcon, count: pendingClientCreations.value, alertColor: pendingClientCreations.value > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600' },
+  { id: 'parent-updates', label: 'Parent Company Updates', icon: ParentCompanyIcon, count: pendingParentUpdates.value, alertColor: pendingParentUpdates.value > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600' },
   { id: 'isqm', label: 'ISQM Forms', icon: ISQMIcon, count: 0, alertColor: '' },
   { id: 'global', label: 'Global COI', icon: GlobalIcon, count: globalEngagements.value.length, alertColor: 'bg-gray-100 text-gray-600' },
   { id: 'config', label: 'Configuration', icon: ConfigIcon, count: 0, alertColor: '' }
@@ -1015,6 +1030,7 @@ function exportToExcel() {
 onMounted(() => {
   coiStore.fetchRequests()
   loadPendingClientCreations()
+  loadPendingParentUpdates()
   loadApproverUsers()
 })
 
@@ -1024,6 +1040,15 @@ async function loadPendingClientCreations() {
     pendingClientCreations.value = response.data.length
   } catch (error) {
     console.error('Error loading pending client creations:', error)
+  }
+}
+
+async function loadPendingParentUpdates() {
+  try {
+    const response = await api.get('/parent-company-update-requests', { params: { status: 'Pending' } })
+    pendingParentUpdates.value = (response.data || []).length
+  } catch (error) {
+    console.error('Error loading pending parent company updates:', error)
   }
 }
 

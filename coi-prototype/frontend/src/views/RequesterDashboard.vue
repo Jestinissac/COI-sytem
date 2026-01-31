@@ -207,7 +207,6 @@
                 <!-- Empty State -->
                 <EmptyState
                   v-else-if="recentRequests.length === 0"
-                  icon="📋"
                   title="No recent requests"
                   message="Get started by creating your first COI request"
                   :action="{ label: 'Create Request', to: '/coi/request/new' }"
@@ -216,11 +215,9 @@
                 <div v-else class="space-y-3">
                   <div v-for="request in recentRequests" :key="request.id" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div class="flex items-center">
-                      <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                      </div>
+                      <svg class="w-5 h-5 text-gray-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
                       <div>
                         <p class="text-sm font-medium text-gray-900">{{ request.request_id }}</p>
                         <p class="text-xs text-gray-500">{{ request.client_name || 'No client' }} • {{ request.service_type || 'General' }}</p>
@@ -251,13 +248,15 @@
                 <div class="flex items-center justify-between mb-4">
                   <h2 class="font-semibold text-gray-900">All My Requests</h2>
                   <button 
-                    class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    @click="exportAllRequestsList"
+                    :disabled="exportingAllList || enhancedFilteredRequests.length === 0"
+                    class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                     aria-label="Export requests"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    Export
+                    {{ exportingAllList ? 'Exporting...' : 'Export' }}
                   </button>
                 </div>
                 
@@ -354,10 +353,9 @@
                         </div>
                       </td>
                     </tr>
-                    <tr v-else-if="filteredRequests.length === 0">
+                    <tr v-else-if="enhancedFilteredRequests.length === 0">
                       <td colspan="6" class="px-6 py-8">
                         <EmptyState
-                          icon="📋"
                           title="No requests found"
                           message="Try adjusting your filters or create a new request"
                           :action="{ label: 'Create Request', to: '/coi/request/new' }"
@@ -402,8 +400,7 @@
                   <SkeletonCard v-for="i in 5" :key="i" />
                 </div>
                 <EmptyState
-                  v-else-if="filteredRequests.length === 0"
-                  icon="📋"
+                  v-else-if="enhancedFilteredRequests.length === 0"
                   title="No requests found"
                   message="Try adjusting your filters or create a new request"
                   :action="{ label: 'Create Request', to: '/coi/request/new' }"
@@ -458,7 +455,7 @@
                   <span class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded">{{ currentPage }}</span>
                   <button 
                     @click="currentPage++" 
-                    :disabled="currentPage >= totalPages"
+                    :disabled="currentPage >= enhancedTotalPages"
                     class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
                   >
                     Next
@@ -1207,7 +1204,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, watch, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
 import { useAuthStore } from '@/stores/auth'
@@ -1290,6 +1287,7 @@ const recordingResponse = ref(false)
 
 const loading = computed(() => coiStore.loading)
 const requests = computed(() => coiStore.requests)
+const exportingAllList = ref(false)
 
 // Chart data for Quick Insights
 const summaryData = ref<{
@@ -1493,6 +1491,19 @@ function clearAllFilters() {
   allServiceFilter.value = 'all'
   currentPage.value = 1
 }
+
+// Reset to page 1 when All tab filters change so pagination stays valid
+watch([searchQuery, allStatusFilter, allServiceFilter], () => {
+  if (activeTab.value === 'all') {
+    currentPage.value = 1
+  }
+})
+// Clamp current page when filtered list shrinks (e.g. after refresh)
+watch(enhancedTotalPages, (total) => {
+  if (activeTab.value === 'all' && total > 0 && currentPage.value > total) {
+    currentPage.value = total
+  }
+})
 
 // ============================================
 // Enhanced Pending Requests Filtering
@@ -1963,6 +1974,35 @@ async function handleExportData() {
   } catch (error) {
     console.error('Error exporting data:', error)
     toast.error('Failed to export data')
+  }
+}
+
+// Export current All Requests filtered list as Excel
+async function exportAllRequestsList() {
+  if (enhancedFilteredRequests.value.length === 0) return
+  exportingAllList.value = true
+  try {
+    const filters: Record<string, unknown> = {
+      includeData: true,
+      pageSize: enhancedFilteredRequests.value.length
+    }
+    if (allStatusFilter.value !== 'all') {
+      filters.status = allStatusFilter.value
+    }
+    if (allServiceFilter.value !== 'all') {
+      filters.serviceType = allServiceFilter.value
+    }
+    if (searchQuery.value.trim()) {
+      filters.search = searchQuery.value.trim()
+    }
+    const blob = await exportReportExcel('requester', 'my-requests-summary', filters)
+    downloadBlob(blob, `coi-requests-${Date.now()}.xlsx`)
+    toast.success('Requests exported successfully')
+  } catch (error) {
+    console.error('Error exporting requests:', error)
+    toast.error('Failed to export requests')
+  } finally {
+    exportingAllList.value = false
   }
 }
 

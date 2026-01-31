@@ -842,11 +842,7 @@ export async function saveBusinessRule(req, res) {
     
     const rule = req.body
     
-    // Enforce Standard edition: only Custom category allowed
-    const systemEdition = getSystemEdition()
-    if (systemEdition === 'standard' && rule.rule_category && rule.rule_category !== 'Custom') {
-      rule.rule_category = 'Custom'
-    }
+    // CMA + IESBA only: no edition gating on rule_category
     
     // Validate rule first
     const validation = validateRule(rule)
@@ -875,9 +871,9 @@ export async function saveBusinessRule(req, res) {
       INSERT INTO business_rules_config (
         rule_name, rule_type, condition_field, condition_operator,
         condition_value, condition_groups, action_type, action_value, is_active,
-        approval_status, created_by, rule_category, regulation_reference, applies_to_pie, tax_sub_type,
+        approval_status, created_by, rule_category, regulation_reference, applies_to_pie, applies_to_cma, tax_sub_type,
         confidence_level, can_override, override_guidance, guidance_text, required_override_role
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       rule.rule_name,
       rule.rule_type,
@@ -890,9 +886,10 @@ export async function saveBusinessRule(req, res) {
       requiresApproval ? 0 : (rule.is_active !== undefined ? (rule.is_active ? 1 : 0) : 1), // Only active if approved
       approvalStatus,
       userId,
-      rule.rule_category || 'Custom',
+      rule.rule_category || 'CMA',
       rule.regulation_reference || null,
       rule.applies_to_pie ? 1 : 0,
+      rule.applies_to_cma ? 1 : 0, // NEW
       rule.tax_sub_type || null,
       rule.confidence_level || 'MEDIUM',
       rule.can_override !== undefined ? (rule.can_override ? 1 : 0) : 1,
@@ -931,11 +928,7 @@ export async function updateBusinessRule(req, res) {
       return res.status(404).json({ error: 'Rule not found' })
     }
     
-    // Enforce Standard edition: only Custom category allowed
-    const systemEdition = getSystemEdition()
-    if (systemEdition === 'standard' && updates.rule_category && updates.rule_category !== 'Custom') {
-      updates.rule_category = 'Custom'
-    }
+    // CMA + IESBA only: no edition gating on rule_category
     
     // Validate rule updates
     const mergedRule = { ...rule, ...updates, id }
@@ -994,6 +987,7 @@ export async function updateBusinessRule(req, res) {
         rule_category = COALESCE(?, rule_category),
         regulation_reference = COALESCE(?, regulation_reference),
         applies_to_pie = COALESCE(?, applies_to_pie),
+        applies_to_cma = COALESCE(?, applies_to_cma),
         tax_sub_type = COALESCE(?, tax_sub_type),
         confidence_level = COALESCE(?, confidence_level),
         can_override = COALESCE(?, can_override),
@@ -1013,9 +1007,10 @@ export async function updateBusinessRule(req, res) {
       updates.action_value !== undefined ? (updates.action_value || null) : undefined,
       isActive,
       approvalStatus,
-      updates.rule_category !== undefined ? (updates.rule_category || 'Custom') : undefined,
+      updates.rule_category !== undefined ? (updates.rule_category || 'CMA') : undefined,
       updates.regulation_reference !== undefined ? (updates.regulation_reference || null) : undefined,
       updates.applies_to_pie !== undefined ? (updates.applies_to_pie ? 1 : 0) : undefined,
+      updates.applies_to_cma !== undefined ? (updates.applies_to_cma ? 1 : 0) : undefined,
       updates.tax_sub_type !== undefined ? (updates.tax_sub_type || null) : undefined,
       updates.confidence_level !== undefined ? (updates.confidence_level || 'MEDIUM') : undefined,
       updates.can_override !== undefined ? (updates.can_override ? 1 : 0) : undefined,
@@ -1502,7 +1497,7 @@ export async function getRuleFields(req, res) {
       serviceInfo: {
         label: 'Service Information',
         fields: [
-          { id: 'service_type', label: 'Service Type', type: 'select', options: ['Statutory Audit', 'External Audit', 'Tax Compliance', 'Tax Advisory', 'Tax Planning', 'Tax Strategy', 'Tax Return', 'Management Consulting', 'Business Advisory', 'Internal Audit', 'Due Diligence', 'Valuation', 'IT Advisory', 'Litigation Support', 'Dispute Resolution', 'Legal Representation', 'Consulting'] },
+          { id: 'service_type', label: 'Service Type', type: 'select', options: [] }, // Will be populated with CMA services below
           { id: 'service_category', label: 'Service Category', type: 'select', options: ['Assurance', 'Non-Assurance', 'Tax', 'Advisory'] },
           { id: 'service_description', label: 'Service Description', type: 'text' },
           { id: 'engagement_start_date', label: 'Engagement Start Date', type: 'date', source: 'coi_requests.requested_service_period_start' },
@@ -1516,6 +1511,7 @@ export async function getRuleFields(req, res) {
         label: 'Compliance & Ownership',
         fields: [
           { id: 'pie_status', label: 'PIE Status', type: 'select', options: ['Yes', 'No'] },
+          { id: 'is_cma_regulated', label: 'CMA Regulated', type: 'boolean', description: 'Client is regulated by Capital Markets Authority (Kuwait)' },
           { id: 'international_operations', label: 'International Operations', type: 'select', options: ['Yes', 'No'] },
           { id: 'global_clearance_status', label: 'Global Clearance Status', type: 'select', options: ['Not Required', 'Pending', 'Approved', 'Rejected'] }
         ]
@@ -1550,6 +1546,43 @@ export async function getRuleFields(req, res) {
           { id: 'days_since_submission', label: 'Days Since Submission', type: 'computed', valueType: 'number', description: 'Number of days since request was submitted' },
           { id: 'is_group_company', label: 'Is Group Company', type: 'computed', valueType: 'boolean', description: 'True if client has a parent company' },
           { id: 'engagement_duration', label: 'Engagement Duration (Years)', type: 'computed', valueType: 'number', description: 'Calculated duration of engagement in years' }
+        ]
+      }
+    }
+    
+    // Fetch CMA service types and add to service_type options
+    try {
+      const cmaServices = db.prepare(`
+        SELECT service_name_en FROM cma_service_types ORDER BY service_code
+      `).all().map(s => s.service_name_en)
+      
+      // Merge with existing service_type options
+      const existingServiceTypes = [
+        'Statutory Audit', 'External Audit', 'Tax Compliance', 'Tax Advisory', 
+        'Tax Planning', 'Tax Strategy', 'Tax Return', 'Management Consulting', 
+        'Business Advisory', 'Internal Audit', 'Due Diligence', 'Valuation', 
+        'IT Advisory', 'Litigation Support', 'Dispute Resolution', 
+        'Legal Representation', 'Consulting'
+      ]
+      
+      const allServiceTypes = [...existingServiceTypes, ...cmaServices]
+      
+      // Update service_type field options
+      const serviceTypeField = ruleFields.serviceInfo.fields.find(f => f.id === 'service_type')
+      if (serviceTypeField) {
+        serviceTypeField.options = allServiceTypes
+      }
+    } catch (error) {
+      console.error('Error fetching CMA service types for rule fields:', error)
+      // Fallback to existing options if CMA table doesn't exist yet
+      const serviceTypeField = ruleFields.serviceInfo.fields.find(f => f.id === 'service_type')
+      if (serviceTypeField && serviceTypeField.options.length === 0) {
+        serviceTypeField.options = [
+          'Statutory Audit', 'External Audit', 'Tax Compliance', 'Tax Advisory', 
+          'Tax Planning', 'Tax Strategy', 'Tax Return', 'Management Consulting', 
+          'Business Advisory', 'Internal Audit', 'Due Diligence', 'Valuation', 
+          'IT Advisory', 'Litigation Support', 'Dispute Resolution', 
+          'Legal Representation', 'Consulting'
         ]
       }
     }

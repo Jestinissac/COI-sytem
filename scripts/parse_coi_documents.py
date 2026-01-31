@@ -98,7 +98,7 @@ def parse_coi_documents(coi_folder_path=None, output_dir=None):
     Parse all documents in the COI System folder.
     
     Args:
-        coi_folder_path: Path to COI System folder (default: workspace/COI System /)
+        coi_folder_path: Path to COI System folder (default: workspace/docs/coi-system)
         output_dir: Directory to save extracted text files (default: None, prints to console)
     """
     # Determine workspace root (parent of scripts folder)
@@ -106,7 +106,7 @@ def parse_coi_documents(coi_folder_path=None, output_dir=None):
     workspace_root = script_dir.parent
     
     if coi_folder_path is None:
-        coi_folder_path = workspace_root / "COI System "
+        coi_folder_path = workspace_root / "docs" / "coi-system"
     
     if not os.path.exists(coi_folder_path):
         print(f"Error: COI System folder not found at {coi_folder_path}")
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         "--coi-folder",
         type=str,
         default=None,
-        help="Path to COI System folder (default: workspace/COI System /)"
+        help="Path to COI System folder (default: workspace/docs/coi-system)"
     )
     parser.add_argument(
         "--output-dir",

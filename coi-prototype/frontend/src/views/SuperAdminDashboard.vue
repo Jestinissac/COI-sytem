@@ -23,7 +23,6 @@
           Service Catalog
         </router-link>
         <router-link
-          v-if="authStore.isPro"
           to="/coi/form-builder"
           class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2"
         >
@@ -35,8 +34,13 @@
       </div>
     </div>
 
-    <!-- Edition Switcher -->
-    <EditionSwitcher />
+    <!-- Rules: CMA (primary) + IESBA (secondary) only -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3 flex items-center gap-2">
+      <span class="text-sm font-medium text-gray-700">Rules framework:</span>
+      <span class="px-2 py-1 text-xs font-medium rounded bg-purple-100 text-purple-700">CMA</span>
+      <span class="text-gray-400">+</span>
+      <span class="px-2 py-1 text-xs font-medium rounded bg-indigo-100 text-indigo-700">IESBA</span>
+    </div>
 
     <!-- KPI Cards -->
     <div class="grid grid-cols-4 gap-4">
@@ -418,6 +422,38 @@
                   </div>
                 </div>
               </router-link>
+              <router-link
+                to="/coi/admin/email-config"
+                class="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 border border-gray-300 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="font-medium text-sm text-gray-900">Email Configuration</div>
+                    <div class="text-xs text-gray-500">Configure SMTP settings for notifications</div>
+                  </div>
+                </div>
+              </router-link>
+              <router-link
+                to="/coi/admin/permission-config"
+                class="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 border border-gray-300 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="font-medium text-sm text-gray-900">Permission Configuration</div>
+                    <div class="text-xs text-gray-500">Manage role-based permissions dynamically</div>
+                  </div>
+                </div>
+              </router-link>
             </div>
           </div>
 
@@ -696,14 +732,15 @@ import { useCOIRequestsStore } from '@/stores/coiRequests'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import EditionSwitcher from '@/components/edition/EditionSwitcher.vue'
 import GlobalSearch from '@/components/ui/GlobalSearch.vue'
 import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { usePermissions } from '@/composables/usePermissions'
 
 const coiStore = useCOIRequestsStore()
 const authStore = useAuthStore()
 const { success, error: showError } = useToast()
+const { hasPermission } = usePermissions()
 
 const activeTab = ref('users')
 const userSearch = ref('')

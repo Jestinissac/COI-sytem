@@ -26,13 +26,8 @@ const EDITION_FEATURES = {
 }
 
 export function getSystemEdition() {
-  try {
-    const config = db.prepare('SELECT config_value FROM system_config WHERE config_key = ?').get('system_edition')
-    return config?.config_value || 'standard'
-  } catch (error) {
-    console.error('Error getting system edition:', error)
-    return 'standard'
-  }
+  // CMA (primary) + IESBA (secondary) only: always Pro
+  return 'pro'
 }
 
 export function setSystemEdition(edition, userId) {
@@ -79,7 +74,8 @@ export function getAllFeatures() {
 }
 
 export function isProEdition() {
-  return getSystemEdition() === 'pro'
+  // CMA + IESBA only: always true
+  return true
 }
 
 export function isStandardEdition() {

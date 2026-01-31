@@ -22,7 +22,8 @@ export const useAuthStore = defineStore('auth', () => {
   const features = ref<string[]>([])
 
   const isAuthenticated = computed(() => !!token.value && !!user.value)
-  const isPro = computed(() => edition.value === 'pro')
+  // CMA + IESBA only: always Pro
+  const isPro = computed(() => true)
   const isStandard = computed(() => edition.value === 'standard')
 
   async function login(email: string, password: string) {

@@ -6,11 +6,29 @@
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-xl font-semibold text-gray-900">New COI Request</h1>
-            <p class="text-sm text-gray-500 mt-1">{{ formData.id ? `Editing Draft: COI-${formData.id}` : 'Create a new conflict of interest request' }}</p>
+            <p class="text-sm text-gray-500 mt-1">{{ formData.id ? `Editing Draft: COI-${formData.id}` : 'New COI request' }}</p>
           </div>
-          <div class="flex items-center space-x-3">
-            <span class="text-sm text-gray-500">Auto-saved</span>
-            <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+          <div class="flex items-center space-x-3" role="status" aria-live="polite">
+            <template v-if="saveStatus === 'saving'">
+              <span class="text-sm text-gray-600">Saving...</span>
+              <span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+            </template>
+            <template v-else-if="saveStatus === 'saved' && lastSavedAt">
+              <span class="text-sm text-gray-500">Saved at {{ formatSaveTime(lastSavedAt) }}</span>
+              <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+            </template>
+            <template v-else-if="saveStatus === 'error'">
+              <span class="text-sm text-red-600">Save failed</span>
+              <span class="w-2 h-2 bg-red-500 rounded-full"></span>
+            </template>
+            <template v-else-if="isDirty">
+              <span class="text-sm text-amber-600">Unsaved changes</span>
+              <span class="w-2 h-2 bg-amber-500 rounded-full"></span>
+            </template>
+            <template v-else>
+              <span class="text-sm text-gray-500">Auto-saved</span>
+              <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+            </template>
           </div>
         </div>
       </div>
@@ -97,9 +115,8 @@
               <div class="flex-1">
                 <h3 class="text-sm font-medium text-blue-900 mb-1">Director Approval Required</h3>
                 <p class="text-sm text-blue-700">
-                  This request requires director approval. 
                   <span v-if="directorName">Your director: <strong>{{ directorName }}</strong>.</span>
-                  You can upload director's written approval document (optional) or wait for in-system approval.
+                  Upload written approval or wait for in-system approval.
                 </p>
               </div>
             </div>
@@ -111,9 +128,26 @@
               </svg>
               <div class="flex-1">
                 <h3 class="text-sm font-medium text-green-900 mb-1">Direct to Compliance</h3>
-                <p class="text-sm text-green-700">
-                  As a director, your requests go directly to Compliance review after submission.
-                </p>
+                <p class="text-sm text-green-700">Your requests go directly to Compliance.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Form Load Error Banner -->
+          <div v-if="formLoadError" class="bg-red-50 border border-red-200 rounded-lg p-4" role="alert">
+            <div class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-red-800">{{ formLoadError }}</p>
+                <button
+                  type="button"
+                  @click="retryFormLoad"
+                  class="mt-2 text-sm font-medium text-red-700 hover:text-red-900 underline"
+                >
+                  Retry
+                </button>
               </div>
             </div>
           </div>
@@ -125,7 +159,6 @@
                 <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">1</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Requestor Information</h2>
-                  <p class="text-sm text-gray-500">Auto-populated from your profile</p>
                 </div>
               </div>
               <span v-if="isSectionComplete('section-1')" class="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Complete</span>
@@ -155,6 +188,7 @@
                   <select 
                     v-model="formData.designation"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    aria-required="true"
                   >
                     <option value="">Select designation...</option>
                     <option>Partner</option>
@@ -172,6 +206,7 @@
                     v-model="formData.entity"
                     @change="onEntityChange"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    aria-required="true"
                   >
                     <option value="">Select entity...</option>
                     <option v-for="entity in entities" :key="entity.id" :value="entity.entity_name">
@@ -190,7 +225,6 @@
                 <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">2</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Document Type</h2>
-                  <p class="text-sm text-gray-500">Select the type of document</p>
                 </div>
               </div>
               <span v-if="isSectionComplete('section-2')" class="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Complete</span>
@@ -198,7 +232,7 @@
             <div class="p-6">
               <div class="grid grid-cols-2 gap-4 mb-6">
                 <label 
-                  class="relative flex items-center p-4 border rounded cursor-pointer transition-colors"
+                  class="relative flex items-center p-4 border rounded cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2"
                   :class="formData.requested_document === 'Proposal' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'"
                 >
                   <input 
@@ -213,7 +247,6 @@
                     </svg>
                     <div>
                       <p class="font-medium text-gray-900">Proposal</p>
-                      <p class="text-xs text-gray-500">For new client engagements</p>
                     </div>
                   </div>
                   <div v-if="formData.requested_document === 'Proposal'" class="absolute top-2 right-2">
@@ -223,7 +256,7 @@
                   </div>
                 </label>
                 <label 
-                  class="relative flex items-center p-4 border rounded cursor-pointer transition-colors"
+                  class="relative flex items-center p-4 border rounded cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2"
                   :class="formData.requested_document === 'Engagement Letter' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'"
                 >
                   <input 
@@ -240,7 +273,6 @@
                     </div>
                     <div>
                       <p class="font-medium text-gray-900">Engagement Letter</p>
-                      <p class="text-xs text-gray-500">For confirmed engagements</p>
                     </div>
                   </div>
                   <div v-if="formData.requested_document === 'Engagement Letter'" class="absolute top-2 right-2">
@@ -265,10 +297,7 @@
                 
                 <!-- Lead Source (only for Proposals) -->
                 <div v-if="formData.requested_document === 'Proposal'">
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                    Lead Source
-                    <span class="text-xs font-normal text-gray-500 ml-1">(How did this opportunity come to you?)</span>
-                  </label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Lead Source</label>
                   <select 
                     v-model="formData.lead_source_id"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -280,7 +309,7 @@
                         :key="source.id" 
                         :value="source.id"
                       >
-                        {{ source.source_name }}
+                        {{ getLeadSourceDisplayName(source) }}
                       </option>
                     </optgroup>
                     <optgroup label="System">
@@ -289,7 +318,7 @@
                         :key="source.id" 
                         :value="source.id"
                       >
-                        {{ source.source_name }}
+                        {{ getLeadSourceDisplayName(source) }}
                       </option>
                     </optgroup>
                     <optgroup label="Outbound">
@@ -298,7 +327,7 @@
                         :key="source.id" 
                         :value="source.id"
                       >
-                        {{ source.source_name }}
+                        {{ getLeadSourceDisplayName(source) }}
                       </option>
                     </optgroup>
                     <optgroup label="Other">
@@ -307,18 +336,10 @@
                         :key="source.id" 
                         :value="source.id"
                       >
-                        {{ source.source_name }}
+                        {{ getLeadSourceDisplayName(source) }}
                       </option>
                     </optgroup>
                   </select>
-                  <p class="text-xs text-gray-500 mt-1">
-                    <span v-if="isPartnerOrDirector" class="text-green-600">
-                      Will auto-set to "Internal Referral" if not selected
-                    </span>
-                    <span v-else>
-                      Optional - helps track marketing effectiveness
-                    </span>
-                  </p>
                 </div>
               </div>
             </div>
@@ -331,7 +352,6 @@
                 <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">3</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Client Details</h2>
-                  <p class="text-sm text-gray-500">Select or request a new client</p>
                 </div>
               </div>
               <span v-if="isSectionComplete('section-3')" class="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Complete</span>
@@ -340,40 +360,37 @@
               <div class="space-y-6">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Select Client or Prospect <span class="text-red-500">*</span></label>
-                  <div class="flex gap-3">
-                    <select 
-                      v-model="smartSelectValue"
-                      @change="onSmartSelect"
-                      class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Search or select...</option>
-                      
-                      <!-- PRMS Clients Section -->
-                      <optgroup label="PRMS Clients">
-                        <option v-for="client in clients" :key="'c-'+client.id" :value="'client:'+client.id">
-                          {{ client.client_name || client.name }} ({{ client.client_code || client.code || '' }})
-                        </option>
-                      </optgroup>
-                      
-                      <!-- Prospects Section (CRM) -->
-                      <optgroup v-if="prospects.length > 0" label="Prospects (CRM)">
-                        <option v-for="prospect in prospects" :key="'p-'+prospect.id" :value="'prospect:'+prospect.id">
-                          {{ prospect.prospect_name }} [Prospect]
-                        </option>
-                      </optgroup>
-                      
-                      <!-- Create New Option -->
-                      <optgroup label="New">
-                        <option value="new:prospect">+ Create New Prospect</option>
-                      </optgroup>
-                    </select>
+                  <div class="flex flex-col gap-1.5">
+                    <ClientProspectCombobox
+                      :model-value="smartSelectValue"
+                      :clients="clients"
+                      :prospects="prospects"
+                      :loading="clientsLoading"
+                      :error="clientsError"
+                      :disabled="clientsLoading"
+                      placeholder="Search by name or code..."
+                      aria-required="true"
+                      @update:model-value="(v) => { smartSelectValue = v; onSmartSelect() }"
+                    />
+                    <p v-if="clientsLoading" class="text-xs text-gray-500" aria-live="polite">Loading clients...</p>
+                    <p v-else-if="clientsError" class="text-xs text-red-600 flex items-center gap-2" role="alert" aria-live="assertive">
+                      {{ clientsError }}
+                      <button
+                        type="button"
+                        @click="fetchClients"
+                        class="font-medium text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Retry
+                      </button>
+                    </p>
+                    <template v-else>
+                      <p v-if="selectedEntityType === 'prospect'" class="text-xs text-gray-500">Prospect from CRM.</p>
+                      <p v-else-if="selectedEntityType === 'client' && formData.client_id" class="text-xs text-gray-500">Existing client from PRMS.</p>
+                    </template>
                   </div>
-                  <!-- Selection indicator -->
-                  <p v-if="selectedEntityType === 'prospect'" class="mt-1.5 text-xs text-blue-600">
-                    Using prospect from CRM. A COI request will be linked to this prospect.
-                  </p>
                 </div>
-                
+
+                <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wide mt-6 mb-2">Identification</h4>
                 <div class="grid grid-cols-3 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Client Code</label>
@@ -392,22 +409,7 @@
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select...</option>
-                      <option>W.L.L.</option>
-                      <option>W.L.L. Holding</option>
-                      <option>K.S.C.C.</option>
-                      <option>K.S.C.C. (Holding)</option>
-                      <option>K.S.C.P.</option>
-                      <option>K.S.C.P. (Holding)</option>
-                      <option>S.C.P. (Holding)</option>
-                      <option>S.P.C.</option>
-                      <option>S.P.C. Holding</option>
-                      <option>Portfolio</option>
-                      <option>Fund</option>
-                      <option>Scheme</option>
-                      <option>Joint Venture Company</option>
-                      <option>Solidarity Company</option>
-                      <option>Simple Rec. Company</option>
-                      <option>Shares Rec. Company</option>
+                      <option v-for="ct in CLIENT_TYPES" :key="ct" :value="ct">{{ ct }}</option>
                     </select>
                   </div>
                   <div>
@@ -417,12 +419,7 @@
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select...</option>
-                      <option>MOCI</option>
-                      <option>MOCI & CMA</option>
-                      <option>MOCI & CBK</option>
-                      <option>MOCI, CMA & CBK</option>
-                      <option>MOCI & Boursa</option>
-                      <option>Governmental Authority</option>
+                      <option v-for="rb in REGULATED_BODIES" :key="rb" :value="rb">{{ rb }}</option>
                     </select>
                   </div>
                 </div>
@@ -462,13 +459,13 @@
                     >
                       <option value="">Select...</option>
                       <option>New Client</option>
-                      <option>Current Client</option>
-                      <option>Potential Client</option>
-                      <option>Old Client</option>
+                      <option>Existing Client</option>
+                      <option>Former Client</option>
                     </select>
                   </div>
                 </div>
 
+                <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wide mt-6 mb-2">PIE & structure</h4>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">PIE Status</label>
                   <div class="flex items-center space-x-6">
@@ -484,16 +481,12 @@
                 </div>
 
                 <!-- Group Structure Verification (Required for PIE/Audit) -->
-                <div v-if="showGroupStructureSection" class="col-span-2">
-                  <div class="border border-blue-200 bg-blue-50 rounded-lg p-4">
+                <div v-if="showGroupStructureSection" class="mt-4">
+                  <div class="border border-gray-200 bg-gray-50 rounded-lg p-4">
                     <label class="block text-sm font-semibold text-gray-900 mb-2">
                       Corporate Group Structure
                       <span class="text-red-500">*</span>
                     </label>
-                    <p class="text-xs text-gray-600 mb-3">
-                      Does this client belong to a larger corporate group or holding company?
-                    </p>
-                    
                     <div class="space-y-2">
                       <label class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
                              :class="formData.group_structure === 'standalone' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
@@ -501,7 +494,6 @@
                                class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
                         <div class="ml-3">
                           <span class="text-sm font-medium text-gray-900">Standalone Entity</span>
-                          <p class="text-xs text-gray-500">Not part of a larger group</p>
                         </div>
                       </label>
                       
@@ -511,24 +503,22 @@
                                class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
                         <div class="ml-3">
                           <span class="text-sm font-medium text-gray-900">Part of Corporate Group</span>
-                          <p class="text-xs text-gray-500">This entity has a parent or holding company</p>
                         </div>
                       </label>
                       
-                      <label class="flex items-center p-3 bg-white border-2 border-amber-200 rounded-lg cursor-pointer transition-all"
-                             :class="formData.group_structure === 'research_required' ? 'border-amber-500 bg-amber-50' : 'hover:border-amber-300'">
+                      <label class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
+                             :class="formData.group_structure === 'research_required' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
                         <input type="radio" v-model="formData.group_structure" value="research_required" 
-                               class="w-4 h-4 text-amber-600 border-gray-300 focus:ring-amber-500"/>
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
                         <div class="ml-3 flex-1">
                           <span class="text-sm font-medium text-gray-900">Not Sure</span>
-                          <p class="text-xs text-gray-500">Compliance will verify during review</p>
                         </div>
                         <span class="px-2 py-1 text-xs bg-amber-100 text-amber-800 rounded">May delay approval</span>
                       </label>
                     </div>
                     
                     <!-- Parent Company Input (shown when has_parent selected) -->
-                    <div v-if="formData.group_structure === 'has_parent'" class="mt-4 pt-4 border-t border-blue-200">
+                    <div v-if="formData.group_structure === 'has_parent'" class="mt-4 pt-4 border-t border-gray-200">
                       <label class="block text-sm font-medium text-gray-700 mb-1.5">
                         Parent Company Name <span class="text-red-500">*</span>
                       </label>
@@ -538,8 +528,9 @@
                         class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="e.g., ABC Holdings, XYZ Group Ltd..."
                         required
+                        aria-required="true"
                       />
-                      <p class="text-xs text-gray-500 mt-1">Enter the name of the immediate parent or holding company</p>
+                      <p v-if="formData.group_structure === 'has_parent' && parentCompanyError" class="text-xs text-red-500 mt-1" role="alert">{{ parentCompanyError }}</p>
                     </div>
                   </div>
                 </div>
@@ -548,39 +539,19 @@
                 <div v-else class="space-y-4">
                   <!-- Company Type -->
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                      Company Type
-                      <span class="text-gray-400 font-normal text-xs ml-1">(Industry Standard Classification)</span>
-                    </label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Company Type</label>
                     <select
                       v-model="formData.company_type"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       @change="onCompanyTypeChange"
                     >
                       <option value="">Select company type...</option>
-                      <option value="Standalone">Standalone (Independent Entity)</option>
-                      <option value="Subsidiary">Subsidiary (≥50% owned by parent)</option>
-                      <option value="Affiliate">Affiliate (20-50% owned, significant influence)</option>
-                      <option value="Sister">Sister Company (Shares same parent)</option>
-                      <option value="Parent">Parent Company (Controls subsidiaries)</option>
+                      <option value="Standalone">Standalone</option>
+                      <option value="Subsidiary">Subsidiary</option>
+                      <option value="Affiliate">Affiliate</option>
+                      <option value="Sister">Sister</option>
+                      <option value="Parent">Parent</option>
                     </select>
-                    <p v-if="formData.company_type" class="text-xs text-gray-500 mt-1">
-                      <span v-if="formData.company_type === 'Subsidiary'">
-                        Requires parent company with ≥50% ownership
-                      </span>
-                      <span v-else-if="formData.company_type === 'Affiliate'">
-                        Requires parent company with 20-50% ownership (significant influence)
-                      </span>
-                      <span v-else-if="formData.company_type === 'Sister'">
-                        Requires parent company (both entities share same parent)
-                      </span>
-                      <span v-else-if="formData.company_type === 'Standalone'">
-                        Independent entity with no parent company
-                      </span>
-                      <span v-else-if="formData.company_type === 'Parent'">
-                        This entity controls subsidiaries
-                      </span>
-                    </p>
                   </div>
 
                   <!-- Parent Company (shown when needed) -->
@@ -595,16 +566,14 @@
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter parent company name..."
                       :required="formData.company_type !== 'Standalone'"
+                      :aria-required="formData.company_type !== 'Standalone' && formData.company_type !== 'Parent'"
                     />
-                    <p class="text-xs text-gray-500 mt-1">Name of the controlling parent entity</p>
+                    <p v-if="(formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate' || formData.company_type === 'Sister') && parentCompanyError" class="text-xs text-red-500 mt-1" role="alert">{{ parentCompanyError }}</p>
                   </div>
 
                   <!-- Ownership Percentage (for Subsidiary/Affiliate) -->
                   <div v-if="formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate'">
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                      Ownership Percentage (%)
-                      <span class="text-gray-400 font-normal text-xs ml-1">(Industry Standard: ≥50% = Subsidiary, 20-50% = Affiliate)</span>
-                    </label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Ownership Percentage (%)</label>
                     <input
                       v-model.number="formData.ownership_percentage"
                       type="number"
@@ -613,44 +582,60 @@
                       step="0.01"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="e.g., 75.5"
+                      :required="formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate'"
+                      :aria-required="formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate'"
                     />
                     <p class="text-xs text-gray-500 mt-1">
-                      <span v-if="formData.company_type === 'Subsidiary'">
-                        Must be ≥50% for control (Subsidiary)
-                      </span>
-                      <span v-else>
-                        Must be 20-50% for significant influence (Affiliate)
-                      </span>
+                      <span v-if="formData.company_type === 'Subsidiary'">Subsidiary: 50–100%.</span>
+                      <span v-else-if="formData.company_type === 'Affiliate'">Affiliate: 20–49%.</span>
                     </p>
+                    <p v-if="ownershipPercentageError" class="text-xs text-red-500 mt-1" role="alert">{{ ownershipPercentageError }}</p>
                   </div>
                 </div>
               </div>
             </div>
           </section>
 
-          <!-- Section 4: Service Information -->
+          <!-- Section 4: Service Information (includes International Operations) -->
           <section id="section-4" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
                 <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">4</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Service Information</h2>
-                  <p class="text-sm text-gray-500">Details about the requested service</p>
                 </div>
               </div>
               <span v-if="isSectionComplete('section-4')" class="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Complete</span>
             </div>
             <div class="p-6 space-y-6">
+              <!-- International Operations (at top so Line of Service can reflect it) -->
+              <div class="pb-4 border-b border-gray-200">
+                <label class="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    v-model="formData.international_operations"
+                    :disabled="!isInternationalOperationsAllowed"
+                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span class="ml-2 text-sm font-medium text-gray-700">Client has international operations</span>
+                </label>
+                <p v-if="!isInternationalOperationsAllowed" class="mt-2 text-xs text-gray-500 ml-6">Requires Subsidiary or Affiliate.</p>
+              </div>
+
+              <!-- Line of Service (local request) - always shown -->
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Category <span class="text-red-500">*</span></label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                    Line of Service (local request) <span class="text-red-500">*</span>
+                  </label>
                   <select 
                     v-model="formData.service_category"
                     @change="onServiceCategoryChange"
                     :disabled="loadingServices || !formData.entity"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    aria-required="true"
                   >
-                    <option value="">{{ loadingServices ? 'Loading services...' : (formData.entity ? 'Select category...' : 'Select entity first') }}</option>
+                    <option value="">{{ loadingServices ? 'Loading services...' : (formData.entity ? 'Select line of service...' : 'Select entity first') }}</option>
                     <option 
                       v-for="category in serviceTypes" 
                       :key="category.category" 
@@ -661,14 +646,15 @@
                   </select>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Type <span class="text-red-500">*</span></label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Type (local) <span class="text-red-500">*</span></label>
                   <select 
                     v-model="formData.service_type"
                     @change="onServiceTypeChange"
                     :disabled="loadingServices || !formData.entity || !formData.service_category"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    aria-required="true"
                   >
-                    <option value="">{{ formData.service_category ? 'Select service type...' : 'Select category first' }}</option>
+                    <option value="">{{ formData.service_category ? 'Select specific service type...' : 'Select line of service first' }}</option>
                     <option 
                       v-for="service in filteredServicesByCategory" 
                       :key="service.value || service"
@@ -680,9 +666,48 @@
                 </div>
               </div>
 
+              <!-- Line of Service (BDO Global) - when international operations -->
+              <div v-if="formData.international_operations" class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Line of Service (BDO Global)</label>
+                  <select 
+                    v-model="formData.global_service_category"
+                    @change="onGlobalServiceCategoryChange"
+                    :disabled="loadingGlobalServices || !formData.entity"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  >
+                    <option value="">{{ loadingGlobalServices ? 'Loading...' : (formData.entity ? 'Select BDO Global line of service...' : 'Select entity first') }}</option>
+                    <option 
+                      v-for="category in globalServiceTypes" 
+                      :key="category.category" 
+                      :value="category.category"
+                    >
+                      {{ category.category }}
+                    </option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Type (BDO Global)</label>
+                  <select 
+                    v-model="formData.global_service_type"
+                    :disabled="loadingGlobalServices || !formData.entity || !formData.global_service_category"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  >
+                    <option value="">{{ formData.global_service_category ? 'Select BDO Global service type...' : 'Select line of service first' }}</option>
+                    <option 
+                      v-for="service in filteredGlobalServicesByCategory" 
+                      :key="service.value || service"
+                      :value="service.value || service"
+                    >
+                      {{ service.label || service }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
               <!-- Sub-category (shown for Business/Asset Valuation with 3 radio options) -->
-              <div v-if="availableSubCategories.length > 0" class="space-y-3">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Service Sub-Category <span class="text-red-500">*</span></label>
+              <div v-if="availableSubCategories.length > 0" class="space-y-3" role="group" aria-required="true" aria-labelledby="service-subcategory-label">
+                <label id="service-subcategory-label" class="block text-sm font-medium text-gray-700 mb-2">Service Sub-Category <span class="text-red-500">*</span></label>
                 <div class="grid grid-cols-3 gap-4">
                   <label 
                     v-for="subCat in availableSubCategories" 
@@ -706,9 +731,16 @@
                 <textarea
                   v-model="formData.service_description"
                   rows="4"
+                  maxlength="2000"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Describe the services to be provided..."
+                  aria-required="true"
                 ></textarea>
+                <div class="flex items-center justify-between mt-1">
+                  <p v-if="serviceDescriptionError" class="text-xs text-red-500" role="alert">{{ serviceDescriptionError }}</p>
+                  <span v-else></span>
+                  <span class="text-xs text-gray-400">{{ (formData.service_description || '').length }} / 2000</span>
+                </div>
               </div>
 
               <div class="grid grid-cols-2 gap-4">
@@ -725,6 +757,7 @@
                   <input
                     v-model="formData.requested_service_period_end"
                     type="date"
+                    :min="formData.requested_service_period_start || undefined"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -732,24 +765,14 @@
 
               <!-- External Deadline (Priority Scoring) -->
               <div class="border-t border-gray-200 pt-6 mt-4">
-                <div class="flex items-start gap-3 mb-4">
-                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 class="text-sm font-medium text-gray-900">External Deadline</h3>
-                    <p class="text-xs text-gray-500">If this request has an external deadline (e.g., regulatory filing, client commitment), specify it here. This helps prioritize the request appropriately.</p>
-                  </div>
-                </div>
-                
+                <h3 class="text-sm font-medium text-gray-900 mb-4">External Deadline</h3>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Deadline Date</label>
                     <input
                       v-model="formData.external_deadline"
                       type="date"
+                      :min="todayIso"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -759,35 +782,31 @@
                       v-model="formData.deadline_reason"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="">None / No external deadline</option>
-                      <option value="Regulatory Filing">Regulatory Filing</option>
-                      <option value="Client Board Meeting">Client Board Meeting</option>
-                      <option value="AGM/Shareholder Meeting">AGM/Shareholder Meeting</option>
-                      <option value="Statutory Requirement">Statutory Requirement</option>
-                      <option value="Client Contract">Client Contract Commitment</option>
-                      <option value="Tender/Bid Deadline">Tender/Bid Deadline</option>
-                      <option value="Other">Other</option>
+                      <option v-for="dr in DEADLINE_REASONS" :key="dr.value || 'none'" :value="dr.value">{{ dr.label }}</option>
                     </select>
                   </div>
                 </div>
-                <p v-if="formData.external_deadline" class="mt-2 text-xs text-amber-600">
-                  <svg class="inline-block w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  External deadline will be factored into request prioritization.
-                </p>
+              </div>
+
+              <!-- Global COI Form (when international operations) -->
+              <div v-if="formData.international_operations" class="border-t border-gray-200 pt-6 mt-4">
+                <InternationalOperationsForm
+                  :request-id="formData.id"
+                  :initial-data="globalCOIFormData"
+                  :countries="countries"
+                  @update:data="handleGlobalCOIFormUpdate"
+                />
               </div>
             </div>
           </section>
 
-          <!-- Section 5: Ownership Structure -->
-          <section id="section-5" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
+          <!-- Section 5: Ownership Structure (hidden when international; required for local-only) -->
+          <section v-if="!formData.international_operations" id="section-5" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
                 <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">5</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Ownership Structure</h2>
-                  <p class="text-sm text-gray-500">Client ownership and related entities</p>
                 </div>
               </div>
               <span v-if="isSectionComplete('section-5')" class="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Complete</span>
@@ -795,12 +814,96 @@
             <div class="p-6 space-y-6">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Full Ownership Structure</label>
-                <textarea
-                  v-model="formData.full_ownership_structure"
-                  rows="4"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Describe the ownership structure including shareholders and percentages..."
-                ></textarea>
+                <div class="space-y-3">
+                  <div v-if="ownershipRows.length > 0" class="rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                      <thead class="bg-gray-100">
+                        <tr>
+                          <th scope="col" class="px-3 py-2 text-left font-medium text-gray-700">Name</th>
+                          <th scope="col" class="px-3 py-2 text-left font-medium text-gray-700 w-28">%</th>
+                          <th scope="col" class="w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-gray-200 bg-white">
+                        <tr v-for="(row, idx) in ownershipRows" :key="idx">
+                          <td class="px-3 py-2">
+                            <input
+                              v-model="row.name"
+                              type="text"
+                              class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Entity or shareholder"
+                            />
+                          </td>
+                          <td class="px-3 py-2">
+                            <input
+                              v-model="row.percentage"
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="0–100"
+                            />
+                          </td>
+                          <td class="px-2 py-2">
+                            <button
+                              type="button"
+                              @click="removeOwnershipRow(idx)"
+                              class="text-gray-400 hover:text-red-600 p-1"
+                              aria-label="Remove row"
+                            >
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <div class="px-3 py-2 border-t border-gray-200 bg-gray-50">
+                      <button
+                        type="button"
+                        @click="addOwnershipRow"
+                        class="text-sm font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        + Add row
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    v-else
+                    type="button"
+                    @click="addOwnershipRow"
+                    class="flex items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-3 text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-800"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8v8H4V4h8m8 8h-8V4H4v8h8z"/>
+                    </svg>
+                    Add shareholder / ownership row
+                  </button>
+                </div>
+                <div class="mt-3">
+                  <div v-if="ownershipRows.length > 0" class="flex items-center justify-between mb-1">
+                    <p class="text-xs text-gray-500">Editable above via rows, or clear rows to type freely.</p>
+                    <button
+                      type="button"
+                      @click="ownershipRows = []"
+                      class="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Clear rows
+                    </button>
+                  </div>
+                  <textarea
+                    v-model="formData.full_ownership_structure"
+                    rows="4"
+                    :readonly="ownershipRows.length > 0"
+                    :class="[
+                      'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                      ownershipRows.length > 0 ? 'bg-gray-50 cursor-not-allowed' : ''
+                    ]"
+                    :placeholder="ownershipRows.length > 0 ? 'Populated from rows above' : 'Or describe the ownership structure in your own words (shareholders and percentages)...'"
+                  ></textarea>
+                </div>
               </div>
 
               <div>
@@ -822,79 +925,49 @@
                 <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">6</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Signatories</h2>
-                  <p class="text-sm text-gray-500">Authorized signatories for the engagement</p>
                 </div>
               </div>
               <span v-if="isSectionComplete('section-6')" class="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Complete</span>
             </div>
-            <div class="p-6">
-              <div class="bg-gray-50 rounded-lg p-4 text-center text-gray-500 text-sm">
-                <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                </svg>
-                <p>Signatories will be assigned during the approval process</p>
-                <p class="text-xs mt-1">Based on the service type and client requirements</p>
+            <div class="p-6 space-y-4">
+              <div v-if="isTeamMember && directorName" class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+                <p class="text-sm text-gray-700">
+                  <span class="font-medium text-gray-900">Primary approver:</span> {{ directorName }}
+                </p>
+              </div>
+              <div v-else-if="isDirector" class="rounded-lg bg-green-50 border border-green-200 px-4 py-3">
+                <p class="text-sm text-green-800">Your requests go directly to Compliance.</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Backup approver (optional)</label>
+                <select
+                  v-model="formData.backup_approver_id"
+                  class="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">None — use default escalation</option>
+                  <option
+                    v-for="approver in approverUsers"
+                    :key="approver.id"
+                    :value="approver.id"
+                  >
+                    {{ approver.name }} ({{ approver.role }}{{ approver.department ? `, ${approver.department}` : '' }})
+                  </option>
+                </select>
               </div>
             </div>
           </section>
 
-          <!-- Section 7: International Operations -->
-          <section id="section-7" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
+          <!-- Section 7: Director Approval Document (Team Members Only) -->
+          <section v-if="isTeamMember" id="section-7" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
                 <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
                 <div>
-                  <h2 class="text-base font-semibold text-gray-900">International Operations</h2>
-                  <p class="text-sm text-gray-500">Cross-border and global clearance requirements</p>
-                </div>
-              </div>
-              <span v-if="isSectionComplete('section-7')" class="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Complete</span>
-            </div>
-            <div class="p-6 space-y-6">
-              <div>
-                <label class="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    v-model="formData.international_operations"
-                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span class="ml-2 text-sm text-gray-700">Client has international operations</span>
-                </label>
-                <p class="mt-2 text-xs text-gray-500 ml-6">
-                  If checked, you'll need to complete the Global COI Form below for submission to BDO Global COI Portal.
-                </p>
-              </div>
-
-              <!-- Global COI Form Card (shown when international_operations is true) -->
-              <div v-if="formData.international_operations" class="mt-6">
-                <InternationalOperationsForm
-                  :request-id="formData.id"
-                  :initial-data="globalCOIFormData"
-                  :countries="countries"
-                  @update:data="handleGlobalCOIFormUpdate"
-                />
-              </div>
-            </div>
-          </section>
-
-          <!-- Section 8: Director Approval Document (Team Members Only) -->
-          <section v-if="isTeamMember" id="section-8" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
-            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">8</span>
-                <div>
                   <h2 class="text-base font-semibold text-gray-900">Director Approval Document</h2>
-                  <p class="text-sm text-gray-500">Upload director's written approval (optional)</p>
                 </div>
               </div>
             </div>
             <div class="p-6">
-              <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <p class="text-sm text-blue-700">
-                  <strong>Note:</strong> If you have director's written approval document, you can upload it here. 
-                  Alternatively, your director can approve this request in-system after submission.
-                </p>
-              </div>
               <FileUpload
                 v-if="formData.id"
                 :request-id="formData.id"
@@ -922,7 +995,7 @@
     <ConfirmModal 
       :is-open="showConfirmModal"
       title="Submit COI Request"
-      message="Are you sure you want to submit this COI request? Once submitted, it will be sent for approval."
+      message="Submit this request? It will be sent for approval."
       confirm-text="Submit Request"
       cancel-text="Review Again"
       type="success"
@@ -931,150 +1004,52 @@
       @close="showConfirmModal = false"
     />
     
-    <!-- Duplicate Justification Modal -->
-    <div v-if="showJustificationModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full">
-        <div class="p-6 border-b border-gray-200">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-              <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-              </svg>
-            </div>
-            <h3 class="text-lg font-semibold text-gray-900">Duplicate Detected</h3>
-          </div>
-        </div>
-        
-        <div class="p-6 space-y-4">
-          <p class="text-sm text-gray-600">
-            A proposal or engagement already exists for this client/service combination. 
-            To proceed, please provide a business justification.
-          </p>
-          
-          <!-- Show detected duplicates -->
-          <div v-if="detectedDuplicates.length > 0" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p class="text-sm font-medium text-amber-800 mb-2">Existing records found:</p>
-            <ul class="text-sm text-amber-700 space-y-1">
-              <li v-for="(dup, idx) in detectedDuplicates" :key="idx" class="flex items-start gap-2">
-                <span class="text-amber-500">•</span>
-                <span>{{ dup.client_name || dup.entity_name }} - {{ dup.service_type || dup.type }} ({{ dup.status }})</span>
-              </li>
-            </ul>
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Business Justification <span class="text-red-500">*</span>
-            </label>
-            <textarea
-              v-model="duplicateJustification"
-              rows="4"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              placeholder="Explain why this submission should proceed despite the existing record..."
-            ></textarea>
-            <p class="mt-1 text-xs text-gray-500">
-              This justification will be reviewed by Compliance and attached to the request.
-            </p>
-          </div>
-        </div>
-        
-        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-          <button
-            @click="showJustificationModal = false; duplicateJustification = ''"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            @click="submitWithJustification"
-            :disabled="!duplicateJustification.trim() || loading"
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-          >
-            <span v-if="loading">Submitting...</span>
-            <span v-else>Submit with Justification</span>
-          </button>
-        </div>
-      </div>
-    </div>
+    <DuplicateJustificationModal
+      :open="showJustificationModal"
+      :justification="duplicateJustification"
+      @update:justification="duplicateJustification = $event"
+      :duplicates="detectedDuplicates"
+      :loading="loading"
+      @cancel="showJustificationModal = false; duplicateJustification = ''"
+      @confirm="submitWithJustification"
+    />
+
+    <CreateProspectModal
+      :open="showCreateProspectModal"
+      :prospect="newProspect"
+      @update:prospect="newProspect = $event"
+      :creating="creatingProspect"
+      @cancel="showCreateProspectModal = false"
+      @confirm="createAndSelectProspect"
+    />
   </div>
 
-  <!-- Create Prospect Modal (Smart Suggest) -->
-  <div v-if="showCreateProspectModal" class="fixed inset-0 z-50 overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showCreateProspectModal = false"></div>
-      
-      <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-auto z-10">
-        <div class="p-6 border-b border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900">Create New Prospect</h3>
-          <p class="mt-1 text-sm text-gray-500">Add a new prospect to the CRM. This prospect will be automatically selected for your COI request.</p>
-        </div>
-        
-        <div class="p-6 space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Prospect Name <span class="text-red-500">*</span></label>
-            <input
-              v-model="newProspect.prospect_name"
-              type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter prospect name"
-            />
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Industry</label>
-            <select
-              v-model="newProspect.industry"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select industry...</option>
-              <option value="Financial Services">Financial Services</option>
-              <option value="Healthcare">Healthcare</option>
-              <option value="Technology">Technology</option>
-              <option value="Manufacturing">Manufacturing</option>
-              <option value="Retail">Retail</option>
-              <option value="Real Estate">Real Estate</option>
-              <option value="Energy">Energy</option>
-              <option value="Government">Government</option>
-              <option value="Education">Education</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Commercial Registration</label>
-            <input
-              v-model="newProspect.commercial_registration"
-              type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Optional"
-            />
-          </div>
-        </div>
-        
-        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-          <button
-            @click="showCreateProspectModal = false"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            @click="createAndSelectProspect"
-            :disabled="!newProspect.prospect_name.trim() || creatingProspect"
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-          >
-            <span v-if="creatingProspect">Creating...</span>
-            <span v-else>Create & Select</span>
-          </button>
-        </div>
+  <!-- Unsaved changes leave confirmation -->
+  <div v-if="showLeaveConfirm" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">Unsaved changes</h3>
+      <p class="text-sm text-gray-600 mb-4">You have unsaved changes. Leave anyway?</p>
+      <div class="flex gap-3 justify-end">
+        <button
+          @click="confirmLeave(false)"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+        >
+          Stay
+        </button>
+        <button
+          @click="confirmLeave(true)"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+        >
+          Leave
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
 import { useAuthStore } from '@/stores/auth'
@@ -1082,9 +1057,14 @@ import ToastContainer from '@/components/ui/ToastContainer.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import FileUpload from '@/components/FileUpload.vue'
 import InternationalOperationsForm from '@/components/coi/InternationalOperationsForm.vue'
+import ClientProspectCombobox from '@/components/coi/ClientProspectCombobox.vue'
+import DuplicateJustificationModal from '@/components/coi/DuplicateJustificationModal.vue'
+import CreateProspectModal from '@/components/coi/CreateProspectModal.vue'
+import { CLIENT_TYPES, REGULATED_BODIES, DEADLINE_REASONS } from '@/constants/coiFormOptions'
 import api from '@/services/api'
 
 const router = useRouter()
+const route = useRoute()
 const coiStore = useCOIRequestsStore()
 const authStore = useAuthStore()
 const { success, error: showError, warning, info } = useToast()
@@ -1092,15 +1072,32 @@ const { success, error: showError, warning, info } = useToast()
 const loading = ref(false)
 const showConfirmModal = ref(false)
 const activeSection = ref('section-1')
-const totalSteps = 7
+
+// Save state for header indicator
+const saveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
+const lastSavedAt = ref<Date | null>(null)
+const isDirty = ref(false)
+const showLeaveConfirm = ref(false)
+let pendingLeaveNext: ((value: boolean) => void) | null = null
+
+function formatSaveTime(d: Date): string {
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+}
+
+const formLoadError = ref<string | null>(null)
 
 const clients = ref<any[]>([])
+const clientsLoading = ref(false)
+const clientsError = ref('')
 const prospects = ref<any[]>([]) // Prospects from CRM for Smart Suggest
 const selectedClientCode = ref('')
 const directorName = ref('')
 const allUsers = ref<any[]>([])
 const entities = ref<any[]>([])
 const serviceTypes = ref<any[]>([])
+const globalServiceTypes = ref<any[]>([])
+const loadingGlobalServices = ref(false)
+const approverUsers = ref<{ id: number; name: string; email: string; role: string; department?: string }[]>([])
 const countries = ref<any[]>([])
 const serviceSubCategories = ref<any>({}) // Store sub-categories by service type
 const loadingServices = ref(false)
@@ -1151,12 +1148,65 @@ const leadSourcesByCategory = computed(() => {
   return grouped
 })
 
+// Lead source display label: mask "Client Intelligence Module" as "System generated" in UI only
+function getLeadSourceDisplayName(source: { source_code?: string; source_name?: string }) {
+  if (source?.source_code === 'insights_module') return 'System generated'
+  return source?.source_name ?? ''
+}
+
+// Structured ownership rows (Section 5) – serialized into full_ownership_structure
+const ownershipRows = ref<{ name: string; percentage: string }[]>([])
+
+function addOwnershipRow() {
+  ownershipRows.value.push({ name: '', percentage: '' })
+}
+
+function removeOwnershipRow(idx: number) {
+  ownershipRows.value.splice(idx, 1)
+}
+
+// Parse "Name: X%" lines from draft into ownership rows (optional)
+function parseOwnershipRowsFromText(text: string | null | undefined): { name: string; percentage: string }[] {
+  if (!text || !String(text).trim()) return []
+  const lines = String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const rows: { name: string; percentage: string }[] = []
+  const re = /^(.+?):\s*([\d.]+)\s*%?$/
+  for (const line of lines) {
+    const m = line.match(re)
+    if (m) rows.push({ name: m[1].trim(), percentage: m[2] })
+  }
+  return rows
+}
+
+watch(
+  ownershipRows,
+  () => {
+    if (ownershipRows.value.length === 0) return
+    const lines = ownershipRows.value.map(
+      (r) => `${(r.name && r.name.trim()) || '—'}: ${r.percentage !== '' && r.percentage != null ? r.percentage : '0'}%`
+    )
+    formData.value.full_ownership_structure = lines.join('\n')
+  },
+  { deep: true }
+)
+
 // Get services filtered by selected category
 const filteredServicesByCategory = computed(() => {
   if (!formData.value.service_category || !serviceTypes.value.length) {
     return []
   }
   const selectedCategory = serviceTypes.value.find((cat: any) => cat.category === formData.value.service_category)
+  if (!selectedCategory) {
+    return []
+  }
+  return selectedCategory.services || []
+})
+
+const filteredGlobalServicesByCategory = computed(() => {
+  if (!formData.value.global_service_category || !globalServiceTypes.value.length) {
+    return []
+  }
+  const selectedCategory = globalServiceTypes.value.find((cat: any) => cat.category === formData.value.global_service_category)
   if (!selectedCategory) {
     return []
   }
@@ -1210,6 +1260,8 @@ const formData = ref({
   service_type: '',
   service_category: '',
   service_sub_category: '',
+  global_service_category: '',
+  global_service_type: '',
   service_description: '',
   requested_service_period_start: '',
   requested_service_period_end: '',
@@ -1222,6 +1274,7 @@ const formData = ref({
   foreign_subsidiaries: '',
   global_clearance_status: 'Not Required',
   global_coi_form_data: null as any,
+  backup_approver_id: null as number | null,  // Backup approver when primary is NA (Goal 3)
   lead_source_id: null as number | null  // Lead source for proposals (CRM feature)
 })
 
@@ -1251,8 +1304,8 @@ function populateGlobalCOIForm() {
     clientName: formData.value.client_name || selectedClient?.client_name || '',
     ultimateParentCompany: formData.value.parent_company || '',
     location: formData.value.client_location || selectedClient?.location || 'State of Kuwait',
-    clientType: formData.value.relationship_with_client === 'Existing Client' ? 'Existing' : 
-                formData.value.relationship_with_client === 'Potential Client' ? 'Potential' : 
+    clientType: formData.value.relationship_with_client === 'Existing Client' ? 'Existing' :
+                (formData.value.relationship_with_client === 'Potential Client' || formData.value.relationship_with_client === 'New Client') ? 'Potential' :
                 formData.value.relationship_with_client || '',
     clientIsPIE: formData.value.pie_status === 'Yes' ? 'Yes' : 
                  formData.value.pie_status === 'No' ? 'No' : '',
@@ -1282,7 +1335,6 @@ function populateGlobalCOIForm() {
   globalCOIFormData.value = mappedData
   formData.value.global_coi_form_data = mappedData
   
-  console.log('[Frontend] Auto-populated Global COI Form from main form data:', mappedData)
 }
 
 const sections = [
@@ -1291,9 +1343,36 @@ const sections = [
   { id: 'section-3', number: 3, label: 'Client Details' },
   { id: 'section-4', number: 4, label: 'Service Info' },
   { id: 'section-5', number: 5, label: 'Ownership' },
-  { id: 'section-6', number: 6, label: 'Signatories' },
-  { id: 'section-7', number: 7, label: 'International' }
+  { id: 'section-6', number: 6, label: 'Signatories' }
 ]
+
+// Inline validation messages (real-time)
+const ownershipPercentageError = computed(() => {
+  const ct = formData.value.company_type
+  if (ct !== 'Subsidiary' && ct !== 'Affiliate') return ''
+  const pct = formData.value.ownership_percentage
+  const num = pct !== null && pct !== undefined ? Number(pct) : NaN
+  if (isNaN(num) || num === null || num === undefined) return 'Ownership percentage is required.'
+  if (ct === 'Subsidiary' && (num < 50 || num > 100)) return 'Subsidiary requires 50–100%.'
+  if (ct === 'Affiliate' && (num < 20 || num >= 50)) return 'Affiliate requires 20–49%.'
+  return ''
+})
+
+const parentCompanyError = computed(() => {
+  const needsParent =
+    formData.value.group_structure === 'has_parent' ||
+    (formData.value.company_type && formData.value.company_type !== 'Standalone' && formData.value.company_type !== 'Parent')
+  if (!needsParent) return ''
+  const val = formData.value.parent_company
+  if (!val || !String(val).trim()) return 'Parent company is required.'
+  return ''
+})
+
+const serviceDescriptionError = computed(() => {
+  const val = formData.value.service_description
+  if (!val || !String(val).trim()) return 'Service description is required.'
+  return ''
+})
 
 // Check if a section is complete
 function isSectionComplete(sectionId: string): boolean {
@@ -1302,31 +1381,70 @@ function isSectionComplete(sectionId: string): boolean {
       return !!(formData.value.designation && formData.value.entity)
     case 'section-2':
       return !!(formData.value.requested_document)
-    case 'section-3':
-      return !!(formData.value.client_id)
-    case 'section-4':
-      return !!(formData.value.service_type && formData.value.service_description)
+    case 'section-3': {
+      if (!formData.value.client_id) return false
+      // Subsidiary/Affiliate require parent company and ownership % in valid range
+      const ct = formData.value.company_type
+      if (ct === 'Subsidiary' || ct === 'Affiliate') {
+        const parentOk = !!(formData.value.parent_company && String(formData.value.parent_company).trim())
+        const pct = formData.value.ownership_percentage
+        const pctNum = pct !== null && pct !== undefined ? Number(pct) : NaN
+        const ownershipOk = ct === 'Subsidiary'
+          ? !isNaN(pctNum) && pctNum >= 50 && pctNum <= 100
+          : !isNaN(pctNum) && pctNum >= 20 && pctNum < 50
+        return parentOk && ownershipOk
+      }
+      return true
+    }
+    case 'section-4': {
+      const serviceOk = !!(formData.value.service_type && formData.value.service_description)
+      if (!serviceOk) return false
+      // When international, optionally require Global form has at least one country
+      if (formData.value.international_operations) {
+        const globalData = formData.value.global_coi_form_data
+        return !!(globalData && Array.isArray(globalData.countries) && globalData.countries.length > 0)
+      }
+      return true
+    }
     case 'section-5':
-      return true // Optional section
+      // When international, ownership is in Global COI Form — section hidden, treat complete
+      if (formData.value.international_operations) return true
+      // When local-only, require Full Ownership Structure (Goal 2)
+      return !!(formData.value.full_ownership_structure && String(formData.value.full_ownership_structure).trim())
     case 'section-6':
-      return true // Auto-assigned
+      return true // Auto-assigned / backup optional
     case 'section-7':
-      return true // Optional section
+      // Director Approval Document: complete when draft saved so upload is available
+      return !isTeamMember.value || !!formData.value.id
     default:
       return false
   }
 }
 
+const totalSteps = computed(() => sections.length + (isTeamMember.value ? 1 : 0))
+
 const completedSectionsCount = computed(() => {
-  return sections.filter(s => isSectionComplete(s.id)).length
+  const fromSections = sections.filter(s => isSectionComplete(s.id)).length
+  const section7 = isTeamMember.value && isSectionComplete('section-7') ? 1 : 0
+  return fromSections + section7
 })
 
 const isFormValid = computed(() => {
-  return isSectionComplete('section-1') && 
-         isSectionComplete('section-2') && 
-         isSectionComplete('section-3') && 
-         isSectionComplete('section-4')
+  const base = isSectionComplete('section-1') &&
+    isSectionComplete('section-2') &&
+    isSectionComplete('section-3') &&
+    isSectionComplete('section-4')
+  // When local-only, Section 5 (Ownership) is required (Goal 2)
+  if (!formData.value.international_operations) {
+    return base && isSectionComplete('section-5')
+  }
+  return base
 })
+
+const todayIso = computed(() => new Date().toISOString().slice(0, 10))
+
+// FlowValidator: Standalone entities cannot have international operations (UI state alignment)
+const isInternationalOperationsAllowed = computed(() => formData.value.company_type !== 'Standalone')
 
 // Determines if the group structure verification section should be shown
 // Required for PIE clients and Audit engagements (IESBA 290.13)
@@ -1386,15 +1504,27 @@ function onSmartSelect() {
   const [type, id] = value.split(':')
   
   if (type === 'client') {
-    // PRMS Client selected
+    // PRMS Client selected — pre-fill parent from PRMS when not TBD (parent company bidirectional sync)
     const clientId = parseInt(id)
     const client = clients.value.find(c => c.id === clientId)
     if (client) {
       formData.value.client_id = clientId
       selectedClientCode.value = client.client_code || client.code || ''
       formData.value.client_name = client.client_name || client.name || ''
+      formData.value.parent_company = client.parent_company || ''
+      // Clear relationship so user chooses (existing client can be upsell, referral, etc.)
+      formData.value.relationship_with_client = ''
+      // Set regulated_body if available
+      if (client.regulated_body) {
+        formData.value.regulated_body = client.regulated_body
+      }
       selectedEntityType.value = 'client'
       selectedProspectId.value = null
+      
+      // If entity is selected, refresh service types (to check if CMA-regulated)
+      if (formData.value.entity) {
+        fetchServiceTypes()
+      }
     }
   } else if (type === 'prospect') {
     // Prospect selected from CRM
@@ -1423,12 +1553,13 @@ function onSmartSelect() {
   }
 }
 
-// Legacy function for backward compatibility
+// Legacy function for backward compatibility (also pre-fills parent from PRMS when existing client)
 function onClientSelect() {
   const client = clients.value.find(c => c.id === formData.value.client_id)
   if (client) {
     selectedClientCode.value = client.client_code || client.code || ''
     formData.value.client_name = client.client_name || client.name || ''
+    formData.value.parent_company = client.parent_company || formData.value.parent_company || ''
   } else {
     selectedClientCode.value = ''
     formData.value.client_name = ''
@@ -1437,31 +1568,54 @@ function onClientSelect() {
 
 // Fetch clients
 async function fetchClients() {
+  clientsLoading.value = true
+  clientsError.value = ''
   try {
-    console.log('[Frontend] Fetching clients...')
     const response = await api.get('/integration/clients')
     clients.value = response.data || []
-    console.log('[Frontend] Clients fetched:', clients.value.length, 'clients')
-    if (clients.value.length === 0) {
-      console.warn('[Frontend] No clients returned from API')
-    }
   } catch (err: any) {
-    console.error('Failed to fetch clients:', err)
-    console.error('Error response:', err.response?.data)
-    console.error('Error status:', err.response?.status)
     clients.value = []
+    clientsError.value = err.response?.data?.error || err.message || 'Failed to load clients.'
+  } finally {
+    clientsLoading.value = false
   }
+}
+
+// Pre-fill existing client from route (e.g. "Create COI for this client" from PRMS)
+function applyRouteQueryClientPrefill() {
+  const clientIdParam = route.query.client_id
+  const clientCodeParam = route.query.client_code
+  if (!clientIdParam && !clientCodeParam) return
+
+  let client: { id: number; client_name?: string; name?: string; client_code?: string; code?: string; parent_company?: string; regulated_body?: string } | undefined
+  if (clientIdParam) {
+    const id = typeof clientIdParam === 'string' ? parseInt(clientIdParam, 10) : Number(clientIdParam)
+    if (!Number.isNaN(id)) client = clients.value.find((c: any) => c.id === id)
+  }
+  if (!client && clientCodeParam) {
+    const code = String(clientCodeParam).trim()
+    client = clients.value.find((c: any) => (c.client_code || c.code || '') === code)
+  }
+  if (!client) return
+
+  formData.value.client_id = client.id
+  formData.value.client_name = client.client_name || client.name || ''
+  selectedClientCode.value = client.client_code || client.code || ''
+  formData.value.parent_company = client.parent_company || ''
+  formData.value.relationship_with_client = ''
+  if (client.regulated_body) formData.value.regulated_body = client.regulated_body
+  smartSelectValue.value = `client:${client.id}`
+  selectedEntityType.value = 'client'
+  selectedProspectId.value = null
+  if (formData.value.entity) fetchServiceTypes()
 }
 
 // Fetch prospects for Smart Suggest dropdown
 async function fetchProspects() {
   try {
-    console.log('[Frontend] Fetching prospects for dropdown...')
     const response = await api.get('/prospects/dropdown')
     prospects.value = response.data || []
-    console.log('[Frontend] Prospects fetched:', prospects.value.length, 'prospects')
   } catch (err: any) {
-    console.error('Failed to fetch prospects:', err)
     prospects.value = []
   }
 }
@@ -1486,8 +1640,7 @@ async function createAndSelectProspect() {
     })
     
     const createdProspect = response.data
-    console.log('[Frontend] Created prospect:', createdProspect)
-    
+
     // Add to prospects list
     prospects.value.unshift({
       id: createdProspect.id,
@@ -1515,7 +1668,6 @@ async function createAndSelectProspect() {
     
     success('Prospect created and selected')
   } catch (err: any) {
-    console.error('Failed to create prospect:', err)
     showError(err.response?.data?.error || 'Failed to create prospect')
   } finally {
     creatingProspect.value = false
@@ -1534,9 +1686,7 @@ async function fetchEntities() {
       formData.entity = defaultEntity.entity_name
       onEntityChange()
     }
-  } catch (err) {
-    console.error('Failed to fetch entities:', err)
-  }
+  } catch { /* non-critical */ }
 }
 
 // Fetch countries (master data)
@@ -1544,26 +1694,64 @@ async function fetchCountries() {
   try {
     const response = await api.get('/countries')
     countries.value = response.data
-  } catch (err) {
-    console.error('Failed to fetch countries:', err)
-  }
+  } catch { /* non-critical */ }
 }
+
+// Check if selected client is CMA-regulated
+const isClientCMARegulated = computed(() => {
+  if (!formData.value.client_id) return false
+  
+  // Check if client has regulated_body = 'CMA' or is_cma_regulated = true
+  const client = clients.value.find((c: any) => c.id === formData.value.client_id)
+  if (!client) return false
+  
+  // Check regulated_body field
+  if (client.regulated_body && (
+    client.regulated_body.includes('CMA') || 
+    client.regulated_body.includes('Capital Markets Authority')
+  )) {
+    return true
+  }
+  
+  // Check is_cma_regulated flag
+  if (client.is_cma_regulated === true || client.is_cma_regulated === 1) {
+    return true
+  }
+  
+  // Check formData regulated_body (if set manually)
+  if (formData.value.regulated_body && (
+    formData.value.regulated_body.includes('CMA') ||
+    formData.value.regulated_body.includes('Capital Markets Authority')
+  )) {
+    return true
+  }
+  
+  return false
+})
 
 // Fetch service types filtered by entity
 async function fetchServiceTypes() {
-  console.log('[Frontend] fetchServiceTypes called, entity:', formData.value.entity)
   if (!formData.value.entity) {
-    console.log('[Frontend] No entity, returning early')
     serviceTypes.value = []
     serviceSubCategories.value = {}
     return
   }
   
   loadingServices.value = true
-  console.log('[Frontend] Starting API call...')
-  console.log('[Frontend] formData.value.entity:', formData.value.entity)
-  console.log('[Frontend] entities.value:', entities.value)
+
   try {
+    // If client is CMA-regulated, fetch CMA services instead
+    if (isClientCMARegulated.value) {
+      const response = await api.get('/config/cma/service-types-grouped')
+      
+      // Transform CMA grouped services to match serviceTypes structure
+      serviceTypes.value = response.data.serviceTypes || []
+      serviceSubCategories.value = {}
+      
+      return
+    }
+    
+    // Regular service types for non-CMA clients
     // Find entity code - try to match by entity_name first
     let entityCode = entities.value.find((e: any) => e.entity_name === formData.value.entity)?.entity_code
     
@@ -1571,43 +1759,21 @@ async function fetchServiceTypes() {
     if (!entityCode && entities.value.length > 0) {
       // Try first entity as fallback
       entityCode = entities.value[0]?.entity_code
-      console.log('[Frontend] Using fallback entity code:', entityCode)
     }
     
     const params: any = {}
     
     if (entityCode) {
       params.entity = entityCode
-      console.log('[Frontend] Using entity code:', entityCode)
-    } else {
-      console.warn('[Frontend] No entity code found, calling API without entity param')
     }
     
-    // Use Kuwait list by default (39 services), only use global list if international_operations is true
-    // This ensures Kuwait list is used for regular requests
-    if (formData.value.international_operations) {
-      params.international = 'true'
-    } else {
-      // Explicitly set to false to ensure Kuwait list is returned
-      params.international = 'false'
-    }
+    // Always use Kuwait list for Line of Service (local request)
+    params.international = 'false'
     
-    console.log('[Frontend] API params:', params)
-    console.log('[Frontend] international_operations value:', formData.value.international_operations)
     const response = await api.get('/integration/service-types', { params })
-    console.log('[Frontend] Service types response:', response.data)
-    console.log('[Frontend] Service types array:', response.data?.serviceTypes)
-    console.log('[Frontend] Service types length:', response.data?.serviceTypes?.length)
-    console.log('[Frontend] Categories:', response.data?.serviceTypes?.map((c: any) => c.category))
     serviceTypes.value = response.data.serviceTypes || []
     serviceSubCategories.value = response.data.subCategories || {}
-    console.log('[Frontend] serviceTypes.value after assignment:', serviceTypes.value.length)
   } catch (err: any) {
-    console.error('Failed to fetch service types:', err)
-    console.error('Error response:', err.response)
-    console.error('Error data:', err.response?.data)
-    console.error('Error status:', err.response?.status)
-    console.error('Error message:', err.message)
     serviceTypes.value = []
     serviceSubCategories.value = {}
   } finally {
@@ -1622,6 +1788,36 @@ function onServiceCategoryChange() {
   formData.value.service_sub_category = ''
 }
 
+// Handle global service category change
+function onGlobalServiceCategoryChange() {
+  formData.value.global_service_type = ''
+}
+
+// Fetch BDO Global service types (when international operations)
+async function fetchGlobalServiceTypes() {
+  if (!formData.value.entity) {
+    globalServiceTypes.value = []
+    return
+  }
+  loadingGlobalServices.value = true
+  try {
+    let entityCode = entities.value.find((e: any) => e.entity_name === formData.value.entity)?.entity_code
+    if (!entityCode && entities.value.length > 0) {
+      entityCode = entities.value[0]?.entity_code
+    }
+    const params: any = { international: 'true' }
+    if (entityCode) {
+      params.entity = entityCode
+    }
+    const response = await api.get('/integration/service-types', { params })
+    globalServiceTypes.value = response.data.serviceTypes || []
+  } catch (err: any) {
+    globalServiceTypes.value = []
+  } finally {
+    loadingGlobalServices.value = false
+  }
+}
+
 // Handle service type change
 function onServiceTypeChange() {
   // Auto-populate category from the selected service type if not already set
@@ -1631,6 +1827,18 @@ function onServiceTypeChange() {
     )
     if (serviceCategory) {
       formData.value.service_category = serviceCategory.category
+    }
+  }
+  
+  // Validate CMA compliance if client is CMA-regulated
+  if (isClientCMARegulated.value && formData.value.service_type) {
+    const selectedService = filteredServicesByCategory.value.find((s: any) => 
+      (s.value || s) === formData.value.service_type
+    )
+    
+    if (!selectedService || !selectedService.is_cma_regulated) {
+      // Service is not CMA-compliant
+      // Note: We don't block here, but the backend will validate during conflict check
     }
   }
   
@@ -1679,6 +1887,7 @@ function onEntityChange() {
 
 // Auto-save functionality
 let autoSaveInterval: number | null = null
+let serverAutoSaveTimeout: number | null = null
 
 function startAutoSave() {
   autoSaveInterval = window.setInterval(() => {
@@ -1691,6 +1900,36 @@ function stopAutoSave() {
     clearInterval(autoSaveInterval)
     autoSaveInterval = null
   }
+  if (serverAutoSaveTimeout) {
+    clearTimeout(serverAutoSaveTimeout)
+    serverAutoSaveTimeout = null
+  }
+}
+
+// Debounced server auto-save: persists draft to server 30s after last change
+function scheduleServerAutoSave() {
+  if (serverAutoSaveTimeout) clearTimeout(serverAutoSaveTimeout)
+  serverAutoSaveTimeout = window.setTimeout(async () => {
+    // Only auto-save to server when dirty and form has minimum data
+    if (!isDirty.value || loading.value) return
+    if (!formData.value.designation && !formData.value.client_id) return
+    saveStatus.value = 'saving'
+    try {
+      if (formData.value.id) {
+        await coiStore.updateRequest(formData.value.id, formData.value)
+      } else {
+        const result = await coiStore.createRequest(formData.value)
+        if (result?.id) formData.value.id = result.id
+      }
+      saveStatus.value = 'saved'
+      lastSavedAt.value = new Date()
+      await nextTick()
+      isDirty.value = false
+      saveToLocalStorage()
+    } catch {
+      saveStatus.value = 'error'
+    }
+  }, 30000)
 }
 
 function saveToLocalStorage() {
@@ -1702,11 +1941,7 @@ function loadFromLocalStorage(): boolean {
   if (saved) {
     try {
       const parsed = JSON.parse(saved)
-      // Force international_operations to false by default (for Kuwait list)
-      // Only keep it true if user explicitly checked the checkbox
-      parsed.international_operations = false
       formData.value = { ...formData.value, ...parsed }
-      console.log('[Frontend] Loaded from localStorage, set international_operations to false')
       return true
     } catch {
       return false
@@ -1719,15 +1954,26 @@ function clearLocalStorage() {
   localStorage.removeItem('coi-wizard-data')
 }
 
-// Handle save draft
+// Handle save draft – update existing draft if id is set, otherwise create
 async function handleSaveDraft() {
+  saveStatus.value = 'saving'
   loading.value = true
   try {
-    await coiStore.createRequest(formData.value)
+    if (formData.value.id) {
+      await coiStore.updateRequest(formData.value.id, formData.value)
+    } else {
+      const result = await coiStore.createRequest(formData.value)
+      if (result?.id) formData.value.id = result.id
+    }
+    saveStatus.value = 'saved'
+    lastSavedAt.value = new Date()
+    await nextTick()
+    isDirty.value = false
     success('Draft saved successfully')
     saveToLocalStorage()
-    router.push('/coi/requester')
+    // Stay on page so user can continue editing; they can navigate via sidebar
   } catch (err: any) {
+    saveStatus.value = 'error'
     showError(err.response?.data?.error || 'Failed to save draft')
   } finally {
     loading.value = false
@@ -1743,25 +1989,48 @@ const pendingRequestId = ref<number | null>(null)
 // Handle submit
 async function handleSubmit() {
   showConfirmModal.value = false
+  
+  // Validate CMA compliance for CMA-regulated clients
+  if (isClientCMARegulated.value && formData.value.service_type) {
+    const selectedService = filteredServicesByCategory.value.find((s: any) => 
+      (s.value || s) === formData.value.service_type
+    )
+    
+    if (!selectedService || !selectedService.is_cma_regulated) {
+      showError('CMA-regulated clients must select a CMA-compliant service type. Please select a service from the CMA Matrix.')
+      scrollToSection('section-4')
+      return
+    }
+  }
+  
   loading.value = true
   try {
-    const result = await coiStore.createRequest(formData.value)
-    pendingRequestId.value = result.id
-    
+    // Use existing draft if available; otherwise create a new one
+    let requestId: number
+    if (formData.value.id) {
+      await coiStore.updateRequest(formData.value.id, formData.value)
+      requestId = formData.value.id
+    } else {
+      const result = await coiStore.createRequest(formData.value)
+      requestId = result.id
+      formData.value.id = result.id
+    }
+    pendingRequestId.value = requestId
+
     // Try to submit with justification and lead_source_id if provided
     const submitPayload: any = {}
-    
+
     if (duplicateJustification.value) {
       submitPayload.duplicate_justification = duplicateJustification.value
     }
-    
+
     // Include lead_source_id for proposals (CRM attribution feature)
     if (formData.value.requested_document === 'Proposal' && formData.value.lead_source_id) {
       submitPayload.lead_source_id = formData.value.lead_source_id
     }
-    
+
     const submitResult = await coiStore.submitRequest(
-      result.id, 
+      requestId,
       Object.keys(submitPayload).length > 0 ? submitPayload : undefined
     )
     
@@ -1872,9 +2141,7 @@ async function fetchDirectorName() {
       if (director) {
         directorName.value = director.name
       }
-    } catch (error) {
-      console.error('Failed to fetch director name:', error)
-    }
+    } catch { /* non-critical */ }
   }
 }
 
@@ -1886,22 +2153,37 @@ function handleFileError(error: string) {
   showError(error)
 }
 
-// Watch international_operations to refetch services and populate Global COI Form
+// Watch international_operations to refetch services and populate Global COI Form (Ghost Data: clear when off)
 watch(() => formData.value.international_operations, (newValue) => {
-  if (formData.value.entity) {
-    fetchServiceTypes()
-  }
-  
-  // When international_operations is checked, auto-populate Global COI Form
   if (newValue) {
+    if (formData.value.entity) {
+      fetchGlobalServiceTypes()
+    }
     populateGlobalCOIForm()
+  } else {
+    formData.value.global_service_category = ''
+    formData.value.global_service_type = ''
+    formData.value.global_coi_form_data = null
+    globalCOIFormData.value = null
+    globalServiceTypes.value = []
+  }
+})
+
+// FlowValidator: Standalone ⟹ no international operations (Mutually Exclusive + Ghost Data)
+watch(() => formData.value.company_type, (newVal) => {
+  if (newVal === 'Standalone') {
+    formData.value.international_operations = false
+    formData.value.global_service_category = ''
+    formData.value.global_service_type = ''
+    formData.value.global_coi_form_data = null
+    globalCOIFormData.value = null
+    globalServiceTypes.value = []
   }
 })
 
 // Watch entity to fetch service types when entity is selected or changes
 watch(() => formData.value.entity, (newEntity, oldEntity) => {
   if (newEntity && newEntity !== oldEntity) {
-    console.log('[Frontend] Entity changed to:', newEntity, 'fetching service types...')
     // Small delay to ensure entities list is loaded
     setTimeout(() => {
       fetchServiceTypes()
@@ -1909,7 +2191,7 @@ watch(() => formData.value.entity, (newEntity, oldEntity) => {
   }
 })
 
-// Watch main form fields to auto-update Global COI Form when international_operations is enabled
+// Watch main form fields to auto-update Global COI Form when international_operations is enabled (e.g. PIE replicates into Global form)
 watch([
   () => formData.value.client_name,
   () => formData.value.parent_company,
@@ -1921,25 +2203,6 @@ watch([
   () => formData.value.country_code,
   () => formData.value.foreign_subsidiaries
 ], () => {
-  // Only auto-update if international_operations is enabled
-  if (formData.value.international_operations) {
-    populateGlobalCOIForm()
-  }
-}, { deep: true })
-
-// Watch main form fields to auto-update Global COI Form when international_operations is enabled
-watch([
-  () => formData.value.client_name,
-  () => formData.value.parent_company,
-  () => formData.value.client_location,
-  () => formData.value.relationship_with_client,
-  () => formData.value.pie_status,
-  () => formData.value.service_description,
-  () => formData.value.service_type,
-  () => formData.value.country_code,
-  () => formData.value.foreign_subsidiaries
-], () => {
-  // Only auto-update if international_operations is enabled
   if (formData.value.international_operations) {
     populateGlobalCOIForm()
   }
@@ -1950,57 +2213,58 @@ async function fetchLeadSources() {
   try {
     const response = await api.get('/prospects/lead-sources')
     leadSources.value = response.data
-    console.log('[Frontend] Loaded lead sources:', leadSources.value.length)
-  } catch (e) {
-    console.error('Failed to fetch lead sources:', e)
+  } catch {
     // Don't block form - lead source is optional
   }
 }
 
-// Lifecycle
-onMounted(async () => {
-  console.log('[Frontend] onMounted called, formData.value.entity:', formData.value.entity)
-  
+// Load critical form data (clients, entities, service types). Sets formLoadError on failure.
+async function loadFormData() {
+  formLoadError.value = null
+  let criticalFailures = 0
+
   try {
     await fetchClients()
-    await fetchProspects() // Smart Suggest: Load prospects from CRM
-    await fetchCountries()
-    await fetchLeadSources()
-  } catch (e) {
-    console.error('Failed to fetch clients:', e)
+  } catch {
+    criticalFailures++
   }
-  
+
   try {
     await fetchEntities()
-  } catch (e) {
-    console.error('Failed to fetch entities:', e)
+  } catch {
+    criticalFailures++
   }
-  
-  try {
-    await fetchDirectorName()
-  } catch (e) {
-    console.error('Failed to fetch director name:', e)
-  }
-  
-  // Force international_operations to false by default (for Kuwait list)
-  // This ensures Kuwait list (6 categories) loads instead of global list (27 categories)
-  formData.value.international_operations = false
-  console.log('[Frontend] Set international_operations to false by default for Kuwait list')
-  
-  // Fetch service types if entity is already set (even if entities failed to load)
-  console.log('[Frontend] Checking if should fetch service types, formData.value.entity:', formData.value.entity)
-  // Always try to fetch service types - entity might be set by default
+
   if (formData.value.entity) {
-    console.log('[Frontend] Entity is set, calling fetchServiceTypes')
     try {
       await fetchServiceTypes()
-    } catch (e) {
-      console.error('Failed to fetch service types:', e)
+    } catch {
+      criticalFailures++
     }
-  } else {
-    console.log('[Frontend] Entity is NOT set, will fetch after entity is selected')
-    // Watch for entity changes to fetch service types
   }
+
+  if (criticalFailures === 3) {
+    formLoadError.value = 'Failed to load form data. Please check your connection and retry.'
+  }
+
+  // Non-critical fetches – best effort
+  try { await fetchProspects() } catch { /* optional */ }
+  try { await fetchCountries() } catch { /* optional */ }
+  try { await fetchLeadSources() } catch { /* optional */ }
+  try { await fetchDirectorName() } catch { /* optional */ }
+  try {
+    const approversRes = await api.get('/coi/approvers')
+    approverUsers.value = approversRes.data || []
+  } catch { /* optional */ }
+}
+
+function retryFormLoad() {
+  loadFormData()
+}
+
+// Lifecycle
+onMounted(async () => {
+  await loadFormData()
   
   // Check if editing existing draft
   const editRequestData = localStorage.getItem('coi-edit-request')
@@ -2027,6 +2291,9 @@ onMounted(async () => {
         parent_company: request.parent_company || '',
         service_type: request.service_type || '',
         service_category: request.service_category || '',
+        service_sub_category: request.service_sub_category || '',
+        global_service_category: request.global_service_category || '',
+        global_service_type: request.global_service_type || '',
         service_description: request.service_description || '',
         requested_service_period_start: request.requested_service_period_start || '',
         requested_service_period_end: request.requested_service_period_end || '',
@@ -2037,37 +2304,82 @@ onMounted(async () => {
         international_operations: request.international_operations === 1 || request.international_operations === true || false,
         foreign_subsidiaries: request.foreign_subsidiaries || '',
         global_clearance_status: request.global_clearance_status || 'Not Required',
+        backup_approver_id: request.backup_approver_id || null,
         lead_source_id: request.lead_source_id || null
       }
+      isDirty.value = false
+      ownershipRows.value = parseOwnershipRowsFromText(formData.value.full_ownership_structure)
       onClientSelect()
       localStorage.removeItem('coi-edit-request')
       info('Draft loaded for editing')
-    } catch (error) {
-      console.error('Failed to load draft for editing:', error)
+      if (formData.value.international_operations && formData.value.entity) {
+        try {
+          await fetchGlobalServiceTypes()
+        } catch { /* non-critical */ }
+      }
+    } catch {
       showError('Failed to load draft data')
     }
   } else {
     const hasSavedData = loadFromLocalStorage()
     if (hasSavedData) {
+      isDirty.value = false
+      ownershipRows.value = parseOwnershipRowsFromText(formData.value.full_ownership_structure)
       onClientSelect()
       info('Restored previous draft')
+      if (formData.value.international_operations && formData.value.entity) {
+        try {
+          await fetchGlobalServiceTypes()
+        } catch { /* non-critical */ }
+      }
+    } else {
+      applyRouteQueryClientPrefill()
     }
   }
   
   startAutoSave()
   setupIntersectionObserver()
+  beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+    if (isDirty.value) e.preventDefault()
+  }
+  window.addEventListener('beforeunload', beforeUnloadHandler)
 })
+
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!isDirty.value) {
+    next()
+    return
+  }
+  pendingLeaveNext = next
+  showLeaveConfirm.value = true
+  next(false)
+})
+
+function confirmLeave(leave: boolean) {
+  if (pendingLeaveNext) {
+    pendingLeaveNext(leave)
+    pendingLeaveNext = null
+  }
+  showLeaveConfirm.value = false
+}
+
+let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null
 
 onUnmounted(() => {
   stopAutoSave()
+  if (beforeUnloadHandler) {
+    window.removeEventListener('beforeunload', beforeUnloadHandler)
+  }
   if (observer) {
     observer.disconnect()
   }
 })
 
-// Watch for form changes
+// Watch for form changes (mark dirty for unsaved-changes warning and header)
 watch(formData, () => {
+  isDirty.value = true
   saveToLocalStorage()
+  scheduleServerAutoSave()
 }, { deep: true })
 </script>
 

@@ -21,12 +21,14 @@ import entityCodesRoutes from './routes/entityCodes.routes.js'
 import reportsRoutes from './routes/reports.routes.js'
 import reportSharingRoutes from './routes/reportSharing.routes.js'
 import prospectClientCreationRoutes from './routes/prospectClientCreation.routes.js'
+import parentCompanyUpdateRoutes from './routes/parentCompanyUpdate.routes.js'
 import complianceRoutes from './routes/compliance.routes.js'
 import countriesRoutes from './routes/countries.routes.js'
 import myDayWeekRoutes from './routes/myDayWeek.routes.js'
 import priorityRoutes from './routes/priority.routes.js'
 import slaRoutes from './routes/sla.routes.js'
 import emailRoutes from './routes/email.routes.js'
+import permissionRoutes from './routes/permission.routes.js'
 import { 
   updateMonitoringDays, 
   checkAndLapseExpiredProposals, 
@@ -121,11 +123,13 @@ app.use('/api/countries', countriesRoutes)
 app.use('/api/reports', reportsRoutes)
 app.use('/api/reports', reportSharingRoutes)
 app.use('/api/prospect-client-creation', prospectClientCreationRoutes)
+app.use('/api/parent-company-update-requests', parentCompanyUpdateRoutes)
 app.use('/api/compliance', complianceRoutes)
 app.use('/api', myDayWeekRoutes)
 app.use('/api/priority', priorityRoutes)
 app.use('/api/sla', slaRoutes)
 app.use('/api/email', emailRoutes)
+app.use('/api/permissions', permissionRoutes)
 
 // Conditionally load client intelligence routes (feature-flagged module)
 import('../../client-intelligence/backend/routes/clientIntelligence.routes.js')

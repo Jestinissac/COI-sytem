@@ -1,102 +1,29 @@
 import { getDatabase } from '../database/init.js'
 import { checkRedLines } from './redLinesService.js'
 import { evaluateIESBADecisionMatrix } from './iesbaDecisionMatrix.js'
-import { isProEdition } from './configService.js'
+import { checkCMARules } from './cmaConflictMatrix.js'
 
-// Service type categories
-const SERVICE_CATEGORIES = {
-  AUDIT: ['Statutory Audit', 'External Audit', 'Group Audit', 'IFRS Audit'],
-  INTERNAL_AUDIT: ['Internal Audit', 'Internal Controls Review'],
-  ADVISORY: ['Management Consulting', 'Business Advisory', 'Strategy Consulting', 'Restructuring'],
-  // Pro Version: Split TAX into sub-types
-  TAX_COMPLIANCE: ['Tax Compliance', 'Tax Return Preparation', 'Tax Filing'],
-  TAX_PLANNING: ['Tax Planning', 'Tax Advisory', 'Tax Strategy', 'Tax Optimization'],
-  TAX_CALCULATIONS: ['Tax Calculations', 'Transfer Pricing', 'Tax Valuation'],
-  // Legacy TAX category (for backward compatibility)
-  TAX: ['Tax Compliance', 'Tax Advisory', 'Transfer Pricing', 'Tax Planning'],
-  ACCOUNTING: ['Bookkeeping', 'Accounting Services', 'Financial Reporting', 'Payroll Services'],
-  VALUATION: ['Valuation Services', 'Business Valuation', 'Asset Valuation'],
-  DUE_DILIGENCE: ['Due Diligence', 'Transaction Advisory', 'M&A Advisory'],
-  IT_ADVISORY: ['IT Advisory', 'Cybersecurity', 'IT Audit']
-}
-
-// Conflict matrix: Which services CANNOT be provided together
-const CONFLICT_MATRIX = {
-  // If client has AUDIT, these services are BLOCKED
-  AUDIT: {
-    blocked: ['ADVISORY', 'ACCOUNTING', 'VALUATION', 'INTERNAL_AUDIT', 'TAX_PLANNING'], // Pro: TAX_PLANNING blocked
-    flagged: ['TAX', 'TAX_COMPLIANCE', 'TAX_CALCULATIONS', 'DUE_DILIGENCE', 'IT_ADVISORY'], // Pro: Tax sub-types
-    reason: {
-      ADVISORY: 'Management consulting threatens auditor independence',
-      ACCOUNTING: 'Cannot audit own bookkeeping work (self-review threat)',
-      VALUATION: 'Cannot audit valuations we performed (self-review threat)',
-      INTERNAL_AUDIT: 'Cannot outsource internal audit function for audit client',
-      TAX: 'Tax services for audit client require fee cap review',
-      TAX_COMPLIANCE: 'Tax compliance services require safeguards and fee cap review',
-      TAX_PLANNING: 'Tax planning for audit client creates self-review threat - PROHIBITED',
-      TAX_CALCULATIONS: 'Tax calculations require safeguards and fee cap review',
-      DUE_DILIGENCE: 'Due diligence may create self-review threat',
-      IT_ADVISORY: 'IT systems advice may affect audit scope'
-    }
-  },
-  // If client has ADVISORY, AUDIT is blocked (cooling-off required)
-  ADVISORY: {
-    blocked: ['AUDIT'],
-    flagged: [],
-    reason: {
-      AUDIT: 'Cooling-off period required after management consulting (typically 2 years)'
-    }
-  },
-  // If client has ACCOUNTING, AUDIT is blocked
-  ACCOUNTING: {
-    blocked: ['AUDIT'],
-    flagged: [],
-    reason: {
-      AUDIT: 'Cannot audit financial statements we prepared (self-review threat)'
-    }
-  },
-  // If client has VALUATION, AUDIT is flagged
-  VALUATION: {
-    blocked: ['AUDIT'],
-    flagged: [],
-    reason: {
-      AUDIT: 'Cannot audit valuations we performed (self-review threat)'
-    }
-  },
-  // Internal audit conflicts
-  INTERNAL_AUDIT: {
-    blocked: ['AUDIT'],
-    flagged: [],
-    reason: {
-      AUDIT: 'Cannot provide external audit where internal audit was outsourced to us'
-    }
-  }
-}
-
-// PIE (Public Interest Entity) additional restrictions
-const PIE_RESTRICTIONS = {
-  blocked: ['ADVISORY', 'ACCOUNTING', 'VALUATION', 'INTERNAL_AUDIT', 'IT_ADVISORY', 'TAX_PLANNING'], // Pro: TAX_PLANNING blocked for PIE
-  flagged: ['TAX', 'TAX_COMPLIANCE', 'TAX_CALCULATIONS', 'DUE_DILIGENCE'], // Pro: Tax sub-types
-  feeCapApplies: true, // Non-audit fees cannot exceed 70% of audit fees
-  reason: 'PIE audit clients have strict non-audit service restrictions under EU/local regulations'
-}
+// CMA (Priority 1) + IESBA Red Lines (Priority 2) + IESBA Decision Matrix (Priority 3) + Business Rules (Priority 4)
 
 export async function checkDuplication(clientName, excludeRequestId = null, newServiceType = null, isPIE = false, requestData = null) {
   const db = getDatabase()
-  const isPro = isProEdition()
-  
   const allRecommendations = []
-  
-  // Pro Version: Phase 8 - Execution Order with Priority System
-  // 1. Red Lines Check (Pro only) - HIGHEST PRIORITY
-  if (isPro && requestData) {
+
+  // Get client data for CMA check
+  let clientData = null
+  if (clientName) {
+    clientData = db.prepare('SELECT * FROM clients WHERE client_name = ?').get(clientName)
+  }
+
+  // 1. Red Lines Check - Priority 2 (always runs)
+  if (requestData) {
     const redLines = checkRedLines(requestData)
     if (redLines && redLines.length > 0) {
       redLines.forEach(redLine => {
         allRecommendations.push({
           ...redLine,
           source: 'RED_LINES',
-          priority: 1 // Highest priority
+          priority: 2
         })
       })
     }
@@ -143,18 +70,15 @@ export async function checkDuplication(clientName, excludeRequestId = null, newS
         conflicts: []
       }
       
-      // 2. Check service type conflicts
+      // 2. Check service type conflicts (CMA only; IESBA handled by IESBA Decision Matrix)
       if (newServiceType && request.service_type) {
         const serviceConflict = checkServiceTypeConflict(
-          request.service_type, 
-          newServiceType, 
-          request.pie_status === 'Yes' || isPIE
+          request.service_type,
+          newServiceType,
+          clientData
         )
-        
         if (serviceConflict) {
           match.conflicts.push(serviceConflict)
-          
-          // Escalate action if there's a service conflict
           if (serviceConflict.severity === 'CRITICAL') {
             match.action = 'block'
             match.reason = serviceConflict.reason
@@ -172,8 +96,8 @@ export async function checkDuplication(clientName, excludeRequestId = null, newS
   const relatedPartyMatches = await checkRelatedPartyConflicts(clientName, newServiceType, excludeRequestId)
   matches.push(...relatedPartyMatches)
 
-  // Pro Version: Phase 8 - IESBA Decision Matrix (after business rules, before conflict matrix)
-  if (isPro && requestData && newServiceType) {
+  // 3. IESBA Decision Matrix - Priority 3 (always runs)
+  if (requestData && newServiceType) {
     const iesbaRecommendations = evaluateIESBADecisionMatrix({
       ...requestData,
       service_type: newServiceType,
@@ -184,149 +108,84 @@ export async function checkDuplication(clientName, excludeRequestId = null, newS
         allRecommendations.push({
           ...rec,
           source: 'IESBA_DECISION_MATRIX',
-          priority: 2 // Second priority (after Red Lines, before Business Rules)
+          priority: 3
         })
       })
     }
   }
-  
-  // Convert matches to recommendations format (Pro) or keep as matches (Standard)
-  if (isPro) {
-    matches.forEach(match => {
-      allRecommendations.push({
-        severity: match.action === 'block' ? 'CRITICAL' : 'HIGH',
-        recommendedAction: match.action === 'block' ? 'REJECT' : 'FLAG',
-        confidence: match.matchScore >= 90 ? 'HIGH' : 'MEDIUM',
-        reason: match.reason,
-        regulation: match.conflicts?.[0]?.regulation || 'IESBA Code of Ethics',
-        canOverride: match.action !== 'block',
-        requiresComplianceReview: true,
-        source: 'CONFLICT_MATRIX',
-        priority: 4, // Lowest priority
-        matchData: match
-      })
+
+  // 4. Convert matches to recommendations format (CMA + client match conflicts)
+  matches.forEach(match => {
+    allRecommendations.push({
+      severity: match.action === 'block' ? 'CRITICAL' : 'HIGH',
+      recommendedAction: match.action === 'block' ? 'REJECT' : 'FLAG',
+      confidence: match.matchScore >= 90 ? 'HIGH' : 'MEDIUM',
+      reason: match.reason,
+      regulation: match.conflicts?.[0]?.regulation || 'IESBA Code of Ethics',
+      canOverride: match.action !== 'block',
+      requiresComplianceReview: true,
+      source: match.conflicts?.[0]?.regulationSource === 'CMA' ? 'CMA' : 'CLIENT_MATCH',
+      priority: 4,
+      matchData: match
     })
-    
-    // Sort by priority (Red Lines > IESBA Matrix > Conflict Matrix)
-    allRecommendations.sort((a, b) => (a.priority || 99) - (b.priority || 99))
-    
-    return {
-      recommendations: allRecommendations,
-      matches: matches, // Keep for backward compatibility
-      isPro: true
-    }
-  }
-
-  return matches.sort((a, b) => {
-    // Sort by action (block first), then by score
-    if (a.action === 'block' && b.action !== 'block') return -1
-    if (b.action === 'block' && a.action !== 'block') return 1
-    return b.matchScore - a.matchScore
   })
+
+  allRecommendations.sort((a, b) => (a.priority || 99) - (b.priority || 99))
+
+  return {
+    recommendations: allRecommendations,
+    matches,
+    isPro: true
+  }
 }
 
-function checkServiceTypeConflict(existingServiceType, newServiceType, isPIE = false) {
-  const existingCategory = getServiceCategory(existingServiceType)
-  const newCategory = getServiceCategory(newServiceType)
-  
-  if (!existingCategory || !newCategory) return null
-  
-  // Check if PIE restrictions apply
-  if (isPIE && existingCategory === 'AUDIT') {
-    if (PIE_RESTRICTIONS.blocked.includes(newCategory)) {
-      return {
-        type: 'PIE_RESTRICTION',
-        severity: 'CRITICAL',
-        existingService: existingServiceType,
-        newService: newServiceType,
-        reason: `🚫 PIE AUDIT CLIENT: ${newServiceType} is PROHIBITED for Public Interest Entity audit clients`,
-        regulation: 'EU Audit Regulation / Local Independence Rules'
-      }
-    }
-    if (PIE_RESTRICTIONS.flagged.includes(newCategory)) {
-      return {
-        type: 'PIE_FEE_CAP',
-        severity: 'HIGH',
-        existingService: existingServiceType,
-        newService: newServiceType,
-        reason: `⚠️ PIE Fee Cap: Non-audit fees must not exceed 70% of audit fees`,
-        regulation: 'EU Audit Regulation Article 4(2)'
-      }
-    }
-  }
-  
-  // Check general conflict matrix
-  const conflictConfig = CONFLICT_MATRIX[existingCategory]
-  if (!conflictConfig) return null
-  
-  if (conflictConfig.blocked && conflictConfig.blocked.includes(newCategory)) {
-    return {
-      type: 'INDEPENDENCE_CONFLICT',
-      severity: 'CRITICAL',
+/**
+ * Check service type conflict: CMA rules only (Priority 1).
+ * IESBA pair logic is handled by IESBA Decision Matrix (evaluateIESBADecisionMatrix).
+ */
+function checkServiceTypeConflict(existingServiceType, newServiceType, clientData = null) {
+  const conflicts = []
+
+  // CMA Rules Check - Priority 1 (always runs; all clients treated as CMA)
+  const cmaConflict = checkCMARules(existingServiceType, newServiceType, clientData)
+  if (cmaConflict) {
+    conflicts.push({
+      ...cmaConflict,
+      regulationSource: 'CMA',
+      priority: 1,
       existingService: existingServiceType,
-      newService: newServiceType,
-      reason: `🚫 INDEPENDENCE THREAT: ${conflictConfig.reason[newCategory]}`,
-      regulation: 'IESBA Code of Ethics / Local Independence Rules'
-    }
+      newService: newServiceType
+    })
   }
-  
-  if (conflictConfig.flagged && conflictConfig.flagged.includes(newCategory)) {
-    return {
-      type: 'POTENTIAL_CONFLICT',
-      severity: 'HIGH',
-      existingService: existingServiceType,
-      newService: newServiceType,
-      reason: `⚠️ REVIEW REQUIRED: ${conflictConfig.reason[newCategory] || 'Potential independence concern'}`,
-      regulation: 'IESBA Code of Ethics'
-    }
-  }
-  
-  return null
-}
 
-function getServiceCategory(serviceType) {
-  if (!serviceType) return null
-  
-  const normalizedService = serviceType.toLowerCase()
-  
-  // Pro Version: Check tax sub-types first (more specific)
-  for (const [category, services] of Object.entries(SERVICE_CATEGORIES)) {
-    if (category.startsWith('TAX_')) {
-      // Check tax sub-types first
-      if (services.some(s => normalizedService.includes(s.toLowerCase()) || s.toLowerCase().includes(normalizedService))) {
-        return category
-      }
-    }
-  }
-  
-  // Then check other categories (including legacy TAX)
-  for (const [category, services] of Object.entries(SERVICE_CATEGORIES)) {
-    if (!category.startsWith('TAX_')) {
-      if (services.some(s => normalizedService.includes(s.toLowerCase()) || s.toLowerCase().includes(normalizedService))) {
-        return category
-      }
-    }
-  }
-  
-  return null
-}
+  if (conflicts.length === 0) return null
 
-// Pro Version: Get tax sub-type from service type
-function getTaxSubType(serviceType) {
-  if (!serviceType) return null
-  const normalized = serviceType.toLowerCase()
-  
-  if (SERVICE_CATEGORIES.TAX_COMPLIANCE.some(s => normalized.includes(s.toLowerCase()))) {
-    return 'TAX_COMPLIANCE'
-  }
-  if (SERVICE_CATEGORIES.TAX_PLANNING.some(s => normalized.includes(s.toLowerCase()))) {
-    return 'TAX_PLANNING'
-  }
-  if (SERVICE_CATEGORIES.TAX_CALCULATIONS.some(s => normalized.includes(s.toLowerCase()))) {
-    return 'TAX_CALCULATIONS'
-  }
-  
-  return null
+  const mergedConflicts = []
+  const reasonMap = new Map()
+  conflicts.forEach(conflict => {
+    const reasonKey = conflict.reason.replace(/[🚫⚠️✅❌]/g, '').toLowerCase().trim()
+    if (reasonMap.has(reasonKey)) {
+      const existing = reasonMap.get(reasonKey)
+      if (!existing.regulationSources) existing.regulationSources = [existing.regulationSource]
+      if (!existing.regulationSources.includes(conflict.regulationSource)) existing.regulationSources.push(conflict.regulationSource)
+      if (conflict.priority < existing.priority) existing.priority = conflict.priority
+    } else {
+      conflict.regulationSources = [conflict.regulationSource]
+      reasonMap.set(reasonKey, conflict)
+      mergedConflicts.push(conflict)
+    }
+  })
+
+  mergedConflicts.sort((a, b) => {
+    const priorityDiff = (a.priority || 99) - (b.priority || 99)
+    if (priorityDiff !== 0) return priorityDiff
+    const severityOrder = { 'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3 }
+    return (severityOrder[a.severity] || 99) - (severityOrder[b.severity] || 99)
+  })
+
+  const mostRestrictive = mergedConflicts[0]
+  mostRestrictive.allConflicts = mergedConflicts
+  return mostRestrictive
 }
 
 async function checkRelatedPartyConflicts(clientName, newServiceType, excludeRequestId) {
@@ -370,12 +229,12 @@ async function checkRelatedPartyConflicts(clientName, newServiceType, excludeReq
         conflicts: []
       }
       
-      // Check if audit independence extends to related party
+      // Check if audit independence extends to related party (use same helpers as evaluateIndependenceConflict)
       if (newServiceType && related.service_type) {
-        const existingCategory = getServiceCategory(related.service_type)
-        const newCategory = getServiceCategory(newServiceType)
-        
-        if (existingCategory === 'AUDIT' && ['ADVISORY', 'ACCOUNTING'].includes(newCategory)) {
+        const existingIsAudit = isAuditServiceType(related.service_type)
+        const newIsProhibited = PROHIBITED_SERVICES.some(s => newServiceType?.includes(s))
+        const newIsAdvisory = ADVISORY_SERVICES.some(s => newServiceType?.includes(s))
+        if (existingIsAudit && (newIsProhibited || newIsAdvisory)) {
           match.action = 'block'
           match.conflicts.push({
             type: 'RELATED_PARTY_INDEPENDENCE',

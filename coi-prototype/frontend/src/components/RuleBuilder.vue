@@ -1,17 +1,9 @@
 <!--
   Rule Builder Component
   
-  Edition Differences:
-  - Standard Edition: Basic rule creation with simple conditions (block/flag actions)
-  - Pro Edition: All Standard features PLUS:
-    * IESBA rule templates (one-click import)
-    * Rule categories (IESBA, Red Line, PIE, Tax, Custom)
-    * Regulation references
-    * Advanced conditions (AND/OR groups)
-    * Impact analysis preview
-    * Rule testing against recent requests
-    * Recommendation actions (recommend_reject, recommend_flag, etc.)
-    * PIE-specific and tax sub-type options
+  Rule Categories:
+  - CMA: Kuwait Capital Markets Authority rules
+  - IESBA: International Ethics Standards Board for Accountants rules
 -->
 <template>
   <div class="rule-builder space-y-6">
@@ -47,13 +39,8 @@
               class="px-3 py-2 text-sm border border-gray-300 rounded-md"
             >
               <option value="">All Categories</option>
-              <option value="Custom">Custom</option>
-              <template v-if="isPro">
-                <option value="IESBA">IESBA</option>
-                <option value="Red Line">Red Line</option>
-                <option value="PIE">PIE</option>
-                <option value="Tax">Tax</option>
-              </template>
+              <option value="CMA">CMA</option>
+              <option value="IESBA">IESBA</option>
             </select>
             <select
               v-model="filterRuleType"
@@ -139,6 +126,13 @@
                 <div class="flex items-center gap-3 mb-2">
                   <h4 class="font-semibold text-gray-900">{{ rule.rule_name || 'Unnamed Rule' }}</h4>
                   <span
+                    v-if="rule.rule_category"
+                    class="px-2 py-0.5 text-xs font-medium rounded"
+                    :class="rule.rule_category === 'CMA' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'"
+                  >
+                    {{ rule.rule_category }}
+                  </span>
+                  <span
                     class="px-2 py-0.5 text-xs font-medium rounded"
                     :class="getRuleTypeClass(rule.rule_type)"
                   >
@@ -210,19 +204,23 @@
                       <span class="ml-2 text-gray-600">{{ rule.condition_operator }}</span>
                     </div>
                     <!-- Pro-only fields -->
-                    <div v-if="isPro && rule.rule_category && rule.rule_category !== 'Custom'">
+                    <div v-if="rule.rule_category">
                       <span class="font-medium text-gray-700">Category:</span>
                       <span class="ml-2 text-gray-600">{{ rule.rule_category }}</span>
                     </div>
-                    <div v-if="isPro && rule.regulation_reference">
+                    <div v-if="rule.regulation_reference">
                       <span class="font-medium text-gray-700">Regulation:</span>
                       <span class="ml-2 text-gray-600">{{ rule.regulation_reference }}</span>
                     </div>
-                    <div v-if="isPro && rule.applies_to_pie">
+                    <div v-if="rule.applies_to_pie">
                       <span class="font-medium text-gray-700">PIE Only:</span>
                       <span class="ml-2 text-gray-600">Yes</span>
                     </div>
-                    <div v-if="isPro && rule.tax_sub_type">
+                    <div v-if="rule.applies_to_cma">
+                      <span class="font-medium text-gray-700">CMA Only:</span>
+                      <span class="ml-2 text-gray-600">Yes</span>
+                    </div>
+                    <div v-if="rule.tax_sub_type">
                       <span class="font-medium text-gray-700">Tax Sub-Type:</span>
                       <span class="ml-2 text-gray-600">{{ rule.tax_sub_type }}</span>
                     </div>
@@ -359,8 +357,8 @@
             </select>
           </div>
 
-          <!-- Pro Version: IESBA Rule Templates -->
-          <div v-if="isPro" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <!-- IESBA Rule Templates -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <label class="block text-sm font-semibold text-blue-900 mb-2">IESBA Rule Templates (Pro)</label>
             <select
               v-model="selectedTemplate"
@@ -381,40 +379,48 @@
             <p class="text-xs text-blue-700 mt-1">One-click import of IESBA-compliant rules</p>
           </div>
 
-          <!-- Pro Version: Rule Category & Regulation -->
-          <div v-if="isPro" class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Rule Category</label>
-              <select
-                v-model="ruleForm.rule_category"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Custom">Custom</option>
-                <option value="IESBA">IESBA</option>
-                <option value="Red Line">Red Line</option>
-                <option value="PIE">PIE</option>
-                <option value="Tax">Tax</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Regulation Reference</label>
-              <select
-                v-model="ruleForm.regulation_reference"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select IESBA section...</option>
+          <!-- Rule Category (Available to all users) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Rule Category</label>
+            <select
+              v-model="ruleForm.rule_category"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="CMA">CMA</option>
+              <option value="IESBA">IESBA</option>
+            </select>
+          </div>
+
+          <!-- Regulation Reference -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Regulation Reference</label>
+            <select
+              v-model="ruleForm.regulation_reference"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select regulation...</option>
+              <optgroup label="IESBA">
                 <option value="IESBA Code Section 290">IESBA Code Section 290 (General)</option>
                 <option value="IESBA Code Section 290.104">IESBA Code Section 290.104 (Management Responsibility)</option>
                 <option value="IESBA Code Section 290.105">IESBA Code Section 290.105 (Advocacy)</option>
                 <option value="IESBA Code Section 290.106">IESBA Code Section 290.106 (Contingent Fees)</option>
+              </optgroup>
+              <optgroup label="EU Audit Regulation">
                 <option value="EU Audit Regulation">EU Audit Regulation</option>
                 <option value="EU Audit Regulation Article 4(2)">EU Audit Regulation Article 4(2) (Fee Cap)</option>
-              </select>
-            </div>
+              </optgroup>
+              <optgroup label="CMA (Kuwait)">
+                <option value="CMA Law No. 7 of 2010">CMA Law No. 7 of 2010</option>
+                <option value="CMA Module Nine">CMA Module Nine (Mergers and Acquisitions)</option>
+                <option value="CMA Module Fifteen">CMA Module Fifteen (Corporate Governance)</option>
+                <option value="CMA Module Sixteen">CMA Module Sixteen (AML/CFT)</option>
+                <option value="CMA Module Seventeen">CMA Module Seventeen (Capital Adequacy)</option>
+              </optgroup>
+            </select>
           </div>
 
-          <!-- Pro Version: PIE-Specific & Tax Sub-Type -->
-          <div v-if="isPro" class="grid grid-cols-2 gap-4">
+          <!-- PIE-Specific & Tax Sub-Type -->
+          <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input
@@ -440,11 +446,25 @@
             </div>
           </div>
 
+          <!-- CMA-Specific Rules -->
+          <div class="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="applies_to_cma"
+              v-model="ruleForm.applies_to_cma"
+              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label for="applies_to_cma" class="text-sm font-medium text-gray-700 cursor-pointer">
+              Applies to CMA-Regulated Clients Only
+            </label>
+            <p class="text-xs text-gray-500 ml-2">Rule will only apply to Capital Markets Authority regulated clients</p>
+          </div>
+
           <!-- Condition Section -->
           <div class="border-t border-gray-200 pt-4">
             <div class="flex items-center justify-between mb-4">
               <h4 class="text-sm font-semibold text-gray-900">Condition (IF)</h4>
-              <label v-if="isPro" class="flex items-center gap-2 cursor-pointer">
+              <label class="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   v-model="useAdvancedConditions"
@@ -535,26 +555,9 @@
               </div>
             </div>
 
-            <!-- Advanced Mode: Multiple conditions with AND/OR (Pro only) -->
-            <div v-if="!isPro && useAdvancedConditions" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div class="flex items-start gap-3">
-                <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <div>
-                  <h5 class="text-sm font-semibold text-blue-900 mb-1">Advanced Conditions (Pro Feature)</h5>
-                  <p class="text-sm text-blue-700 mb-2">Complex AND/OR condition groups are available in Pro Edition.</p>
-                  <button 
-                    @click="useAdvancedConditions = false"
-                    class="text-xs text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Switch back to simple mode
-                  </button>
-                </div>
-              </div>
-            </div>
+            <!-- Advanced Mode: Multiple conditions with AND/OR -->
             <ConditionBuilder
-              v-else-if="isPro"
+              v-if="useAdvancedConditions"
               v-model="conditionGroups"
               :field-categories="ruleFields"
               :operators="fieldOperators"
@@ -577,19 +580,13 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select action...</option>
-                  <template v-if="isPro">
-                    <!-- Pro Edition: Recommendation Actions -->
-                    <option value="recommend_reject">Recommend Reject</option>
-                    <option value="recommend_flag">Recommend Flag</option>
-                    <option value="recommend_review">Recommend Review</option>
-                    <option value="recommend_approve">Recommend Approve</option>
-                  </template>
-                  <template v-else>
-                    <!-- Standard Edition: Direct Actions -->
-                    <option value="block">Block</option>
-                    <option value="flag">Flag</option>
-                    <option value="require_approval">Require Approval</option>
-                  </template>
+                  <option value="recommend_reject">Recommend Reject</option>
+                  <option value="recommend_flag">Recommend Flag</option>
+                  <option value="recommend_review">Recommend Review</option>
+                  <option value="recommend_approve">Recommend Approve</option>
+                  <option value="block">Block</option>
+                  <option value="flag">Flag</option>
+                  <option value="require_approval">Require Approval</option>
                   <option value="set_status">Set Status</option>
                   <option value="send_notification">Send Notification</option>
                 </select>
@@ -607,9 +604,9 @@
             </div>
           </div>
 
-          <!-- Pro Version: Recommendation Configuration -->
-          <div v-if="isPro" class="border-t border-gray-200 pt-4">
-            <h4 class="text-sm font-semibold text-gray-900 mb-4">Recommendation Configuration (Pro)</h4>
+          <!-- Recommendation Configuration -->
+          <div class="border-t border-gray-200 pt-4">
+            <h4 class="text-sm font-semibold text-gray-900 mb-4">Recommendation Configuration</h4>
             
             <div class="grid grid-cols-2 gap-4">
               <div>
@@ -662,8 +659,8 @@
             </div>
           </div>
 
-          <!-- Impact Analysis (Pro only - shown when editing) -->
-          <div v-if="isPro && editingRule && (impactAnalysis || checkingImpact)" 
+          <!-- Impact Analysis (shown when editing) -->
+          <div v-if="editingRule && (impactAnalysis || checkingImpact)" 
                :class="{
                  'bg-yellow-50 border-yellow-200': impactAnalysis && (impactAnalysis.riskLevel === 'high' || impactAnalysis.riskLevel === 'critical'),
                  'bg-blue-50 border-blue-200': impactAnalysis && impactAnalysis.riskLevel === 'medium',
@@ -737,8 +734,8 @@
             </div>
           </div>
 
-          <!-- Test Rule Panel (Pro only) -->
-          <div v-if="isPro" class="border-t border-gray-200 pt-4">
+          <!-- Test Rule Panel -->
+          <div class="border-t border-gray-200 pt-4">
             <div class="flex items-center justify-between mb-3">
               <h4 class="text-sm font-semibold text-gray-900">Test Rule <span class="text-xs text-blue-600">(Pro)</span></h4>
               <button
@@ -955,7 +952,7 @@ const searchQuery = ref('')
 const filterRuleType = ref('')
 const filterCategory = ref('')
 const isSuperAdmin = ref(false)
-const expandedCategories = ref(new Set<string>(['Custom']))
+const expandedCategories = ref(new Set<string>(['CMA']))
 const showRejectModal = ref(false)
 const rejectingRule = ref<any>(null)
 const rejectionReason = ref('')
@@ -1048,9 +1045,10 @@ const ruleForm = ref({
   action_type: '',
   action_value: '',
   is_active: true,
-  rule_category: 'Custom' as string,
+  rule_category: 'CMA' as string,
   regulation_reference: '' as string,
   applies_to_pie: false as boolean,
+  applies_to_cma: false as boolean,
   tax_sub_type: '' as string,
   confidence_level: 'MEDIUM' as string,
   can_override: true as boolean,
@@ -1061,20 +1059,18 @@ const ruleForm = ref({
 const filteredRules = computed(() => {
   let filtered = rules.value
 
-  // For Standard users, only show Custom category rules
-  if (!isPro.value) {
-    filtered = filtered.filter(r => {
-      const category = r.rule_category || 'Custom'
-      return category === 'Custom'
-    })
-  }
+  // Only show CMA and IESBA category rules
+  filtered = filtered.filter(r => {
+    const category = r.rule_category || ''
+    return category === 'CMA' || category === 'IESBA'
+  })
 
   if (filterRuleType.value) {
     filtered = filtered.filter(r => r.rule_type === filterRuleType.value)
   }
 
   if (filterCategory.value) {
-    filtered = filtered.filter(r => (r.rule_category || 'Custom') === filterCategory.value)
+    filtered = filtered.filter(r => r.rule_category === filterCategory.value)
   }
 
   if (searchQuery.value) {
@@ -1093,10 +1089,18 @@ const filteredRules = computed(() => {
 const groupedRules = computed(() => {
   const groups: Record<string, any[]> = {}
   
+  // Define category order - only CMA and IESBA
+  const categoryOrder = ['CMA', 'IESBA']
+  
+  // Initialize all ordered categories with empty arrays so they appear even with 0 rules
+  categoryOrder.forEach(cat => {
+    groups[cat] = []
+  })
+  
   filteredRules.value.forEach(rule => {
-    const category = rule.rule_category || 'Custom'
-    // For Standard users, only group Custom category
-    if (isPro.value || category === 'Custom') {
+    const category = rule.rule_category || ''
+    // Only group CMA and IESBA categories
+    if (category === 'CMA' || category === 'IESBA') {
       if (!groups[category]) {
         groups[category] = []
       }
@@ -1104,16 +1108,10 @@ const groupedRules = computed(() => {
     }
   })
   
-  // Define category order - Standard users only see Custom
-  const categoryOrder = isPro.value 
-    ? ['Red Line', 'IESBA', 'PIE', 'Tax', 'Custom']
-    : ['Custom']
-  const orderedCategories = categoryOrder.filter(cat => groups[cat])
-  const otherCategories = Object.keys(groups).filter(cat => !categoryOrder.includes(cat))
-  
-  return [...orderedCategories, ...otherCategories].map(name => ({
+  // Include all ordered categories (even with 0 rules)
+  return categoryOrder.map(name => ({
     name,
-    rules: groups[name].sort((a, b) => (a.rule_name || '').localeCompare(b.rule_name || ''))
+    rules: (groups[name] || []).sort((a, b) => (a.rule_name || '').localeCompare(b.rule_name || ''))
   }))
 })
 
@@ -1205,12 +1203,17 @@ async function loadRules() {
     
     // Log category breakdown
     const categoryBreakdown = rules.value.reduce((acc: any, rule: any) => {
-      const category = rule.rule_category || 'Custom'
-      acc[category] = (acc[category] || 0) + 1
+      const category = rule.rule_category || ''
+      if (category === 'CMA' || category === 'IESBA') {
+        acc[category] = (acc[category] || 0) + 1
+      }
       return acc
     }, {})
     console.log('Rules by category:', categoryBreakdown)
-    console.log('Custom category rules:', rules.value.filter((r: any) => (r.rule_category || 'Custom') === 'Custom').length)
+    console.log('CMA/IESBA category rules:', rules.value.filter((r: any) => {
+      const cat = r.rule_category || ''
+      return cat === 'CMA' || cat === 'IESBA'
+    }).length)
     hasShownInitialError.value = false // Reset on success
     
     if (rules.value.length === 0) {
@@ -1374,9 +1377,10 @@ async function editRule(rule: any) {
     action_type: rule.action_type,
     action_value: rule.action_value || '',
     is_active: rule.is_active === 1 || rule.is_active === true,
-    rule_category: rule.rule_category || 'Custom',
+      rule_category: rule.rule_category || 'CMA',
     regulation_reference: rule.regulation_reference || '',
     applies_to_pie: rule.applies_to_pie === 1 || rule.applies_to_pie === true,
+    applies_to_cma: rule.applies_to_cma === 1 || rule.applies_to_cma === true,
     tax_sub_type: rule.tax_sub_type || '',
     confidence_level: rule.confidence_level || 'MEDIUM',
     can_override: rule.can_override !== undefined ? (rule.can_override === 1 || rule.can_override === true) : true,
@@ -1495,9 +1499,10 @@ function closeModal() {
     action_type: '',
     action_value: '',
     is_active: true,
-    rule_category: 'Custom',
+    rule_category: 'CMA',
     regulation_reference: '',
     applies_to_pie: false,
+    applies_to_cma: false,
     tax_sub_type: '',
     confidence_level: 'MEDIUM',
     can_override: true,
@@ -1519,7 +1524,7 @@ function loadTemplate() {
     red_line_management: {
       rule_name: 'Red Line: Management Responsibility',
       rule_type: 'conflict',
-      rule_category: 'Red Line',
+      rule_category: 'IESBA',
       condition_field: 'service_description',
       condition_operator: 'contains',
       condition_value: 'management responsibility,financial statements preparation',
@@ -1527,6 +1532,7 @@ function loadTemplate() {
       action_value: 'CRITICAL: Management responsibility violates auditor independence per IESBA Code Section 290.104',
       regulation_reference: 'IESBA Code Section 290.104',
       applies_to_pie: false,
+      applies_to_cma: false,
       confidence_level: 'HIGH',
       can_override: false,
       is_active: true
@@ -1534,7 +1540,7 @@ function loadTemplate() {
     red_line_advocacy: {
       rule_name: 'Red Line: Advocacy',
       rule_type: 'conflict',
-      rule_category: 'Red Line',
+      rule_category: 'IESBA',
       condition_field: 'service_description',
       condition_operator: 'contains',
       condition_value: 'advocate,litigation support,court representation',
@@ -1542,6 +1548,7 @@ function loadTemplate() {
       action_value: 'CRITICAL: Acting as advocate violates auditor independence',
       regulation_reference: 'IESBA Code Section 290',
       applies_to_pie: false,
+      applies_to_cma: false,
       confidence_level: 'HIGH',
       can_override: false,
       is_active: true
@@ -1549,7 +1556,7 @@ function loadTemplate() {
     red_line_contingent_fees: {
       rule_name: 'Red Line: Contingent Fees',
       rule_type: 'conflict',
-      rule_category: 'Red Line',
+      rule_category: 'IESBA',
       condition_field: 'service_description',
       condition_operator: 'contains',
       condition_value: 'contingent fee,success fee,performance based',
@@ -1557,6 +1564,7 @@ function loadTemplate() {
       action_value: 'CRITICAL: Contingent fees violate auditor independence',
       regulation_reference: 'IESBA Code Section 290',
       applies_to_pie: false,
+      applies_to_cma: false,
       confidence_level: 'HIGH',
       can_override: false,
       is_active: true
@@ -1564,7 +1572,7 @@ function loadTemplate() {
     pie_tax_planning: {
       rule_name: 'PIE: Tax Planning Prohibited',
       rule_type: 'conflict',
-      rule_category: 'PIE',
+      rule_category: 'IESBA',
       condition_field: 'pie_status',
       condition_operator: 'equals',
       condition_value: 'Yes',
@@ -1580,7 +1588,7 @@ function loadTemplate() {
     pie_tax_compliance: {
       rule_name: 'PIE: Tax Compliance Requires Safeguards',
       rule_type: 'conflict',
-      rule_category: 'PIE',
+      rule_category: 'IESBA',
       condition_field: 'pie_status',
       condition_operator: 'equals',
       condition_value: 'Yes',
@@ -1596,7 +1604,7 @@ function loadTemplate() {
     pie_advisory: {
       rule_name: 'PIE: Advisory Services Prohibited',
       rule_type: 'conflict',
-      rule_category: 'PIE',
+      rule_category: 'IESBA',
       condition_field: 'pie_status',
       condition_operator: 'equals',
       condition_value: 'Yes',
@@ -1611,7 +1619,7 @@ function loadTemplate() {
     audit_tax_planning_pie: {
       rule_name: 'Audit + Tax Planning (PIE) - Prohibited',
       rule_type: 'conflict',
-      rule_category: 'Tax',
+      rule_category: 'IESBA',
       condition_field: 'service_type',
       condition_operator: 'contains',
       condition_value: 'Tax Planning,Tax Strategy',
@@ -1627,7 +1635,7 @@ function loadTemplate() {
     audit_tax_planning_nonpie: {
       rule_name: 'Audit + Tax Planning (Non-PIE) - Requires Safeguards',
       rule_type: 'conflict',
-      rule_category: 'Tax',
+      rule_category: 'IESBA',
       condition_field: 'service_type',
       condition_operator: 'contains',
       condition_value: 'Tax Planning,Tax Strategy',
@@ -1635,6 +1643,7 @@ function loadTemplate() {
       action_value: 'MEDIUM: Tax Planning for non-PIE audit client requires safeguards',
       regulation_reference: 'IESBA Code Section 290',
       applies_to_pie: false,
+      applies_to_cma: false,
       tax_sub_type: 'TAX_PLANNING',
       confidence_level: 'MEDIUM',
       can_override: true,
@@ -1643,7 +1652,7 @@ function loadTemplate() {
     audit_tax_compliance: {
       rule_name: 'Audit + Tax Compliance - Likely Approved',
       rule_type: 'conflict',
-      rule_category: 'Tax',
+      rule_category: 'IESBA',
       condition_field: 'service_type',
       condition_operator: 'contains',
       condition_value: 'Tax Compliance,Tax Return',
@@ -1651,6 +1660,7 @@ function loadTemplate() {
       action_value: 'LOW: Tax Compliance usually approved with safeguards',
       regulation_reference: 'IESBA Code Section 290',
       applies_to_pie: false,
+      applies_to_cma: false,
       tax_sub_type: 'TAX_COMPLIANCE',
       confidence_level: 'LOW',
       can_override: true,
@@ -1690,9 +1700,10 @@ function populateTemplate(template: any) {
     action_type: template.action_type || '',
     action_value: template.action_value || '',
     is_active: template.is_active !== undefined ? template.is_active : true,
-    rule_category: template.rule_category || 'Custom',
+    rule_category: template.rule_category || 'CMA',
     regulation_reference: template.regulation_reference || '',
     applies_to_pie: template.applies_to_pie || false,
+    applies_to_cma: template.applies_to_cma || false,
     tax_sub_type: template.tax_sub_type || '',
     confidence_level: template.confidence_level || 'MEDIUM',
     can_override: template.can_override !== undefined ? template.can_override : true,

@@ -3,6 +3,10 @@ import { readFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { getDatabaseName, validateEnvironment } from '../config/environment.js'
+import { seedCMAServiceTypes } from '../scripts/seedCMAServiceTypes.js'
+import { seedCMARules } from '../scripts/seedCMARules.js'
+import { seedIESBARules } from '../scripts/seedIESBARules.js'
+import { seedCMABusinessRules } from '../scripts/seedCMABusinessRules.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -927,6 +931,50 @@ export async function initDatabase() {
     }
   }
 
+  // HRMS integration: map COI user to HRMS employee for status sync
+  try {
+    db.exec('ALTER TABLE users ADD COLUMN hrms_employee_id VARCHAR(100)')
+    console.log('✅ Added column hrms_employee_id to users')
+  } catch (error) {
+    if (!error.message.includes('duplicate column')) {
+      console.log('Note: users.hrms_employee_id:', error.message)
+    }
+  }
+
+  // Goal 3: Configurable approver hierarchy (order per role) — lower number = first in chain
+  try {
+    db.exec('ALTER TABLE users ADD COLUMN approval_order INTEGER')
+    console.log('✅ Added column approval_order to users')
+  } catch (error) {
+    if (!error.message.includes('duplicate column')) {
+      console.log('Note: users.approval_order:', error.message)
+    }
+  }
+
+  // COI Form Goals: global line of service + backup approver (2026-01-28)
+  const coiFormGoalsColumns = [
+    { name: 'global_service_category', def: 'VARCHAR(50)' },
+    { name: 'global_service_type', def: 'VARCHAR(100)' },
+    { name: 'backup_approver_id', def: 'INTEGER REFERENCES users(id)' }
+  ]
+  for (const col of coiFormGoalsColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        console.log(`Note: coi_requests.${col.name}:`, error.message)
+      }
+    }
+  }
+  try {
+    db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_backup_approver ON coi_requests(backup_approver_id)')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Note: idx_coi_requests_backup_approver:', error.message)
+    }
+  }
+
   // Create dismissed_resolved_conflicts table for tracking dismissed conflict resolution items
   try {
     db.exec(`
@@ -945,6 +993,47 @@ export async function initDatabase() {
   } catch (error) {
     if (!error.message.includes('already exists')) {
       console.error('Error creating dismissed_resolved_conflicts table:', error.message)
+    }
+  }
+
+  // Parent company bidirectional sync: optional text on clients (PRMS often has "TBD")
+  try {
+    db.exec('ALTER TABLE clients ADD COLUMN parent_company VARCHAR(255)')
+    console.log('✅ Added column parent_company to clients')
+  } catch (error) {
+    if (!error.message.includes('duplicate column')) {
+      console.log('Note: clients.parent_company:', error.message)
+    }
+  }
+
+  // Parent company update requests: COI-originated parent updates require PRMS admin approval
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS parent_company_update_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER NOT NULL,
+        client_code VARCHAR(50) NOT NULL,
+        requested_parent_company VARCHAR(255),
+        requested_parent_company_id INTEGER REFERENCES clients(id),
+        source VARCHAR(50) DEFAULT 'COI',
+        status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
+        coi_request_id INTEGER REFERENCES coi_requests(id),
+        requested_by INTEGER NOT NULL REFERENCES users(id),
+        requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        reviewed_by INTEGER REFERENCES users(id),
+        reviewed_at DATETIME,
+        review_notes TEXT,
+        prms_updated_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_parent_company_update_client ON parent_company_update_requests(client_id)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_parent_company_update_status ON parent_company_update_requests(status)')
+    console.log('✅ parent_company_update_requests table ensured')
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.error('Error creating parent_company_update_requests table:', error.message)
     }
   }
 
@@ -984,6 +1073,147 @@ export async function initDatabase() {
     seedGlobalServiceCatalog()
   } catch (error) {
     console.log('Note: Service catalog seeding skipped (may already exist)')
+  }
+
+  // Seed CMA Rules (Phase 1.1 - CMA Foundation)
+  try {
+    // Create CMA tables directly (more reliable than parsing SQL file)
+    db.pragma('foreign_keys = OFF')
+    
+    // Create cma_service_types table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS cma_service_types (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_code VARCHAR(50) NOT NULL UNIQUE,
+        service_name_en TEXT NOT NULL,
+        service_name_ar TEXT,
+        legal_reference TEXT,
+        module_reference TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    
+    // Create cma_condition_codes table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS cma_condition_codes (
+        code VARCHAR(50) PRIMARY KEY,
+        description TEXT NOT NULL,
+        requires_manual_review BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    
+    // Create cma_combination_rules table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS cma_combination_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_a_code VARCHAR(50) NOT NULL,
+        service_b_code VARCHAR(50) NOT NULL,
+        allowed BOOLEAN NOT NULL,
+        condition_code VARCHAR(50),
+        severity_level VARCHAR(20) DEFAULT 'BLOCKED',
+        legal_reference TEXT,
+        reason_text TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(service_a_code, service_b_code)
+      )
+    `)
+    
+    // Create indexes
+    db.exec('CREATE INDEX IF NOT EXISTS idx_cma_rules_service_a ON cma_combination_rules(service_a_code)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_cma_rules_service_b ON cma_combination_rules(service_b_code)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_cma_rules_allowed ON cma_combination_rules(allowed)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_cma_rules_condition ON cma_combination_rules(condition_code)')
+    
+    // Re-enable foreign keys
+    db.pragma('foreign_keys = ON')
+      
+      // Add is_cma_regulated column if it doesn't exist
+      try {
+        db.exec('ALTER TABLE clients ADD COLUMN is_cma_regulated BOOLEAN DEFAULT 0')
+        console.log('✅ Added is_cma_regulated column to clients table')
+      } catch (error) {
+        if (!error.message.includes('duplicate column')) {
+          // Column already exists, that's fine
+        }
+      }
+      
+      // Seed CMA service types
+      try {
+        const serviceTypesResult = seedCMAServiceTypes()
+        console.log(`✅ CMA Service Types: ${serviceTypesResult.inserted} inserted, ${serviceTypesResult.skipped} skipped`)
+      } catch (seedError) {
+        console.error('❌ Error seeding CMA Service Types:', seedError)
+        throw seedError // Don't swallow errors
+      }
+      
+      // Seed CMA combination rules
+      try {
+        const rulesResult = seedCMARules()
+        console.log(`✅ CMA Combination Rules: ${rulesResult.inserted} inserted, ${rulesResult.skipped} skipped`)
+      } catch (seedError) {
+        console.error('❌ Error seeding CMA Combination Rules:', seedError)
+        throw seedError // Don't swallow errors
+      }
+      
+      // Verify CMA seeding succeeded
+      try {
+        const serviceCount = db.prepare('SELECT COUNT(*) as count FROM cma_service_types').get()
+        const rulesCount = db.prepare('SELECT COUNT(*) as count FROM cma_combination_rules').get()
+        const conditionCount = db.prepare('SELECT COUNT(*) as count FROM cma_condition_codes').get()
+        
+        if (serviceCount.count === 0) {
+          console.warn('⚠️  CMA Service Types table is empty - seeding may have failed')
+        } else {
+          console.log(`✅ Verified: ${serviceCount.count} CMA service types in database`)
+        }
+        
+        if (rulesCount.count === 0) {
+          console.warn('⚠️  CMA Combination Rules table is empty - seeding may have failed')
+        } else {
+          console.log(`✅ Verified: ${rulesCount.count} CMA combination rules in database`)
+        }
+        
+        if (conditionCount.count === 0) {
+          console.warn('⚠️  CMA Condition Codes table is empty - seeding may have failed')
+        } else {
+          console.log(`✅ Verified: ${conditionCount.count} CMA condition codes in database`)
+        }
+      } catch (verifyError) {
+        console.error('❌ Error verifying CMA data:', verifyError)
+      }
+      
+      console.log('✅ CMA rules migration and seeding complete')
+  } catch (error) {
+    console.log('Note: CMA rules migration/seeding skipped (may already exist):', error.message)
+  }
+
+  // Add applies_to_cma column to business_rules_config (Rule Builder CMA integration)
+  try {
+    db.exec('ALTER TABLE business_rules_config ADD COLUMN applies_to_cma BOOLEAN DEFAULT 0')
+    console.log('✅ Added applies_to_cma column to business_rules_config table')
+  } catch (error) {
+    if (!error.message.includes('duplicate column')) {
+      // Column already exists, that's fine
+    }
+  }
+
+  // Seed IESBA rules into business_rules_config (CMA + IESBA only)
+  try {
+    const iesbaResult = seedIESBARules()
+    console.log(`✅ IESBA rules: ${iesbaResult.inserted} inserted, ${iesbaResult.skipped} skipped`)
+  } catch (iesbaError) {
+    console.log('Note: IESBA rules seed skipped (may already exist):', iesbaError?.message)
+  }
+
+  // Seed CMA rules into business_rules_config for Rule Builder display
+  try {
+    const cmaBizResult = seedCMABusinessRules()
+    console.log(`✅ CMA business rules: ${cmaBizResult.inserted} inserted, ${cmaBizResult.skipped} skipped`)
+  } catch (cmaBizError) {
+    console.log('Note: CMA business rules seed skipped:', cmaBizError?.message)
   }
 
   // Create countries table and seed
@@ -1049,6 +1279,7 @@ export async function initDatabase() {
       ['unknown', 'Unknown / Legacy', 'other'],
       ['internal_referral', 'Internal Referral (Partner/Director)', 'referral'],
       ['client_referral', 'Client Referral', 'referral'],
+      ['bdo_global', 'BDO Global', 'referral'],
       ['insights_module', 'Client Intelligence Module', 'system'],
       ['cold_outreach', 'Cold Outreach', 'outbound'],
       ['direct_creation', 'Direct Client Creation', 'other'],
@@ -1605,7 +1836,212 @@ export async function initDatabase() {
     // Ignore backfill errors
   }
 
+  // Create permission system tables
+  try {
+    createPermissionTables(db)
+  } catch (error) {
+    if (!error.message.includes('already exists')) {
+      console.log('Permission tables creation error:', error.message)
+    }
+  }
+
+  // Seed default permissions
+  try {
+    seedDefaultPermissions(db)
+  } catch (error) {
+    console.log('Permission seeding error:', error.message)
+  }
+
   console.log('Database initialized')
+}
+
+/**
+ * Create permission system tables if they don't exist
+ */
+function createPermissionTables(db) {
+  // Create permissions table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS permissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      permission_key VARCHAR(100) NOT NULL UNIQUE,
+      name VARCHAR(200) NOT NULL,
+      description TEXT,
+      category VARCHAR(50) NOT NULL,
+      is_system BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+  
+  // Create role_permissions table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS role_permissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      role VARCHAR(50) NOT NULL,
+      permission_key VARCHAR(100) NOT NULL REFERENCES permissions(permission_key) ON DELETE CASCADE,
+      is_granted BOOLEAN DEFAULT 1,
+      granted_by INTEGER REFERENCES users(id),
+      granted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(role, permission_key)
+    )
+  `)
+  
+  // Create permission_audit_log table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS permission_audit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      role VARCHAR(50) NOT NULL,
+      permission_key VARCHAR(100) NOT NULL,
+      action VARCHAR(20) NOT NULL,
+      changed_by INTEGER NOT NULL REFERENCES users(id),
+      changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      reason TEXT
+    )
+  `)
+  
+  // Create indexes
+  db.exec('CREATE INDEX IF NOT EXISTS idx_permissions_key ON permissions(permission_key)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_permissions_category ON permissions(category)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON role_permissions(role)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_role_permissions_key ON role_permissions(permission_key)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_role_permissions_granted ON role_permissions(role, is_granted)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_permission_audit_role ON permission_audit_log(role)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_permission_audit_key ON permission_audit_log(permission_key)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_permission_audit_date ON permission_audit_log(changed_at)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_permission_audit_user ON permission_audit_log(changed_by)')
+  
+  console.log('✅ Permission tables ensured')
+}
+
+/**
+ * Seed default permissions based on current hardcoded rules
+ */
+function seedDefaultPermissions(db) {
+  // Check if permissions table exists (from migration)
+  const tableCheck = db.prepare(`
+    SELECT name FROM sqlite_master 
+    WHERE type='table' AND name='permissions'
+  `).get()
+  
+  if (!tableCheck) {
+    console.log('ℹ️  Permissions table not found - run migration first')
+    return
+  }
+  
+  // Check if permissions already seeded
+  const existingCount = db.prepare('SELECT COUNT(*) as count FROM permissions').get()
+  if (existingCount.count > 0) {
+    console.log('✅ Permissions already seeded')
+    return
+  }
+  
+  console.log('Seeding default permissions...')
+  
+  // Define all permissions based on plan
+  const permissions = [
+    // Configuration Permissions
+    { key: 'email.config.view', name: 'View Email Configuration', desc: 'View email configuration settings', category: 'Configuration' },
+    { key: 'email.config.edit', name: 'Edit Email Configuration', desc: 'Edit email configuration settings', category: 'Configuration' },
+    { key: 'email.config.test', name: 'Test Email Configuration', desc: 'Test email configuration', category: 'Configuration' },
+    { key: 'sla.config.view', name: 'View SLA Configuration', desc: 'View SLA configuration settings', category: 'Configuration' },
+    { key: 'sla.config.edit', name: 'Edit SLA Configuration', desc: 'Edit SLA configuration settings', category: 'Configuration' },
+    { key: 'priority.config.view', name: 'View Priority Configuration', desc: 'View priority scoring configuration', category: 'Configuration' },
+    { key: 'priority.config.edit', name: 'Edit Priority Configuration', desc: 'Edit priority scoring configuration', category: 'Configuration' },
+    
+    // User Management Permissions
+    { key: 'users.create', name: 'Create Users', desc: 'Create new users', category: 'User Management' },
+    { key: 'users.edit', name: 'Edit Users', desc: 'Edit existing users', category: 'User Management' },
+    { key: 'users.disable', name: 'Disable Users', desc: 'Disable or enable users', category: 'User Management' },
+    { key: 'users.view', name: 'View Users', desc: 'View user list', category: 'User Management' },
+    
+    // System Permissions
+    { key: 'system.edition.switch', name: 'Switch Edition', desc: 'Switch between Standard and Pro editions', category: 'System' },
+    { key: 'system.audit.view', name: 'View Audit Logs', desc: 'View system audit logs', category: 'System' },
+    { key: 'system.config.view', name: 'View System Configuration', desc: 'View system configuration', category: 'System' },
+    { key: 'permissions.manage', name: 'Manage Permissions', desc: 'Manage role-based permissions', category: 'System' },
+    
+    // Request Permissions
+    { key: 'requests.create', name: 'Create COI Requests', desc: 'Create new COI requests', category: 'Requests' },
+    { key: 'requests.approve.director', name: 'Approve as Director', desc: 'Approve requests as Director', category: 'Requests' },
+    { key: 'requests.approve.compliance', name: 'Approve as Compliance', desc: 'Approve requests as Compliance', category: 'Requests' },
+    { key: 'requests.approve.partner', name: 'Approve as Partner', desc: 'Approve requests as Partner', category: 'Requests' },
+    { key: 'requests.generate.code', name: 'Generate Engagement Codes', desc: 'Generate engagement codes (Finance)', category: 'Requests' },
+    { key: 'requests.execute', name: 'Execute Proposals', desc: 'Execute proposals (Admin)', category: 'Requests' },
+    { key: 'requests.view.all', name: 'View All Requests', desc: 'View requests across all departments', category: 'Requests' },
+  ]
+  
+  // Insert permissions
+  const insertPermission = db.prepare(`
+    INSERT INTO permissions (permission_key, name, description, category, is_system)
+    VALUES (?, ?, ?, ?, 1)
+  `)
+  
+  const insertRolePermission = db.prepare(`
+    INSERT INTO role_permissions (role, permission_key, is_granted)
+    VALUES (?, ?, 1)
+  `)
+  
+  const transaction = db.transaction(() => {
+    // Insert all permissions
+    permissions.forEach(perm => {
+      insertPermission.run(perm.key, perm.name, perm.desc, perm.category)
+    })
+    
+    // Super Admin: All permissions (handled in service, but we can still log them)
+    // Admin: Configuration view/edit, request execution
+    const adminPermissions = [
+      'email.config.view', 'email.config.edit', 'email.config.test',
+      'sla.config.view', 'priority.config.view',
+      'requests.execute', 'requests.view.all', 'system.config.view'
+    ]
+    adminPermissions.forEach(key => {
+      insertRolePermission.run('Admin', key)
+    })
+    
+    // Compliance: SLA view, request approval
+    const compliancePermissions = [
+      'sla.config.view',
+      'requests.approve.compliance', 'requests.view.all'
+    ]
+    compliancePermissions.forEach(key => {
+      insertRolePermission.run('Compliance', key)
+    })
+    
+    // Director: Request approval, view team requests
+    const directorPermissions = [
+      'requests.approve.director', 'requests.create', 'requests.view.all'
+    ]
+    directorPermissions.forEach(key => {
+      insertRolePermission.run('Director', key)
+    })
+    
+    // Partner: Request approval, view all
+    const partnerPermissions = [
+      'requests.approve.partner', 'requests.view.all'
+    ]
+    partnerPermissions.forEach(key => {
+      insertRolePermission.run('Partner', key)
+    })
+    
+    // Finance: Generate codes, view all
+    const financePermissions = [
+      'requests.generate.code', 'requests.view.all'
+    ]
+    financePermissions.forEach(key => {
+      insertRolePermission.run('Finance', key)
+    })
+    
+    // Requester: Create requests, view own
+    const requesterPermissions = [
+      'requests.create'
+    ]
+    requesterPermissions.forEach(key => {
+      insertRolePermission.run('Requester', key)
+    })
+  })
+  
+  transaction()
+  console.log(`✅ Seeded ${permissions.length} default permissions`)
 }
 
 export default getDatabase

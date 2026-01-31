@@ -50,6 +50,14 @@ router.get('/hrms/user-data', async (req, res) => {
   }
 })
 
+// Treat PRMS "TBD" as empty for pre-fill (parent company bidirectional sync)
+function normalizeParentForPrefill (value) {
+  if (value == null || value === '') return null
+  const v = String(value).trim().toUpperCase()
+  if (v === 'TBD' || v === '') return null
+  return value
+}
+
 router.get('/prms/client/:clientId', async (req, res) => {
   try {
     const db = getDatabase()
@@ -61,9 +69,15 @@ router.get('/prms/client/:clientId', async (req, res) => {
     }
     
     let parentCompany = null
+    let parentCompanyName = null
     if (client.parent_company_id) {
       parentCompany = db.prepare('SELECT * FROM clients WHERE id = ?').get(client.parent_company_id)
+      parentCompanyName = parentCompany ? parentCompany.client_name : null
     }
+    if (parentCompanyName == null && client.parent_company) {
+      parentCompanyName = client.parent_company
+    }
+    parentCompanyName = normalizeParentForPrefill(parentCompanyName)
     
     // In production, this would query PRMS
     res.json({
@@ -74,7 +88,8 @@ router.get('/prms/client/:clientId', async (req, res) => {
         industry: client.industry,
         commercial_registration: client.commercial_registration
       },
-      parent_company: parentCompany ? {
+      parent_company: parentCompanyName,
+      parent_company_detail: parentCompany ? {
         client_name: parentCompany.client_name,
         client_code: parentCompany.client_code
       } : null

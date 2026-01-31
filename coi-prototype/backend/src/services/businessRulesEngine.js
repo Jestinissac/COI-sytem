@@ -1,8 +1,8 @@
 import { getDatabase } from '../database/init.js'
-import { getSystemEdition, isProEdition } from './configService.js'
 import { checkRedLines } from './redLinesService.js'
 import { evaluateIESBADecisionMatrix } from './iesbaDecisionMatrix.js'
 import FieldMappingService from './fieldMappingService.js'
+import { isCMARegulated } from './cmaConflictMatrix.js'
 
 const db = getDatabase()
 
@@ -14,7 +14,7 @@ const db = getDatabase()
  */
 export function evaluateRules(requestData) {
   try {
-    const isPro = isProEdition()
+    // CMA + IESBA only: always Pro (recommendations format)
     
     // Prepare request data with computed fields
     const enhancedRequestData = FieldMappingService.prepareForRuleEvaluation(requestData)
@@ -31,34 +31,69 @@ export function evaluateRules(requestData) {
     const executionLogs = []
 
     for (const rule of rules) {
+      // Check if rule applies to PIE clients only (BUG FIX)
+      if (rule.applies_to_pie) {
+        const isPIE = enhancedRequestData.pie_status === 'Yes' || 
+                      enhancedRequestData.pie_status === true ||
+                      enhancedRequestData.pie_status === 1
+        if (!isPIE) {
+          // Log non-match for audit
+          executionLogs.push({
+            rule_id: rule.id,
+            condition_matched: false,
+            action_taken: null,
+            execution_result: JSON.stringify({ 
+              reason: 'Rule applies to PIE clients only, but client is not PIE',
+              skipped: true 
+            })
+          })
+          continue // Skip this rule for non-PIE clients
+        }
+      }
+      
+      // Check if rule applies to CMA clients only
+      if (rule.applies_to_cma) {
+        // Get client data to check CMA status
+        let clientData = null
+        if (enhancedRequestData.client_id) {
+          clientData = db.prepare('SELECT * FROM clients WHERE id = ?').get(enhancedRequestData.client_id)
+        } else if (enhancedRequestData.client) {
+          clientData = enhancedRequestData.client
+        }
+        
+        if (!clientData || !isCMARegulated(clientData)) {
+          // Log non-match for audit
+          executionLogs.push({
+            rule_id: rule.id,
+            condition_matched: false,
+            action_taken: null,
+            execution_result: JSON.stringify({ 
+              reason: 'Rule applies to CMA-regulated clients only, but client is not CMA-regulated',
+              skipped: true 
+            })
+          })
+          continue // Skip this rule for non-CMA clients
+        }
+      }
+      
+      // Continue with rule evaluation
       const evaluation = evaluateRule(rule, enhancedRequestData)
       
       if (evaluation.matched) {
-        if (isPro) {
-          // Pro edition: Return recommendations
-          results.push({
-            ruleId: rule.id,
-            ruleName: rule.rule_name,
-            ruleType: rule.rule_type,
-            recommendedAction: mapActionToRecommendation(rule.action_type),
-            reason: getReason(rule, requestData),
-            confidence: getConfidenceLevel(rule),
-            canOverride: canOverrideAction(rule),
-            overrideGuidance: getOverrideGuidance(rule),
-            requiresComplianceReview: true,
-            guidance: `Rule: ${rule.rule_name}`,
-            regulation: getRegulationReference(rule)
-          })
-        } else {
-          // Standard edition: Return actions
-          results.push({
-            ruleId: rule.id,
-            ruleName: rule.rule_name,
-            ruleType: rule.rule_type,
-            action: rule.action_type,
-            reason: getReason(rule, requestData)
-          })
-        }
+        // Always return recommendations format (CMA + IESBA only)
+        results.push({
+          ruleId: rule.id,
+          ruleName: rule.rule_name,
+          ruleType: rule.rule_type,
+          recommendedAction: mapActionToRecommendation(rule.action_type),
+          reason: getReason(rule, requestData),
+          confidence: getConfidenceLevel(rule),
+          canOverride: canOverrideAction(rule),
+          overrideGuidance: getOverrideGuidance(rule),
+          requiresComplianceReview: true,
+          guidance: `Rule: ${rule.rule_name}`,
+          regulation: getRegulationReference(rule)
+        })
 
         // Log execution
         executionLogs.push({
@@ -83,68 +118,41 @@ export function evaluateRules(requestData) {
       logRuleExecutions(executionLogs, enhancedRequestData.id)
     }
 
-    if (isPro) {
-      // Pro edition: Combine business rules with red lines and IESBA matrix
-      const redLineRecommendations = checkRedLines(enhancedRequestData)
-      const iesbaRecommendations = evaluateIESBADecisionMatrix(enhancedRequestData)
-      
-      // Combine all recommendations
-      const allRecommendations = [
-        ...redLineRecommendations,
-        ...iesbaRecommendations,
-        ...results
-      ]
-      
-      // De-duplicate recommendations by rule name/type to prevent spam
-      // Keep the first occurrence of each unique rule (highest priority sources first: redLines > IESBA > business rules)
-      const uniqueRecommendations = []
-      const seenRuleKeys = new Set()
-      
-      for (const rec of allRecommendations) {
-        // Create unique key from rule name or type
-        const key = rec.ruleName || rec.type || `${rec.ruleType}-${rec.reason}`
-        
-        if (!seenRuleKeys.has(key)) {
-          seenRuleKeys.add(key)
-          uniqueRecommendations.push(rec)
-        }
+    // CMA + IESBA only: always combine red lines, IESBA matrix, and business rules
+    const redLineRecommendations = checkRedLines(enhancedRequestData)
+    const iesbaRecommendations = evaluateIESBADecisionMatrix(enhancedRequestData)
+    
+    const allRecommendations = [
+      ...redLineRecommendations,
+      ...iesbaRecommendations,
+      ...results
+    ]
+    
+    const uniqueRecommendations = []
+    const seenRuleKeys = new Set()
+    
+    for (const rec of allRecommendations) {
+      const key = rec.ruleName || rec.type || `${rec.ruleType}-${rec.reason}`
+      if (!seenRuleKeys.has(key)) {
+        seenRuleKeys.add(key)
+        uniqueRecommendations.push(rec)
       }
-      
-      return {
-        recommendations: uniqueRecommendations,
-        totalRulesEvaluated: rules.length,
-        matchedRules: results.length,
-        uniqueRecommendations: uniqueRecommendations.length,
-        duplicatesRemoved: allRecommendations.length - uniqueRecommendations.length,
-        redLinesDetected: redLineRecommendations.length,
-        iesbaRecommendations: iesbaRecommendations.length,
-        businessRuleRecommendations: results.length
-      }
-    } else {
-      // Standard edition: Also de-duplicate actions
-      const uniqueActions = []
-      const seenActionKeys = new Set()
-      
-      for (const action of results) {
-        const key = action.ruleName || `${action.ruleType}-${action.reason}`
-        if (!seenActionKeys.has(key)) {
-          seenActionKeys.add(key)
-          uniqueActions.push(action)
-        }
-      }
-      
-      return {
-        actions: uniqueActions,
-        totalRulesEvaluated: rules.length,
-        matchedRules: results.length,
-        duplicatesRemoved: results.length - uniqueActions.length
-      }
+    }
+    
+    return {
+      recommendations: uniqueRecommendations,
+      totalRulesEvaluated: rules.length,
+      matchedRules: results.length,
+      uniqueRecommendations: uniqueRecommendations.length,
+      duplicatesRemoved: allRecommendations.length - uniqueRecommendations.length,
+      redLinesDetected: redLineRecommendations.length,
+      iesbaRecommendations: iesbaRecommendations.length,
+      businessRuleRecommendations: results.length
     }
   } catch (error) {
     console.error('Error evaluating rules:', error)
-    const isPro = isProEdition()
     return {
-      [isPro ? 'recommendations' : 'actions']: [],
+      recommendations: [],
       totalRulesEvaluated: 0,
       matchedRules: 0,
       error: error.message

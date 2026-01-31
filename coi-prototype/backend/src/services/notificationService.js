@@ -1,8 +1,10 @@
 import { appendFileSync } from 'fs'
 import { getDatabase } from '../database/init.js'
 import { calculatePriority, PRIORITY_LEVEL } from './priorityService.js'
+import { getApproversFromAD } from './adIntegrationService.js'
 
 const db = getDatabase()
+const USE_AD_APPROVERS = process.env.USE_AD_APPROVERS === 'true' || process.env.USE_AD_APPROVERS === '1'
 
 // ============================================================================
 // NOTIFICATION BATCHING CONFIGURATION
@@ -962,39 +964,60 @@ COI System`
 
 function getNextApprover(department, role, requestId = null) {
   // requestId is optional - only used for sending unavailable notifications
-  // First, try to find an active approver for the requested role
-  let query = 'SELECT * FROM users WHERE role = ? AND is_active = 1'
-  const params = [role]
-  
-  if (role === 'Director' || role === 'Compliance') {
-    query += ' AND department = ?'
-    params.push(department)
+  // First level: AD (when enabled) or local DB; then filter by HRMS status (is_active); second level: backup then escalate
+  let candidates = []
+
+  if (USE_AD_APPROVERS) {
+    candidates = getApproversFromAD({ department, role })
+    // Filter by employee status (active only) — HRMS sync keeps is_active/active up to date
+    candidates = candidates.filter(u => (u.is_active === 1 || u.active === 1))
+  } else {
+    let query = 'SELECT * FROM users WHERE role = ? AND (is_active = 1 OR active = 1)'
+    const params = [role]
+    if (role === 'Director' || role === 'Compliance') {
+      if (department) {
+        query += ' AND department = ?'
+        params.push(department)
+      }
+    }
+    candidates = db.prepare(query).all(...params)
   }
-  
-  query += ' ORDER BY RANDOM() LIMIT 1'  // Random selection among available approvers
-  
-  const approver = db.prepare(query).get(...params)
-  
-  if (approver) {
-    return approver
+
+  if (candidates.length > 0) {
+    // Use configurable hierarchy (approval_order): lower number = first in chain; nulls last (Goal 3)
+    candidates.sort((a, b) => {
+      const ao = a.approval_order != null ? a.approval_order : 999999
+      const bo = b.approval_order != null ? b.approval_order : 999999
+      return ao - bo
+    })
+    return candidates[0]
   }
-  
+
+  // No active primary approver - try backup_approver_id from request (second level: local COI config)
+  if (requestId) {
+    const request = db.prepare('SELECT backup_approver_id FROM coi_requests WHERE id = ?').get(requestId)
+    if (request && request.backup_approver_id) {
+      const backup = db.prepare('SELECT * FROM users WHERE id = ? AND (active = 1 OR is_active = 1)').get(request.backup_approver_id)
+      if (backup) {
+        console.log(`[Backup] Using backup approver ${backup.name} (${backup.role}) for request ${requestId}`)
+        return backup
+      }
+    }
+  }
+
   // No active approver found - escalate to Admin
   console.log(`[Escalation] No active ${role} approvers available${department ? ` for department ${department}` : ''}. Escalating to Admin.`)
-  
-  // Requirement 5: Notify requester when no approvers are available
+
   if (requestId) {
-    // Get unavailable approvers to include in notification
-    let unavailableQuery = 'SELECT name, unavailable_reason, unavailable_until FROM users WHERE role = ? AND is_active = 0'
+    let unavailableQuery = 'SELECT name, unavailable_reason, unavailable_until FROM users WHERE role = ? AND (COALESCE(is_active, active, 1) = 0)'
     const unavailableParams = [role]
-    
     if (role === 'Director' || role === 'Compliance') {
-      unavailableQuery += ' AND department = ?'
-      unavailableParams.push(department)
+      if (department) {
+        unavailableQuery += ' AND department = ?'
+        unavailableParams.push(department)
+      }
     }
-    
     const unavailableApprovers = db.prepare(unavailableQuery).all(...unavailableParams)
-    
     if (unavailableApprovers.length > 0) {
       const firstUnavailable = unavailableApprovers[0]
       sendApproverUnavailableNotification(
@@ -1006,24 +1029,20 @@ function getNextApprover(department, role, requestId = null) {
       )
     }
   }
-  
+
   const admins = db.prepare(`
-    SELECT * FROM users WHERE role IN ('Admin', 'Super Admin') AND is_active = 1
+    SELECT * FROM users WHERE role IN ('Admin', 'Super Admin') AND (is_active = 1 OR active = 1)
   `).all()
-  
   if (admins.length > 0) {
-    // Notify admins about the unavailable approvers
     sendEscalationNotification(role, department, admins)
-    return admins[0]  // Return an admin to handle the request
+    return admins[0]
   }
-  
-  // Fallback: return any admin (even inactive) as last resort
+
   const anyAdmin = db.prepare(`SELECT * FROM users WHERE role IN ('Admin', 'Super Admin') LIMIT 1`).get()
   if (anyAdmin) {
     console.warn(`[Critical] No active admins available. Using ${anyAdmin.name} as fallback.`)
     return anyAdmin
   }
-  
   return null
 }
 

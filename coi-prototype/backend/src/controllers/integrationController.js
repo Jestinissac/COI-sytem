@@ -2,20 +2,37 @@ import { getDatabase } from '../database/init.js'
 
 const db = getDatabase()
 
+// Treat PRMS "TBD" or empty as no parent for pre-fill
+function normalizeParentForPrefill (value) {
+  if (value == null || value === '') return null
+  const v = String(value).trim().toUpperCase()
+  if (v === 'TBD' || v === '') return null
+  return value
+}
+
 export async function getClients(req, res) {
   try {
     const clients = db.prepare('SELECT * FROM clients WHERE status = ? ORDER BY client_name').all('Active')
-    // Transform to match frontend expectations (name, code)
-    const transformedClients = clients.map(client => ({
-      id: client.id,
-      name: client.client_name,
-      code: client.client_code,
-      client_name: client.client_name,
-      client_code: client.client_code,
-      industry: client.industry,
-      description: client.description,
-      status: client.status
-    }))
+    // Resolve parent: text parent_company or from parent_company_id; treat TBD as empty
+    const transformedClients = clients.map(client => {
+      let parentCompany = client.parent_company
+      if ((parentCompany == null || parentCompany === '' || String(parentCompany).trim().toUpperCase() === 'TBD') && client.parent_company_id) {
+        const parent = db.prepare('SELECT client_name FROM clients WHERE id = ?').get(client.parent_company_id)
+        parentCompany = parent ? parent.client_name : null
+      }
+      parentCompany = normalizeParentForPrefill(parentCompany)
+      return {
+        id: client.id,
+        name: client.client_name,
+        code: client.client_code,
+        client_name: client.client_name,
+        client_code: client.client_code,
+        industry: client.industry,
+        description: client.description,
+        status: client.status,
+        parent_company: parentCompany
+      }
+    })
     res.json(transformedClients)
   } catch (error) {
     res.status(500).json({ error: error.message })

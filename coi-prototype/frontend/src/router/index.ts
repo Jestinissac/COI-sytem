@@ -205,6 +205,12 @@ const router = createRouter({
           name: 'EmailConfig',
           component: () => import('@/views/EmailConfig.vue'),
           meta: { roles: ['Super Admin', 'Admin'] }
+        },
+        {
+          path: 'admin/permission-config',
+          name: 'PermissionConfig',
+          component: () => import('@/views/PermissionConfig.vue'),
+          meta: { roles: ['Super Admin'] }
         }
       ]
     },

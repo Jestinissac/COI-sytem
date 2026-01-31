@@ -326,18 +326,6 @@
                           >
                             Review
                           </button>
-                          <button 
-                            v-if="request.international_operations"
-                            @click="exportGlobalCOIForm(request)"
-                            :disabled="exportingRequestId === request.id"
-                            class="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-1"
-                            title="Export Global COI Form"
-                          >
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
-                            {{ exportingRequestId === request.id ? 'Exporting...' : 'Export' }}
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -895,7 +883,6 @@ const authStore = useAuthStore()
 // Modal state for reviewing requests
 const showReviewModal = ref(false)
 const selectedRequest = ref<COIRequest | null>(null)
-const exportingRequestId = ref<number | null>(null)
 const showRestrictionsModal = ref(false)
 const showInfoRequestModal = ref(false)
 const showSearch = ref(false)
@@ -1550,38 +1537,6 @@ function handleRequestUpdated(updatedRequest: COIRequest) {
   }
   // Refresh the list
   coiStore.fetchRequests()
-}
-
-// Export Global COI Form Excel
-async function exportGlobalCOIForm(request: any) {
-  if (!request.international_operations) {
-    alert('Global COI Form export is only available for requests with international operations')
-    return
-  }
-  
-  exportingRequestId.value = request.id
-  try {
-    const response = await api.get(`/global/export-excel/${request.id}`, {
-      responseType: 'blob'
-    })
-    
-    // Create download link
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `Global_COI_Form_${request.request_id}_${new Date().toISOString().split('T')[0]}.xlsx`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    window.URL.revokeObjectURL(url)
-    
-    alert('Global COI Form exported successfully!')
-  } catch (error: any) {
-    console.error('Failed to export:', error)
-    alert(error.response?.data?.error || 'Failed to export Global COI Form')
-  } finally {
-    exportingRequestId.value = null
-  }
 }
 
 onMounted(() => {

@@ -28,18 +28,6 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <!-- Export Global COI Form (Compliance only, international_operations required) -->
-            <button 
-              v-if="authStore.user?.role === 'Compliance' && request?.international_operations"
-              @click="exportGlobalCOIForm"
-              :disabled="exporting"
-              class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
-              {{ exporting ? 'Exporting...' : 'Export Global COI Form' }}
-            </button>
             <!-- Convert to Engagement button -->
             <button 
               v-if="canConvertToEngagement"
@@ -436,7 +424,30 @@
                   <span>{{ match.existingEngagement?.client_name || 'Unknown' }}</span>
                   <span class="font-medium">{{ match.matchScore }}%</span>
                 </div>
-                <p class="text-xs text-yellow-600">{{ match.reason }}</p>
+                <!-- Display conflict with regulation sources -->
+                <div v-if="match.conflicts && match.conflicts.length > 0" class="mt-2">
+                  <div v-for="(conflict, cIdx) in match.conflicts" :key="cIdx" class="mb-2">
+                    <!-- Multiple regulations detected -->
+                    <div v-if="conflict.allConflicts && conflict.allConflicts.length > 1" class="space-y-1">
+                      <div class="text-xs font-medium text-yellow-800 mb-1">
+                        Conflicts detected from multiple regulations:
+                      </div>
+                      <div v-for="(conf, idx) in conflict.allConflicts" :key="idx" class="text-xs text-yellow-700 pl-2 border-l-2 border-yellow-300">
+                        <span class="font-medium">{{ conf.regulationSources?.join(', ') || conf.regulationSource || 'IESBA' }}:</span>
+                        <span class="ml-1">{{ conf.reason }}</span>
+                      </div>
+                    </div>
+                    <!-- Single regulation -->
+                    <div v-else class="text-xs text-yellow-600">
+                      <span v-if="conflict.regulationSource || conflict.regulationSources" class="font-medium">
+                        {{ conflict.regulationSources?.join(', ') || conflict.regulationSource }}:
+                      </span>
+                      {{ conflict.reason }}
+                    </div>
+                  </div>
+                </div>
+                <!-- Fallback to match reason if no conflicts array -->
+                <p v-else class="text-xs text-yellow-600">{{ match.reason }}</p>
               </div>
             </div>
           </div>
@@ -538,7 +549,7 @@
                 <!-- Document Upload Details -->
                 <div v-if="hasDirectorApprovalDocument" class="text-sm">
                   <div class="text-gray-600 mb-2">Director approval document uploaded:</div>
-                  <div v-for="doc in directorApprovalDocuments" :key="doc.id" class="flex items-center gap-2 p-2 bg-blue-50 rounded">
+                  <div v-for="doc in directorApprovalDocuments" :key="doc.id" class="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
                     <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
@@ -726,7 +737,7 @@
               <!-- Director Tooltip (Directors see only Approve/Reject) -->
               <div v-if="userRole === 'Director' && request.status === 'Pending Director Approval'" class="border-t pt-3 mt-3">
                 <p class="text-xs text-gray-500 italic">
-                  ℹ️ Additional approval options (Restrictions, More Info) are available at Compliance level
+                  Note: Additional approval options (Restrictions, More Info) are available at Compliance level.
                 </p>
               </div>
             </div>
@@ -747,7 +758,7 @@
 
     <!-- Reject Modal -->
     <div v-if="showRejectModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-md mx-4">
         <div class="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
           <h3 class="font-medium text-gray-900">Reject Request</h3>
         </div>
@@ -765,7 +776,6 @@
                 />
                 <div>
                   <span class="text-sm font-medium text-gray-900">Fixable (allows resubmission)</span>
-                  <p class="text-xs text-gray-500 mt-0.5">Requester can modify and resubmit after addressing feedback</p>
                 </div>
               </label>
               <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-red-50 transition-colors" :class="rejectionType === 'permanent' ? 'border-red-500 bg-red-50' : 'border-gray-200'">
@@ -777,7 +787,6 @@
                 />
                 <div>
                   <span class="text-sm font-medium text-gray-900">Permanent (no resubmission)</span>
-                  <p class="text-xs text-gray-500 mt-0.5">For hard prohibitions or fundamental violations that cannot be fixed</p>
                 </div>
               </label>
             </div>
@@ -815,12 +824,12 @@
     
     <!-- Approve with Restrictions Modal -->
     <div v-if="showRestrictionsModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div class="px-4 py-3 border-b bg-yellow-50 rounded-t-lg">
-          <h3 class="font-medium text-yellow-800">Approve with Restrictions</h3>
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-md mx-4">
+        <div class="px-4 py-3 border-b border-gray-200 rounded-t-lg bg-gray-50">
+          <h3 class="font-medium text-gray-900">Approve with Restrictions</h3>
         </div>
         <div class="p-4">
-          <p class="text-sm text-gray-600 mb-3">Specify the restrictions that must be followed for this engagement:</p>
+          <p class="text-sm text-gray-600 mb-3">Restrictions for this engagement:</p>
           <textarea 
             v-model="restrictions" 
             rows="4" 
@@ -848,9 +857,9 @@
     
     <!-- Upload Attachment Modal -->
     <div v-if="showUploadModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div class="px-4 py-3 border-b bg-blue-50 rounded-t-lg">
-          <h3 class="font-medium text-blue-800">Upload Attachment</h3>
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-md mx-4">
+        <div class="px-4 py-3 border-b border-gray-200 rounded-t-lg bg-gray-50">
+          <h3 class="font-medium text-gray-900">Upload Attachment</h3>
         </div>
         <div class="p-4">
           <FileUpload
@@ -874,12 +883,12 @@
     
     <!-- Need More Info Modal -->
     <div v-if="showInfoModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div class="px-4 py-3 border-b bg-blue-50 rounded-t-lg">
-          <h3 class="font-medium text-blue-800">Request More Information</h3>
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-md mx-4">
+        <div class="px-4 py-3 border-b border-gray-200 rounded-t-lg bg-gray-50">
+          <h3 class="font-medium text-gray-900">Request More Information</h3>
         </div>
         <div class="p-4">
-          <p class="text-sm text-gray-600 mb-3">Specify what information is needed from the requester:</p>
+          <p class="text-sm text-gray-600 mb-3">Information needed from the requester:</p>
           <textarea 
             v-model="infoRequired" 
             rows="4" 
@@ -949,7 +958,6 @@ const request = ref<any>(null)
 const loading = ref(true)
 const validationLoading = ref(true)
 const actionLoading = ref(false)
-const exporting = ref(false)
 const showRejectModal = ref(false)
 const showRestrictionsModal = ref(false)
 const showInfoModal = ref(false)
@@ -962,7 +970,8 @@ const previousEngagements = ref<any[]>([])
 const duplicationMatches = ref<any[]>([])
 const ruleRecommendations = ref<any[]>([])
 const allRecommendations = ref<any[]>([]) // Pro: All recommendations (Red Lines, IESBA, Business Rules, Conflicts)
-const isPro = ref(false) // Pro edition flag
+// CMA + IESBA only: always Pro
+const isPro = ref(true)
 const showDecisionLog = ref(false)
 const decisionLog = ref<any[]>([]) // Pro: Decision history
 const attachments = ref<any[]>([])
@@ -1003,6 +1012,8 @@ const canApprove = computed(() => {
   if (role === 'Super Admin') return true
   return false
 })
+
+const userRole = computed(() => authStore.user?.role ?? '')
 
 // Check if request can be resubmitted (fixable rejections only, requester only)
 const canResubmit = computed(() => {
@@ -1123,8 +1134,9 @@ async function deleteAttachment(attachmentId: number) {
   try {
     await api.delete(`/coi/requests/${request.value.id}/attachments/${attachmentId}`)
     attachments.value = attachments.value.filter(a => a.id !== attachmentId)
+    toast.success('Attachment deleted')
   } catch (error: any) {
-    alert(error.response?.data?.error || 'Failed to delete attachment')
+    toast.error(error.response?.data?.error || 'Failed to delete attachment')
   }
 }
 
@@ -1502,38 +1514,6 @@ async function resubmitRequest() {
     toast.error(error.response?.data?.error || 'Failed to resubmit request. Please try again.')
   } finally {
     resubmitting.value = false
-  }
-}
-
-// Export Global COI Form Excel
-async function exportGlobalCOIForm() {
-  if (!request.value || !request.value.international_operations) {
-    toast.warning('Global COI Form export is only available for requests with international operations')
-    return
-  }
-  
-  exporting.value = true
-  try {
-    const response = await api.get(`/global/export-excel/${request.value.id}`, {
-      responseType: 'blob'
-    })
-    
-    // Create download link
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `Global_COI_Form_${request.value.request_id}_${new Date().toISOString().split('T')[0]}.xlsx`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    window.URL.revokeObjectURL(url)
-    
-    toast.success('Global COI Form exported successfully!')
-  } catch (error: any) {
-    console.error('Failed to export:', error)
-    toast.error(error.response?.data?.error || 'Failed to export Global COI Form. Please try again.')
-  } finally {
-    exporting.value = false
   }
 }
 

@@ -11,6 +11,7 @@ import { parseRecommendations, logComplianceDecision } from '../services/auditTr
 import { getUserById } from '../utils/userUtils.js'
 import { validateGroupStructure, GroupStructureValidationError } from '../validators/groupStructureValidator.js'
 import { validateCompanyRelationship, CompanyRelationshipValidationError } from '../validators/companyRelationshipValidator.js'
+import { isClientParentTBDOrEmpty } from './parentCompanyUpdateController.js'
 import { eventBus, EVENT_TYPES } from '../services/eventBus.js'
 import { logFunnelEvent, logStatusChange, FUNNEL_STAGES } from '../services/funnelTrackingService.js'
 
@@ -37,6 +38,8 @@ const STANDARD_FIELD_MAPPINGS = {
   'control_type': 'control_type',
   'service_type': 'service_type',
   'service_category': 'service_category',
+  'global_service_category': 'global_service_category',
+  'global_service_type': 'global_service_type',
   'service_description': 'service_description',
   'requested_service_period_start': 'requested_service_period_start',
   'requested_service_period_end': 'requested_service_period_end',
@@ -44,7 +47,8 @@ const STANDARD_FIELD_MAPPINGS = {
   'related_affiliated_entities': 'related_affiliated_entities',
   'international_operations': 'international_operations',
   'foreign_subsidiaries': 'foreign_subsidiaries',
-  'global_clearance_status': 'global_clearance_status'
+  'global_clearance_status': 'global_clearance_status',
+  'backup_approver_id': 'backup_approver_id'
 }
 
 function getCurrentFormVersion() {
@@ -258,12 +262,12 @@ export async function createRequest(req, res) {
         requested_document, language,
         parent_company, parent_company_id, company_type, ownership_percentage, control_type,
         client_location, relationship_with_client, client_type, client_status,
-        service_type, service_description, requested_service_period_start, requested_service_period_end,
+        service_type, service_category, global_service_category, global_service_type, service_description, requested_service_period_start, requested_service_period_end,
         full_ownership_structure, pie_status, related_affiliated_entities,
         international_operations, foreign_subsidiaries, global_clearance_status,
-        custom_fields, form_version, group_structure,
+        custom_fields, form_version, group_structure, backup_approver_id,
         status, stage
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       requestId, 
       standardData.client_id || data.client_id || null, 
@@ -284,11 +288,14 @@ export async function createRequest(req, res) {
       standardData.relationship_with_client || data.relationship_with_client || '', 
       standardData.client_type || data.client_type || '',
       standardData.client_status || data.client_status || '',
-      standardData.service_type || data.service_type || '', 
-      standardData.service_description || data.service_description || '', 
-      standardData.requested_service_period_start || data.requested_service_period_start || null, 
+      standardData.service_type || data.service_type || '',
+      standardData.service_category || data.service_category || '',
+      standardData.global_service_category || data.global_service_category || '',
+      standardData.global_service_type || data.global_service_type || '',
+      standardData.service_description || data.service_description || '',
+      standardData.requested_service_period_start || data.requested_service_period_start || null,
       standardData.requested_service_period_end || data.requested_service_period_end || null,
-      standardData.full_ownership_structure || data.full_ownership_structure || '', 
+      standardData.full_ownership_structure || data.full_ownership_structure || '',
       standardData.pie_status || data.pie_status || 'No', 
       standardData.related_affiliated_entities || data.related_affiliated_entities || '',
       // Convert boolean to integer for SQLite
@@ -300,7 +307,8 @@ export async function createRequest(req, res) {
       Object.keys(customFields).length > 0 ? JSON.stringify(customFields) : null,
       formVersion || 1,
       standardData.group_structure || data.group_structure || null,
-      'Draft', 
+      standardData.backup_approver_id || data.backup_approver_id || null,
+      'Draft',
       'Proposal'
     )
 
@@ -312,6 +320,24 @@ export async function createRequest(req, res) {
           insertSignatory.run(result.lastInsertRowid, sig.signatory_id, sig.position || '')
         }
       })
+    }
+
+    // Parent company bidirectional sync: if existing BDO client and parent set and PRMS has TBD/empty, create update request for PRMS admin
+    const clientId = standardData.client_id || data.client_id
+    const parentCompany = (standardData.parent_company || data.parent_company || '').trim()
+    if (clientId && parentCompany && isClientParentTBDOrEmpty(clientId)) {
+      const client = db.prepare('SELECT client_code FROM clients WHERE id = ?').get(clientId)
+      if (client) {
+        try {
+          db.prepare(`
+            INSERT INTO parent_company_update_requests (
+              client_id, client_code, requested_parent_company, source, status, coi_request_id, requested_by, requested_at, updated_at
+            ) VALUES (?, ?, ?, 'COI', 'Pending', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `).run(clientId, client.client_code, parentCompany, result.lastInsertRowid, user.id)
+        } catch (err) {
+          console.warn('[Parent company update request] Could not create:', err.message)
+        }
+      }
     }
 
     res.status(201).json({ id: result.lastInsertRowid, request_id: requestId })
@@ -341,6 +367,26 @@ export async function updateRequest(req, res) {
     // Update logic here (simplified)
     res.json({ success: true })
   } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Get approvers for backup selection (Section 6)
+ * Returns Directors, Compliance, Partners, Finance for dropdown
+ */
+export async function getApproversForBackup(req, res) {
+  try {
+    const approvers = db.prepare(`
+      SELECT id, name, email, role, department
+      FROM users
+      WHERE role IN ('Director', 'Compliance', 'Partner', 'Finance')
+      AND COALESCE(active, 1) = 1
+      ORDER BY role, name
+    `).all()
+    res.json(approvers)
+  } catch (error) {
+    console.error('Error fetching approvers for backup:', error)
     res.status(500).json({ error: error.message })
   }
 }
@@ -667,6 +713,26 @@ export async function submitRequest(req, res) {
       leadSourceId,
       req.params.id
     )
+
+    // Parent company bidirectional sync: if existing BDO client and parent set and PRMS has TBD/empty, create update request for PRMS admin
+    const parentCompanyTrimmed = (request.parent_company || '').trim()
+    if (request.client_id && parentCompanyTrimmed && isClientParentTBDOrEmpty(request.client_id)) {
+      try {
+        const existing = db.prepare(`
+          SELECT id FROM parent_company_update_requests
+          WHERE client_id = ? AND coi_request_id = ? AND status = 'Pending'
+        `).get(request.client_id, req.params.id)
+        if (!existing) {
+          db.prepare(`
+            INSERT INTO parent_company_update_requests (
+              client_id, client_code, requested_parent_company, source, status, coi_request_id, requested_by, requested_at, updated_at
+            ) VALUES (?, ?, ?, 'COI', 'Pending', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `).run(request.client_id, client.client_code, parentCompanyTrimmed, req.params.id, user.id)
+        }
+      } catch (err) {
+        console.warn('[Parent company update request] Could not create on submit:', err.message)
+      }
+    }
 
     // ========================================
     // FUNNEL TRACKING: Log proposal submission

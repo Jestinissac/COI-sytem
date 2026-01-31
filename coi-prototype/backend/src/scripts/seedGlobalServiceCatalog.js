@@ -14,7 +14,7 @@ const db = getDatabase()
  * The file is tab-separated with "NaN" for empty cells
  */
 function parseGlobalCOIForm() {
-  const filePath = join(__dirname, '../../../../COI System /extracted_text/Global COI Form.txt')
+  const filePath = join(__dirname, '../../../../docs/coi-system/extracted_text/Global COI Form.txt')
   let content
   try {
     content = readFileSync(filePath, 'utf-8')

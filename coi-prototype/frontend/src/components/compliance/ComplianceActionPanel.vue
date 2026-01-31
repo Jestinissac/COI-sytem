@@ -219,7 +219,22 @@
               <p v-if="conflict.conflicting_engagement_code">
                 <strong>Engagement:</strong> {{ conflict.conflicting_engagement_code }}
               </p>
-              <p><strong>Issue:</strong> {{ conflict.reason }}</p>
+              <!-- Display conflict with regulation sources -->
+              <div v-if="conflict.allConflicts && conflict.allConflicts.length > 1">
+                <p class="font-medium mb-1">Conflicts detected from multiple regulations:</p>
+                <div v-for="(conf, idx) in conflict.allConflicts" :key="idx" class="pl-2 border-l-2 border-gray-300 mb-1">
+                  <p><strong>{{ conf.regulationSources?.join(', ') || conf.regulationSource || 'IESBA' }}:</strong> {{ conf.reason || conflict.reason }}</p>
+                </div>
+              </div>
+              <div v-else>
+                <p>
+                  <strong>Issue:</strong> 
+                  <span v-if="conflict.regulationSource || conflict.regulationSources" class="font-medium">
+                    {{ conflict.regulationSources?.join(', ') || conflict.regulationSource }}: 
+                  </span>
+                  {{ conflict.reason }}
+                </p>
+              </div>
               <p v-if="conflict.conflicting_engagement_end_date" class="mt-2 pt-2 border-t border-gray-200">
                 <strong>Conflict Ends:</strong> {{ formatDate(conflict.conflicting_engagement_end_date) }}
                 <span class="block text-gray-500 mt-0.5 italic">

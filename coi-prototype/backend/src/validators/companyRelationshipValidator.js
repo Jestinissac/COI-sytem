@@ -28,20 +28,25 @@ export function validateCompanyRelationship(requestData) {
       )
     }
     
-    // Rule 1a: Subsidiary should have ownership_percentage >= 50% (industry standard: ≥50% = control)
-    if (ownership_percentage !== null && ownership_percentage !== undefined) {
-      if (ownership_percentage < 50) {
-        throw new CompanyRelationshipValidationError(
-          'Subsidiary requires ≥50% ownership for control. If ownership is <50%, use "Affiliate" type instead.',
-          'ownership_percentage'
-        )
-      }
-      if (ownership_percentage > 100) {
-        throw new CompanyRelationshipValidationError(
-          'Ownership percentage cannot exceed 100%',
-          'ownership_percentage'
-        )
-      }
+    // Rule 1a: Subsidiary requires ownership_percentage (industry standard: ≥50% = control)
+    const ownershipProvided = ownership_percentage !== null && ownership_percentage !== undefined && ownership_percentage !== ''
+    if (!ownershipProvided) {
+      throw new CompanyRelationshipValidationError(
+        'Ownership percentage is required for Subsidiary (≥50% for control).',
+        'ownership_percentage'
+      )
+    }
+    if (Number(ownership_percentage) < 50) {
+      throw new CompanyRelationshipValidationError(
+        'Subsidiary requires ≥50% ownership for control. If ownership is <50%, use "Affiliate" type instead.',
+        'ownership_percentage'
+      )
+    }
+    if (Number(ownership_percentage) > 100) {
+      throw new CompanyRelationshipValidationError(
+        'Ownership percentage cannot exceed 100%',
+        'ownership_percentage'
+      )
     }
     
     // Rule 1b: Control type should be Majority for Subsidiary
@@ -50,15 +55,20 @@ export function validateCompanyRelationship(requestData) {
     }
   }
 
-  // Rule 2: If company_type is Affiliate, ownership_percentage should be 20-50%
+  // Rule 2: If company_type is Affiliate, ownership_percentage is required and should be 20-50%
   if (company_type === 'Affiliate') {
-    if (ownership_percentage !== null && ownership_percentage !== undefined) {
-      if (ownership_percentage < 20 || ownership_percentage >= 50) {
-        throw new CompanyRelationshipValidationError(
-          'Affiliate requires 20-50% ownership (significant influence, not control). For ≥50%, use "Subsidiary" type.',
-          'ownership_percentage'
-        )
-      }
+    const ownershipProvided = ownership_percentage !== null && ownership_percentage !== undefined && ownership_percentage !== ''
+    if (!ownershipProvided) {
+      throw new CompanyRelationshipValidationError(
+        'Ownership percentage is required for Affiliate (20-50% significant influence).',
+        'ownership_percentage'
+      )
+    }
+    if (Number(ownership_percentage) < 20 || Number(ownership_percentage) >= 50) {
+      throw new CompanyRelationshipValidationError(
+        'Affiliate requires 20-50% ownership (significant influence, not control). For ≥50%, use "Subsidiary" type.',
+        'ownership_percentage'
+      )
     }
     
     // Rule 2a: Control type should be Significant Influence for Affiliate

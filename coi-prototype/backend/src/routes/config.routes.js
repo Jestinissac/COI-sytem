@@ -31,6 +31,7 @@ import {
   enableClientIntelligenceEndpoint,
   disableClientIntelligenceEndpoint
 } from '../controllers/configController.js'
+import { getCMAServiceTypes, getCMARule, getCMAServiceTypesGrouped } from '../services/cmaConflictMatrix.js'
 
 const router = express.Router()
 
@@ -83,5 +84,36 @@ router.get('/features', getEnabledFeatures)
 router.get('/client-intelligence/status', getClientIntelligenceStatusEndpoint)
 router.post('/client-intelligence/enable', requireRole('Super Admin'), enableClientIntelligenceEndpoint)
 router.post('/client-intelligence/disable', requireRole('Super Admin'), disableClientIntelligenceEndpoint)
+
+// CMA Service Types and Rules (for UI dropdowns and reference)
+router.get('/cma/service-types', authenticateToken, (req, res) => {
+  try {
+    const services = getCMAServiceTypes()
+    res.json({ services })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Get CMA service types grouped by Line of Service (for COI Template compliance)
+router.get('/cma/service-types-grouped', authenticateToken, (req, res) => {
+  try {
+    const grouped = getCMAServiceTypesGrouped()
+    res.json({ serviceTypes: grouped })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Get CMA rule for specific service combination (for display/debugging)
+router.get('/cma/rules/:serviceA/:serviceB', authenticateToken, (req, res) => {
+  try {
+    const { serviceA, serviceB } = req.params
+    const rule = getCMARule(serviceA, serviceB)
+    res.json({ rule })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
 
 export default router

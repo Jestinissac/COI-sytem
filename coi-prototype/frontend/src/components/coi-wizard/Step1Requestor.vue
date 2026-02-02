@@ -6,7 +6,7 @@
         Requestor Information
       </h3>
     </div>
-    <div class="p-8 bg-gradient-to-b from-gray-50 to-white">
+    <div class="p-8 bg-gray-50">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="space-y-2">
           <label class="block text-sm font-bold text-gray-800 mb-2">Requestor Name</label>

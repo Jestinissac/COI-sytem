@@ -40,6 +40,20 @@ import { checkAllPendingRequests as checkSLAStatus } from './services/slaMonitor
 
 dotenv.config()
 
+// Production: require JWT and refresh secrets; no fallback to prototype defaults
+if (process.env.NODE_ENV === 'production') {
+  const jwtSecret = process.env.JWT_SECRET
+  const refreshSecret = process.env.REFRESH_TOKEN_SECRET
+  if (!jwtSecret || jwtSecret === 'prototype-secret') {
+    console.error('JWT_SECRET must be set in production and must not be "prototype-secret"')
+    process.exit(1)
+  }
+  if (!refreshSecret || refreshSecret === 'prototype-refresh-secret') {
+    console.error('REFRESH_TOKEN_SECRET must be set in production and must not be "prototype-refresh-secret"')
+    process.exit(1)
+  }
+}
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -141,10 +155,6 @@ import('../../client-intelligence/backend/routes/clientIntelligence.routes.js')
     // Feature may be disabled or module not available - this is OK
     console.log('ℹ️  Client Intelligence routes not loaded (feature may be disabled)')
   })
-
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'COI Prototype API' })
-})
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)

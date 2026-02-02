@@ -88,7 +88,7 @@ api.interceptors.response.use(
         api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
         
-        console.log('✅ Token refreshed automatically')
+        if (import.meta.env.DEV) console.log('Token refreshed automatically')
         
         isRefreshing = false
         processQueue()
@@ -97,7 +97,7 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         // Refresh failed, logout user
-        console.error('❌ Token refresh failed:', refreshError)
+        if (import.meta.env.DEV) console.error('Token refresh failed:', refreshError)
         isRefreshing = false
         processQueue(refreshError)
         localStorage.removeItem('token')

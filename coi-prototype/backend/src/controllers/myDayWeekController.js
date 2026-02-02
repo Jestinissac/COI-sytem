@@ -1,5 +1,6 @@
 import { getMyDay, getMyWeek, getMyMonth } from '../services/myDayWeekService.js'
 import { getUserById } from '../utils/userUtils.js'
+import { mapResponseForRole } from '../utils/responseMapper.js'
 import { getDatabase } from '../database/init.js'
 
 /**
@@ -15,6 +16,11 @@ export async function getMyDayData(req, res) {
     }
     
     const myDayData = await getMyDay(user)
+    if (user.role === 'Compliance') {
+      if (myDayData.today?.actionRequired?.length) myDayData.today.actionRequired = mapResponseForRole(myDayData.today.actionRequired, user.role)
+      if (myDayData.today?.expiring?.length) myDayData.today.expiring = mapResponseForRole(myDayData.today.expiring, user.role)
+      if (myDayData.today?.overdue?.length) myDayData.today.overdue = mapResponseForRole(myDayData.today.overdue, user.role)
+    }
     res.json(myDayData)
   } catch (error) {
     console.error('Error getting My Day data:', error)
@@ -30,6 +36,15 @@ export async function getMyWeekData(req, res) {
     }
     
     const myWeekData = getMyWeek(user)
+    if (user.role === 'Compliance') {
+      if (myWeekData.thisWeek?.dueThisWeek?.length) myWeekData.thisWeek.dueThisWeek = mapResponseForRole(myWeekData.thisWeek.dueThisWeek, user.role)
+      if (myWeekData.thisWeek?.expiringThisWeek?.length) myWeekData.thisWeek.expiringThisWeek = mapResponseForRole(myWeekData.thisWeek.expiringThisWeek, user.role)
+      if (myWeekData.thisWeek?.groupedByDay && typeof myWeekData.thisWeek.groupedByDay === 'object') {
+        for (const dayKey of Object.keys(myWeekData.thisWeek.groupedByDay)) {
+          myWeekData.thisWeek.groupedByDay[dayKey] = mapResponseForRole(myWeekData.thisWeek.groupedByDay[dayKey], user.role)
+        }
+      }
+    }
     res.json(myWeekData)
   } catch (error) {
     console.error('Error getting My Week data:', error)
@@ -45,6 +60,16 @@ export async function getMyMonthData(req, res) {
     }
     
     const myMonthData = getMyMonth(user)
+    if (user.role === 'Compliance' && myMonthData.thisMonth) {
+      const m = myMonthData.thisMonth
+      if (m.upcomingThisMonth?.length) m.upcomingThisMonth = mapResponseForRole(m.upcomingThisMonth, user.role)
+      if (m.expiringThisMonth?.length) m.expiringThisMonth = mapResponseForRole(m.expiringThisMonth, user.role)
+      if (m.groupedByDate && typeof m.groupedByDate === 'object') {
+        for (const dateKey of Object.keys(m.groupedByDate)) {
+          m.groupedByDate[dateKey] = mapResponseForRole(m.groupedByDate[dateKey], user.role)
+        }
+      }
+    }
     res.json(myMonthData)
   } catch (error) {
     console.error('Error getting My Month data:', error)

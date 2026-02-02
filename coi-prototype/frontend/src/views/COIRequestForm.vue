@@ -201,15 +201,16 @@
                   </select>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Entity <span class="text-red-500">*</span></label>
-                  <select 
+                  <label for="form_entity" class="block text-sm font-medium text-gray-700 mb-1.5">Entity <span class="text-red-500">*</span></label>
+                  <select
+                    id="form_entity"
                     v-model="formData.entity"
                     @change="onEntityChange"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     aria-required="true"
                   >
                     <option value="">Select entity...</option>
-                    <option v-for="entity in entities" :key="entity.id" :value="entity.entity_name">
+                    <option v-for="entity in entityOptions" :key="entity.id ?? entity.entity_code ?? entity.entity_name" :value="entity.entity_name">
                       {{ entity.entity_display_name || entity.entity_name }}
                     </option>
                   </select>
@@ -369,7 +370,7 @@
                       :error="clientsError"
                       :disabled="clientsLoading"
                       placeholder="Search by name or code..."
-                      aria-required="true"
+                      :aria-required="true"
                       @update:model-value="(v) => { smartSelectValue = v; onSmartSelect() }"
                     />
                     <p v-if="clientsLoading" class="text-xs text-gray-500" aria-live="polite">Loading clients...</p>
@@ -393,8 +394,9 @@
                 <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wide mt-6 mb-2">Identification</h4>
                 <div class="grid grid-cols-3 gap-4">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Client Code</label>
+                    <label for="client_code" class="block text-sm font-medium text-gray-700 mb-1.5">Client Code</label>
                     <input
+                      id="client_code"
                       v-model="selectedClientCode"
                       type="text"
                       readonly
@@ -403,8 +405,9 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Client Type</label>
-                    <select 
+                    <label for="client_type" class="block text-sm font-medium text-gray-700 mb-1.5">Client Type</label>
+                    <select
+                      id="client_type"
                       v-model="formData.client_type"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
@@ -413,8 +416,9 @@
                     </select>
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Regulated By</label>
-                    <select 
+                    <label for="regulated_body" class="block text-sm font-medium text-gray-700 mb-1.5">Regulated By</label>
+                    <select
+                      id="regulated_body"
                       v-model="formData.regulated_body"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
@@ -426,8 +430,9 @@
 
                 <div class="grid grid-cols-3 gap-4">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-                    <select 
+                    <label for="client_status" class="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+                    <select
+                      id="client_status"
                       v-model="formData.client_status"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
@@ -441,19 +446,26 @@
                     </select>
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Location</label>
-                    <select 
+                    <label for="client_location" class="block text-sm font-medium text-gray-700 mb-1.5">Location</label>
+                    <select
+                      id="client_location"
                       v-model="formData.client_location"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select...</option>
-                      <option>State of Kuwait</option>
-                      <option>Other Country</option>
+                      <option 
+                        v-for="c in locationOptions" 
+                        :key="c.country_code" 
+                        :value="c.country_name"
+                      >
+                        {{ c.country_name }}
+                      </option>
                     </select>
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Relationship</label>
-                    <select 
+                    <label for="relationship_with_client" class="block text-sm font-medium text-gray-700 mb-1.5">Relationship</label>
+                    <select
+                      id="relationship_with_client"
                       v-model="formData.relationship_with_client"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
@@ -466,15 +478,15 @@
                 </div>
 
                 <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wide mt-6 mb-2">PIE & structure</h4>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">PIE Status</label>
+                <div role="group" aria-labelledby="pie_status_label">
+                  <span id="pie_status_label" class="block text-sm font-medium text-gray-700 mb-2">PIE Status</span>
                   <div class="flex items-center space-x-6">
-                    <label class="flex items-center">
-                      <input type="radio" v-model="formData.pie_status" value="Yes" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
+                    <label for="pie_status_yes" class="flex items-center">
+                      <input id="pie_status_yes" type="radio" v-model="formData.pie_status" value="Yes" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="pie_status"/>
                       <span class="ml-2 text-sm text-gray-700">Yes - PIE</span>
                     </label>
-                    <label class="flex items-center">
-                      <input type="radio" v-model="formData.pie_status" value="No" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
+                    <label for="pie_status_no" class="flex items-center">
+                      <input id="pie_status_no" type="radio" v-model="formData.pie_status" value="No" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="pie_status"/>
                       <span class="ml-2 text-sm text-gray-700">No</span>
                     </label>
                   </div>
@@ -487,29 +499,30 @@
                       Corporate Group Structure
                       <span class="text-red-500">*</span>
                     </label>
-                    <div class="space-y-2">
-                      <label class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
+                    <div class="space-y-2" role="group" aria-labelledby="group_structure_label">
+                      <span id="group_structure_label" class="sr-only">Corporate Group Structure</span>
+                      <label for="group_structure_standalone" class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
                              :class="formData.group_structure === 'standalone' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
-                        <input type="radio" v-model="formData.group_structure" value="standalone" 
-                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
+                        <input id="group_structure_standalone" type="radio" v-model="formData.group_structure" value="standalone" 
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="group_structure"/>
                         <div class="ml-3">
                           <span class="text-sm font-medium text-gray-900">Standalone Entity</span>
                         </div>
                       </label>
                       
-                      <label class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
+                      <label for="group_structure_has_parent" class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
                              :class="formData.group_structure === 'has_parent' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
-                        <input type="radio" v-model="formData.group_structure" value="has_parent" 
-                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
+                        <input id="group_structure_has_parent" type="radio" v-model="formData.group_structure" value="has_parent" 
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="group_structure"/>
                         <div class="ml-3">
                           <span class="text-sm font-medium text-gray-900">Part of Corporate Group</span>
                         </div>
                       </label>
                       
-                      <label class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
+                      <label for="group_structure_research_required" class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
                              :class="formData.group_structure === 'research_required' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
-                        <input type="radio" v-model="formData.group_structure" value="research_required" 
-                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
+                        <input id="group_structure_research_required" type="radio" v-model="formData.group_structure" value="research_required" 
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="group_structure"/>
                         <div class="ml-3 flex-1">
                           <span class="text-sm font-medium text-gray-900">Not Sure</span>
                         </div>
@@ -519,10 +532,11 @@
                     
                     <!-- Parent Company Input (shown when has_parent selected) -->
                     <div v-if="formData.group_structure === 'has_parent'" class="mt-4 pt-4 border-t border-gray-200">
-                      <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label for="parent_company_group" class="block text-sm font-medium text-gray-700 mb-1.5">
                         Parent Company Name <span class="text-red-500">*</span>
                       </label>
                       <input
+                        id="parent_company_group"
                         v-model="formData.parent_company"
                         type="text"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -539,8 +553,9 @@
                 <div v-else class="space-y-4">
                   <!-- Company Type -->
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Company Type</label>
+                    <label for="company_type" class="block text-sm font-medium text-gray-700 mb-1.5">Company Type</label>
                     <select
+                      id="company_type"
                       v-model="formData.company_type"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       @change="onCompanyTypeChange"
@@ -556,11 +571,12 @@
 
                   <!-- Parent Company (shown when needed) -->
                   <div v-if="formData.company_type && formData.company_type !== 'Standalone' && formData.company_type !== 'Parent'">
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                    <label for="parent_company" class="block text-sm font-medium text-gray-700 mb-1.5">
                       Parent Company
                       <span class="text-red-500">*</span>
                     </label>
                     <input
+                      id="parent_company"
                       v-model="formData.parent_company"
                       type="text"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -573,8 +589,9 @@
 
                   <!-- Ownership Percentage (for Subsidiary/Affiliate) -->
                   <div v-if="formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate'">
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Ownership Percentage (%)</label>
+                    <label for="ownership_percentage" class="block text-sm font-medium text-gray-700 mb-1.5">Ownership Percentage (%)</label>
                     <input
+                      id="ownership_percentage"
                       v-model.number="formData.ownership_percentage"
                       type="number"
                       min="0"
@@ -1026,7 +1043,7 @@
 
   <!-- Unsaved changes leave confirmation -->
   <div v-if="showLeaveConfirm" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
-    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 max-w-sm w-full p-6">
       <h3 class="text-lg font-semibold text-gray-900 mb-2">Unsaved changes</h3>
       <p class="text-sm text-gray-600 mb-4">You have unsaved changes. Leave anyway?</p>
       <div class="flex gap-3 justify-end">
@@ -1190,16 +1207,25 @@ watch(
   { deep: true }
 )
 
-// Get services filtered by selected category
+// Normalize service option to { value, label, ...rest } so dropdown binding works (backend may return string or object)
+function normalizeServiceOption(service: any): { value: string; label: string; [key: string]: any } {
+  if (service == null) return { value: '', label: '' }
+  if (typeof service === 'string') return { value: service, label: service }
+  const val = service.value ?? service.label ?? service.name ?? String(service)
+  const lbl = service.label ?? service.value ?? service.name ?? String(service)
+  return { ...service, value: val, label: lbl }
+}
+
+// Get services filtered by selected category (normalized so Line of Service -> Service Type relation works)
 const filteredServicesByCategory = computed(() => {
   if (!formData.value.service_category || !serviceTypes.value.length) {
     return []
   }
   const selectedCategory = serviceTypes.value.find((cat: any) => cat.category === formData.value.service_category)
-  if (!selectedCategory) {
+  if (!selectedCategory || !selectedCategory.services?.length) {
     return []
   }
-  return selectedCategory.services || []
+  return selectedCategory.services.map((s: any) => normalizeServiceOption(s)).filter((o: { value: string }) => o.value !== '')
 })
 
 const filteredGlobalServicesByCategory = computed(() => {
@@ -1207,10 +1233,10 @@ const filteredGlobalServicesByCategory = computed(() => {
     return []
   }
   const selectedCategory = globalServiceTypes.value.find((cat: any) => cat.category === formData.value.global_service_category)
-  if (!selectedCategory) {
+  if (!selectedCategory || !selectedCategory.services?.length) {
     return []
   }
-  return selectedCategory.services || []
+  return selectedCategory.services.map((s: any) => normalizeServiceOption(s)).filter((o: { value: string }) => o.value !== '')
 })
 
 // Get available sub-categories for selected service type
@@ -1331,10 +1357,11 @@ function populateGlobalCOIForm() {
     })
   }
   
-  // Update globalCOIFormData
-  globalCOIFormData.value = mappedData
-  formData.value.global_coi_form_data = mappedData
-  
+  // Update globalCOIFormData (defer to nextTick to avoid recursive updates)
+  nextTick(() => {
+    globalCOIFormData.value = mappedData
+    formData.value.global_coi_form_data = mappedData
+  })
 }
 
 const sections = [
@@ -1449,7 +1476,7 @@ const isInternationalOperationsAllowed = computed(() => formData.value.company_t
 // Determines if the group structure verification section should be shown
 // Required for PIE clients and Audit engagements (IESBA 290.13)
 const showGroupStructureSection = computed(() => {
-  return formData.pie_status === 'Yes' || isAuditServiceType(formData.service_type)
+  return formData.value.pie_status === 'Yes' || isAuditServiceType(formData.value.service_type)
 })
 
 // Helper function to check if a service type is an audit service
@@ -1674,28 +1701,68 @@ async function createAndSelectProspect() {
   }
 }
 
+// Fallback entity list when API fails (e.g. entity_codes table missing at startup)
+const FALLBACK_ENTITIES = [
+  { entity_code: 'BDO_AL_NISF', entity_name: 'BDO Al Nisf & Partners', entity_display_name: 'BDO Al Nisf & Partners', is_active: 1, is_default: 1 },
+  { entity_code: 'BDO_CONSULTING', entity_name: 'BDO Consulting', entity_display_name: 'BDO Consulting', is_active: 1, is_default: 0 }
+]
+
+// Stable options for Entity dropdown (avoids empty list when API fails or during updates)
+const entityOptions = computed(() => (entities.value?.length ? entities.value : FALLBACK_ENTITIES))
+
 // Fetch entity codes
 async function fetchEntities() {
   try {
     const response = await api.get('/entity-codes')
-    entities.value = response.data.filter((e: any) => e.is_active)
-    
-    // Set default entity if none selected
-    if (!formData.entity && entities.value.length > 0) {
-      const defaultEntity = entities.value.find((e: any) => e.is_default) || entities.value[0]
-      formData.entity = defaultEntity.entity_name
+    const list = Array.isArray(response.data) ? response.data : []
+    entities.value = list.filter((e: any) => e.is_active !== 0 && e.is_active !== false)
+    if (entities.value.length === 0) entities.value = [...FALLBACK_ENTITIES]
+  } catch {
+    entities.value = [...FALLBACK_ENTITIES]
+  }
+  if (!formData.value.entity && entities.value.length > 0) {
+    const defaultEntity = entities.value.find((e: any) => e.is_default) || entities.value[0]
+    nextTick(() => {
+      formData.value.entity = defaultEntity.entity_name
       onEntityChange()
-    }
-  } catch { /* non-critical */ }
+    })
+  }
 }
+
+// Fallback countries when API fails
+const FALLBACK_COUNTRIES = [
+  { country_code: 'KWT', country_name: 'State of Kuwait', is_active: 1 },
+  { country_code: 'OTHER', country_name: 'Other Country', is_active: 1 }
+]
 
 // Fetch countries (master data)
 async function fetchCountries() {
   try {
     const response = await api.get('/countries')
-    countries.value = response.data
-  } catch { /* non-critical */ }
+    const list = Array.isArray(response.data) ? response.data : []
+    countries.value = list.length > 0 ? list : FALLBACK_COUNTRIES
+  } catch {
+    countries.value = FALLBACK_COUNTRIES
+  }
 }
+
+// Stable options for Location dropdown (avoids re-evaluation order issues)
+const locationOptions = computed(() => (countries.value?.length ? countries.value : FALLBACK_COUNTRIES))
+
+// Normalize "Kuwait" to "State of Kuwait" when options use the latter (run only when countries load to avoid recursive updates)
+const KUWAIT_NAMES = { short: 'Kuwait', canonical: 'State of Kuwait' }
+watch(() => countries.value, () => {
+  const loc = formData.value.client_location
+  if (loc !== KUWAIT_NAMES.short) return
+  const opts = locationOptions.value
+  const hasShort = opts.some((c: any) => (c.country_name || '') === KUWAIT_NAMES.short)
+  const hasCanonical = opts.some((c: any) => (c.country_name || '') === KUWAIT_NAMES.canonical)
+  if (!hasShort && hasCanonical) {
+    nextTick(() => {
+      formData.value.client_location = KUWAIT_NAMES.canonical
+    })
+  }
+}, { deep: true })
 
 // Check if selected client is CMA-regulated
 const isClientCMARegulated = computed(() => {
@@ -1769,9 +1836,9 @@ async function fetchServiceTypes() {
     
     // Always use Kuwait list for Line of Service (local request)
     params.international = 'false'
-    
     const response = await api.get('/integration/service-types', { params })
-    serviceTypes.value = response.data.serviceTypes || []
+    const list = response.data?.serviceTypes || []
+    serviceTypes.value = list
     serviceSubCategories.value = response.data.subCategories || {}
   } catch (err: any) {
     serviceTypes.value = []
@@ -1812,7 +1879,7 @@ async function fetchGlobalServiceTypes() {
     const response = await api.get('/integration/service-types', { params })
     globalServiceTypes.value = response.data.serviceTypes || []
   } catch (err: any) {
-    globalServiceTypes.value = []
+    // Keep previous list on failure (e.g. 401) so the dropdown doesn't disappear
   } finally {
     loadingGlobalServices.value = false
   }
@@ -2161,23 +2228,27 @@ watch(() => formData.value.international_operations, (newValue) => {
     }
     populateGlobalCOIForm()
   } else {
-    formData.value.global_service_category = ''
-    formData.value.global_service_type = ''
-    formData.value.global_coi_form_data = null
-    globalCOIFormData.value = null
-    globalServiceTypes.value = []
+    nextTick(() => {
+      formData.value.global_service_category = ''
+      formData.value.global_service_type = ''
+      formData.value.global_coi_form_data = null
+      globalCOIFormData.value = null
+      globalServiceTypes.value = []
+    })
   }
 })
 
 // FlowValidator: Standalone ⟹ no international operations (Mutually Exclusive + Ghost Data)
 watch(() => formData.value.company_type, (newVal) => {
   if (newVal === 'Standalone') {
-    formData.value.international_operations = false
-    formData.value.global_service_category = ''
-    formData.value.global_service_type = ''
-    formData.value.global_coi_form_data = null
-    globalCOIFormData.value = null
-    globalServiceTypes.value = []
+    nextTick(() => {
+      formData.value.international_operations = false
+      formData.value.global_service_category = ''
+      formData.value.global_service_type = ''
+      formData.value.global_coi_form_data = null
+      globalCOIFormData.value = null
+      globalServiceTypes.value = []
+    })
   }
 })
 
@@ -2187,6 +2258,9 @@ watch(() => formData.value.entity, (newEntity, oldEntity) => {
     // Small delay to ensure entities list is loaded
     setTimeout(() => {
       fetchServiceTypes()
+      if (formData.value.international_operations) {
+        fetchGlobalServiceTypes()
+      }
     }, 100)
   }
 })
@@ -2256,6 +2330,29 @@ async function loadFormData() {
     const approversRes = await api.get('/coi/approvers')
     approverUsers.value = approversRes.data || []
   } catch { /* optional */ }
+
+  // Ensure Entity and Countries dropdowns always have options (fallback if API failed)
+  if (entities.value.length === 0) {
+    entities.value = [...FALLBACK_ENTITIES]
+    if (!formData.value.entity && entities.value.length > 0) {
+      const defaultEntity = entities.value.find((e: any) => e.is_default) || entities.value[0]
+      nextTick(() => {
+        formData.value.entity = defaultEntity.entity_name
+        onEntityChange()
+      })
+    }
+  }
+  // When we have entities but no selection (e.g. fallback set entities but didn't default), default entity and load Line of Service
+  if (entities.value.length > 0 && !formData.value.entity) {
+    const defaultEntity = entities.value.find((e: any) => e.is_default) || entities.value[0]
+    nextTick(() => {
+      formData.value.entity = defaultEntity.entity_name
+      onEntityChange()
+    })
+  }
+  if (countries.value.length === 0) {
+    countries.value = [...FALLBACK_COUNTRIES]
+  }
 }
 
 function retryFormLoad() {
@@ -2375,11 +2472,16 @@ onUnmounted(() => {
   }
 })
 
-// Watch for form changes (mark dirty for unsaved-changes warning and header)
+// Watch for form changes (mark dirty and persist). Debounce to avoid recursive updates.
+let formDataWatchTimeout: number | null = null
 watch(formData, () => {
   isDirty.value = true
-  saveToLocalStorage()
-  scheduleServerAutoSave()
+  if (formDataWatchTimeout) clearTimeout(formDataWatchTimeout)
+  formDataWatchTimeout = window.setTimeout(() => {
+    formDataWatchTimeout = null
+    saveToLocalStorage()
+    scheduleServerAutoSave()
+  }, 150)
 }, { deep: true })
 </script>
 

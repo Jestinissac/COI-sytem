@@ -35,11 +35,24 @@ NODE_ENV=test npm run dev
 
 Create a `.env` file in `coi-prototype/backend/`:
 
+**Development:**
 ```bash
 NODE_ENV=development
 PORT=3000
 APP_URL=http://localhost:5173
 ```
+
+**Production (local or deployed):**
+```bash
+NODE_ENV=production
+PORT=3000
+APP_URL=http://localhost:5173
+# Required in production; use strong secrets in real deployment
+JWT_SECRET=your-production-jwt-secret
+REFRESH_TOKEN_SECRET=your-production-refresh-secret
+```
+
+To **switch to production**: set `NODE_ENV=production` in `.env` and run `npm start` (not `npm run dev`). The backend will require `JWT_SECRET` and `REFRESH_TOKEN_SECRET` to be set when `NODE_ENV=production`.
 
 ## Load Testing
 

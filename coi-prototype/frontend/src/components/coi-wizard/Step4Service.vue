@@ -6,7 +6,7 @@
         Service Information
       </h3>
     </div>
-    <div class="p-8 bg-gradient-to-b from-purple-50 to-white space-y-8">
+    <div class="p-8 bg-gray-50 space-y-8">
       <div>
         <label class="block text-sm font-bold text-gray-800 mb-2">Service Type *</label>
         <select 

@@ -1,4 +1,5 @@
 import { getDatabase } from '../database/init.js';
+import { getUserById } from '../utils/userUtils.js';
 import { sendEmail } from '../services/notificationService.js';
 import { notifyClientAcceptedProposal, notifyClientRejectedProposal } from '../services/emailService.js';
 import { createRenewalTracking } from '../services/monitoringService.js';
@@ -54,7 +55,7 @@ export async function getExecutionTracking(req, res) {
 // Update proposal preparation
 export async function prepareProposal(req, res) {
   const { requestId } = req.params
-  const userId = req.user?.id
+  const userId = req.userId
   
   try {
     db.prepare(`
@@ -76,9 +77,10 @@ export async function prepareProposal(req, res) {
 // Send proposal to client
 export async function sendProposal(req, res) {
   const { requestId } = req.params
-  const userId = req.user?.id
-  const userRole = req.user?.role
-  const userDept = req.user?.department
+  const userId = req.userId
+  const userRole = req.userRole
+  const user = getUserById(req.userId)
+  const userDept = user?.department
   const { sent_to, include_disclaimer } = req.body
   
   try {
@@ -137,9 +139,10 @@ export async function sendProposal(req, res) {
 // Record follow-up
 export async function recordFollowUp(req, res) {
   const { requestId } = req.params
-  const userId = req.user?.id
-  const userRole = req.user?.role
-  const userDept = req.user?.department
+  const userId = req.userId
+  const userRole = req.userRole
+  const user = getUserById(req.userId)
+  const userDept = user?.department
   const { follow_up_number, notes } = req.body
   
   try {
@@ -175,9 +178,10 @@ export async function recordFollowUp(req, res) {
 // Record client response
 export async function recordClientResponse(req, res) {
   const { requestId } = req.params
-  const userId = req.user?.id
-  const userRole = req.user?.role
-  const userDept = req.user?.department
+  const userId = req.userId
+  const userRole = req.userRole
+  const user = getUserById(req.userId)
+  const userDept = user?.department
   const { response_type, notes } = req.body
   
   try {
@@ -313,7 +317,7 @@ export async function recordClientResponse(req, res) {
 // Prepare engagement letter
 export async function prepareEngagementLetter(req, res) {
   const { requestId } = req.params
-  const userId = req.user?.id
+  const userId = req.userId
   
   try {
     db.prepare(`
@@ -335,7 +339,7 @@ export async function prepareEngagementLetter(req, res) {
 // Send engagement letter
 export async function sendEngagementLetter(req, res) {
   const { requestId } = req.params
-  const userId = req.user?.id
+  const userId = req.userId
   
   try {
     db.prepare(`
@@ -364,7 +368,7 @@ export async function sendEngagementLetter(req, res) {
 // Record signed engagement letter
 export async function recordSignedEngagement(req, res) {
   const { requestId } = req.params
-  const userId = req.user?.id
+  const userId = req.userId
   
   try {
     db.prepare(`
@@ -393,7 +397,7 @@ export async function recordSignedEngagement(req, res) {
 // Record countersigned documents
 export async function recordCountersigned(req, res) {
   const { requestId } = req.params
-  const userId = req.user?.id
+  const userId = req.userId
   const { document_type } = req.body // 'proposal' or 'engagement'
   
   try {
@@ -443,7 +447,7 @@ export async function getExecutionQueue(req, res) {
 // Add admin notes
 export async function addAdminNotes(req, res) {
   const { requestId } = req.params
-  const userId = req.user?.id
+  const userId = req.userId
   const { notes } = req.body
   
   try {

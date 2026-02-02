@@ -1858,7 +1858,7 @@ export async function getClientIntelligenceStatusEndpoint(req, res) {
  */
 export async function enableClientIntelligenceEndpoint(req, res) {
   try {
-    const userId = req.user?.id
+    const userId = req.userId
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
@@ -1885,7 +1885,7 @@ export async function enableClientIntelligenceEndpoint(req, res) {
  */
 export async function disableClientIntelligenceEndpoint(req, res) {
   try {
-    const userId = req.user?.id
+    const userId = req.userId
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' })
     }

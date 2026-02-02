@@ -24,7 +24,7 @@
             leave-from="opacity-100 scale-100"
             leave-to="opacity-0 scale-95"
           >
-            <DialogPanel class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-8 text-left align-middle shadow-2xl transition-all">
+            <DialogPanel class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-8 text-left align-middle shadow-sm border border-gray-200 transition-all">
               <div class="flex justify-center mb-6">
                 <div class="w-16 h-16 rounded-full flex items-center justify-center" style="background: linear-gradient(135deg, #0066CC, #0052CC);">
                   <span class="text-white text-3xl">{{ icon }}</span>
@@ -106,11 +106,11 @@ const confirmButtonClasses = computed(() => {
     case 'danger':
       return 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl'
     case 'warning':
-      return 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 shadow-lg hover:shadow-xl'
+      return 'bg-yellow-600 hover:bg-yellow-700 shadow-sm'
     case 'success':
-      return 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl'
+      return 'bg-green-600 hover:bg-green-700 shadow-sm'
     default:
-      return 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 shadow-lg hover:shadow-xl'
+      return 'bg-primary-600 hover:bg-primary-700 shadow-sm'
   }
 })
 

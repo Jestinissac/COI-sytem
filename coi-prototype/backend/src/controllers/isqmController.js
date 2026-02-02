@@ -21,7 +21,7 @@ export async function getISQMForms(req, res) {
 // Create Client Screening Questionnaire
 export async function createClientScreening(req, res) {
   const { requestId } = req.params;
-  const userId = req.user?.id;
+  const userId = req.userId;
   const data = req.body;
   
   try {
@@ -66,7 +66,7 @@ export async function createClientScreening(req, res) {
 // Create New Client Acceptance Checklist
 export async function createClientAcceptance(req, res) {
   const { requestId } = req.params;
-  const userId = req.user?.id;
+  const userId = req.userId;
   const data = req.body;
   
   try {
@@ -131,7 +131,7 @@ export async function updateISQMForm(req, res) {
 // Review ISQM form (by compliance/partner)
 export async function reviewISQMForm(req, res) {
   const { formId } = req.params;
-  const userId = req.user?.id;
+  const userId = req.userId;
   const { status } = req.body;
   
   try {

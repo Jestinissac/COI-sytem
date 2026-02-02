@@ -914,6 +914,10 @@ All refactoring replaces direct DB calls or mock logic with adapter calls. Busin
 | **Observability** | Console logs | Structured logging, correlation IDs, health checks |
 | **Secrets** | Hardcoded / .env | Azure Key Vault |
 
+**Security requirements for production:**
+- **Password storage:** Production must hash passwords (e.g. bcrypt, min 10 rounds); no plaintext storage. The prototype uses plaintext for convenience only.
+- **JWT/refresh secrets:** Must be set via environment (e.g. Azure Key Vault); no fallback to prototype defaults in production.
+
 ### 10.2 Integration Approach
 
 | Integration | Prototype | Production |

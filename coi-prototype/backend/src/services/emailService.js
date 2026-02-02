@@ -284,11 +284,11 @@ const EMAIL_TEMPLATES = {
   },
   
   ENGAGEMENT_EXPIRING: {
-    subject: '🔔 Engagement Expiring in {{days_remaining}} Days - {{engagement_code}}',
+    subject: 'Engagement Expiring in {{days_remaining}} Days - {{engagement_code}}',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #9c27b0; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">🔔 Engagement Expiring Soon</h1>
+          <h1 style="margin: 0;">Engagement Expiring Soon</h1>
         </div>
         <div style="padding: 20px; background: #f5f5f5;">
           <p>Hello {{recipient_name}},</p>

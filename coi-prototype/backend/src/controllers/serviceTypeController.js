@@ -57,15 +57,20 @@ function buildKuwaitTemplateList() {
     'Not Applicable'
   ]
   
-  // Try to get Kuwait Local services from database first
-  let allServices = db.prepare(`
-    SELECT category, service_name, display_order, metadata
-    FROM service_catalog_global
-    WHERE is_active = 1
-      AND service_name IN (${kuwaitServicesList.map(() => '?').join(',')})
-    ORDER BY category, display_order, service_name
-  `).all(...kuwaitServicesList)
-  
+  // Try to get Kuwait Local services from database first (table may be missing on fresh DB)
+  let allServices = []
+  try {
+    allServices = db.prepare(`
+      SELECT category, service_name, display_order, metadata
+      FROM service_catalog_global
+      WHERE is_active = 1
+        AND service_name IN (${kuwaitServicesList.map(() => '?').join(',')})
+      ORDER BY category, display_order, service_name
+    `).all(...kuwaitServicesList)
+  } catch (err) {
+    // Table missing or DB error: use hardcoded list below
+  }
+
   // If database doesn't have Kuwait services, use hardcoded list with proper categories
   if (allServices.length === 0) {
     // Return hardcoded Kuwait template structure
@@ -243,47 +248,52 @@ function buildKuwaitTemplateList() {
  * Keeps all Advisory sub-categories separate
  */
 function buildFullGlobalList() {
-  // Get all services from global catalog
-  const allServices = db.prepare(`
-    SELECT category, service_name, display_order
-    FROM service_catalog_global
-    WHERE is_active = 1
-    ORDER BY category, display_order, service_name
-  `).all()
-  
-  // Group services by category
-  const servicesByCategory = {}
-  allServices.forEach(service => {
-    if (!servicesByCategory[service.category]) {
-      servicesByCategory[service.category] = []
-    }
-    servicesByCategory[service.category].push(service.service_name)
-  })
-  
-  // Build full global list structure - keep all categories separate
-  const fullServiceTypeList = []
-  
-  // Get unique categories in display order
-  const categories = db.prepare(`
-    SELECT DISTINCT category, MIN(display_order) as min_order
-    FROM service_catalog_global
-    WHERE is_active = 1
-    GROUP BY category
-    ORDER BY min_order, category
-  `).all()
-  
-  categories.forEach(({ category }) => {
-    if (servicesByCategory[category] && servicesByCategory[category].length > 0) {
-      const hasSubCategories = category === 'Business/Asset Valuation'
-      fullServiceTypeList.push({
-        category: category,
-        services: servicesByCategory[category],
-        ...(hasSubCategories && { hasSubCategories: true })
-      })
-    }
-  })
-  
-  return fullServiceTypeList
+  try {
+    // Get all services from global catalog
+    const allServices = db.prepare(`
+      SELECT category, service_name, display_order
+      FROM service_catalog_global
+      WHERE is_active = 1
+      ORDER BY category, display_order, service_name
+    `).all()
+
+    // Group services by category
+    const servicesByCategory = {}
+    allServices.forEach(service => {
+      if (!servicesByCategory[service.category]) {
+        servicesByCategory[service.category] = []
+      }
+      servicesByCategory[service.category].push(service.service_name)
+    })
+
+    // Build full global list structure - keep all categories separate
+    const fullServiceTypeList = []
+
+    // Get unique categories in display order
+    const categories = db.prepare(`
+      SELECT DISTINCT category, MIN(display_order) as min_order
+      FROM service_catalog_global
+      WHERE is_active = 1
+      GROUP BY category
+      ORDER BY min_order, category
+    `).all()
+
+    categories.forEach(({ category }) => {
+      if (servicesByCategory[category] && servicesByCategory[category].length > 0) {
+        const hasSubCategories = category === 'Business/Asset Valuation'
+        fullServiceTypeList.push({
+          category: category,
+          services: servicesByCategory[category],
+          ...(hasSubCategories && { hasSubCategories: true })
+        })
+      }
+    })
+
+    return fullServiceTypeList
+  } catch (err) {
+    // Table missing or DB error: return empty list
+    return []
+  }
 }
 
 /**
@@ -300,53 +310,54 @@ export async function getServiceTypes(req, res) {
     // Default to false (Kuwait list) if not explicitly set to 'true'
     const internationalOperations = international === 'true'
     
-    // Get all service types with their sub-categories
-    const serviceTypesWithSubs = db.prepare(`
-      SELECT 
-        parent_service_type,
-        sub_category,
-        display_order
-      FROM service_type_categories
-      WHERE is_active = 1
-      ORDER BY parent_service_type, display_order
-    `).all()
-    
-    // Group by parent service type
+    // Get all service types with their sub-categories (table may be missing on fresh DB)
     const grouped = {}
-    serviceTypesWithSubs.forEach(row => {
-      if (!grouped[row.parent_service_type]) {
-        grouped[row.parent_service_type] = []
-      }
-      grouped[row.parent_service_type].push({
-        value: row.sub_category,
-        label: row.sub_category,
-        order: row.display_order
+    try {
+      const serviceTypesWithSubs = db.prepare(`
+        SELECT 
+          parent_service_type,
+          sub_category,
+          display_order
+        FROM service_type_categories
+        WHERE is_active = 1
+        ORDER BY parent_service_type, display_order
+      `).all()
+      serviceTypesWithSubs.forEach(row => {
+        if (!grouped[row.parent_service_type]) {
+          grouped[row.parent_service_type] = []
+        }
+        grouped[row.parent_service_type].push({
+          value: row.sub_category,
+          label: row.sub_category,
+          order: row.display_order
+        })
       })
-    })
+    } catch (err) {
+      // service_type_categories missing or error: use empty sub-categories
+    }
     
-    // Get entity-specific services if entity is provided
+    // Get entity-specific services if entity is provided (tables may be missing on fresh DB)
     let entityServices = []
     let entityCustomServices = []
-    
-    if (entity) {
-      // Get entity name from code
-      const entityRecord = db.prepare('SELECT entity_name FROM entity_codes WHERE entity_code = ? AND is_active = 1').get(entity)
-      if (entityRecord) {
-        // Get enabled services from Global catalog
-        entityServices = db.prepare(`
-          SELECT DISTINCT scg.category, scg.service_name, scg.service_code
-          FROM service_catalog_global scg
-          INNER JOIN service_catalog_entities sce ON scg.service_code = sce.service_code
-          WHERE sce.entity_name = ? AND sce.is_enabled = 1
-        `).all(entityRecord.entity_name)
-        
-        // Get custom services
-        entityCustomServices = db.prepare(`
-          SELECT category, service_name, 'custom' as service_code
-          FROM service_catalog_custom_services
-          WHERE entity_name = ? AND is_active = 1
-        `).all(entityRecord.entity_name)
+    try {
+      if (entity) {
+        const entityRecord = db.prepare('SELECT entity_name FROM entity_codes WHERE entity_code = ? AND is_active = 1').get(entity)
+        if (entityRecord) {
+          entityServices = db.prepare(`
+            SELECT DISTINCT scg.category, scg.service_name, scg.service_code
+            FROM service_catalog_global scg
+            INNER JOIN service_catalog_entities sce ON scg.service_code = sce.service_code
+            WHERE sce.entity_name = ? AND sce.is_enabled = 1
+          `).all(entityRecord.entity_name)
+          entityCustomServices = db.prepare(`
+            SELECT category, service_name, 'custom' as service_code
+            FROM service_catalog_custom_services
+            WHERE entity_name = ? AND is_active = 1
+          `).all(entityRecord.entity_name)
+        }
       }
+    } catch (_) {
+      // service_catalog_global / service_catalog_entities / service_catalog_custom_services missing: use empty entity lists
     }
     
     // Build service lists from database

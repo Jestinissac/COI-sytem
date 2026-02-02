@@ -2151,7 +2151,7 @@ function getLetterStatusLabel(request: any): string {
   }
   if (request.proposal_sent_date) {
     const days = getDaysWaiting(request.proposal_sent_date)
-    return `⏳ ${days} days`
+    return `${days} days`
   }
   return 'Pending'
 }
@@ -2217,7 +2217,7 @@ function getClientResponseLabel(request: any) {
   if (request.client_response_status === 'Accepted') return '✓ Signed'
   if (request.client_response_status === 'Rejected') return '✗ Rejected'
   if (request.client_response_status === 'Negotiating') return '⟳ Negotiating'
-  if (request.proposal_sent_date && !request.client_response_date) return '⏳ Awaiting'
+  if (request.proposal_sent_date && !request.client_response_date) return 'Awaiting'
   return 'Pending'
 }
 

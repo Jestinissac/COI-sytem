@@ -353,6 +353,15 @@
                         </div>
                       </td>
                     </tr>
+                    <tr v-else-if="coiStore.error && !loading">
+                      <td colspan="6" class="px-6 py-8">
+                        <EmptyState
+                          title="Could not load requests"
+                          :message="coiStore.error"
+                          :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests() }"
+                        />
+                      </td>
+                    </tr>
                     <tr v-else-if="enhancedFilteredRequests.length === 0">
                       <td colspan="6" class="px-6 py-8">
                         <EmptyState
@@ -399,6 +408,12 @@
                 <div v-if="loading" class="space-y-4">
                   <SkeletonCard v-for="i in 5" :key="i" />
                 </div>
+                <EmptyState
+                  v-else-if="coiStore.error"
+                  title="Could not load requests"
+                  :message="coiStore.error"
+                  :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests() }"
+                />
                 <EmptyState
                   v-else-if="enhancedFilteredRequests.length === 0"
                   title="No requests found"
@@ -831,7 +846,7 @@
                   <span class="text-gray-600">Client accepted the proposal</span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <span class="px-2 py-1 bg-amber-100 text-amber-700 border border-amber-300 rounded-full text-xs font-semibold">⏳ Awaiting</span>
+                  <span class="px-2 py-1 bg-amber-100 text-amber-700 border border-amber-300 rounded-full text-xs font-semibold">Awaiting</span>
                   <span class="text-gray-600">Waiting for client response</span>
                 </div>
                 <div class="flex items-center gap-2">
@@ -1658,7 +1673,7 @@ function getClientResponseLabel(request: any) {
   if (request.client_response_status === 'Accepted') return '✓ Signed'
   if (request.client_response_status === 'Rejected') return '✗ Rejected'
   if (request.client_response_status === 'Negotiating') return '⟳ Negotiating'
-  if (request.proposal_sent_date && !request.client_response_date) return '⏳ Awaiting Response'
+  if (request.proposal_sent_date && !request.client_response_date) return 'Awaiting Response'
   return 'Pending'
 }
 

@@ -110,8 +110,14 @@ const SERVICE_TYPE_TO_CMA_MAPPING = {
  * Check if client is CMA-regulated.
  * CMA + IESBA only: All Kuwait clients are CMA-regulated; always return true.
  */
-export function isCMARegulated(clientData) {
-  return true
+export function isCMARegulated(clientData, requestData = null) {
+  const location = (
+    requestData?.client_location ||
+    clientData?.client_location ||
+    clientData?.country ||
+    ''
+  ).toLowerCase().trim()
+  return location === 'kuwait' || location === 'state of kuwait' || location === 'kwt'
 }
 
 /**
@@ -122,7 +128,7 @@ export function isCMARegulated(clientData) {
  * 2. Case-insensitive lookup
  * 3. Database lookup (fallback for legacy data)
  */
-function mapServiceTypeToCMA(serviceTypeName) {
+export function mapServiceTypeToCMA(serviceTypeName) {
   if (!serviceTypeName) return null
   
   // Direct lookup (exact match) - for CMA service names from dropdown
@@ -159,8 +165,16 @@ function mapServiceTypeToCMA(serviceTypeName) {
   
   // Log warning for unmapped services (for monitoring)
   console.warn(`[CMA Mapping] No mapping found for service: "${serviceTypeName}"`)
-  
+
   return null
+}
+
+export function getCMAMetadataForService(serviceTypeName) {
+  const cmaCode = mapServiceTypeToCMA(serviceTypeName)
+  return {
+    isCMARegulated: cmaCode !== null,
+    cmaCode: cmaCode
+  }
 }
 
 /**
@@ -168,8 +182,9 @@ function mapServiceTypeToCMA(serviceTypeName) {
  * Returns conflict if CMA rule exists and is violated
  * Rules are bidirectional (A+B = B+A)
  */
-export function checkCMARules(serviceA, serviceB, clientData = null) {
-  // CMA + IESBA only: CMA rules apply to ALL clients (no gate)
+export function checkCMARules(serviceA, serviceB, clientData = null, requestData = null) {
+  // Only apply CMA rules to Kuwait clients
+  if (!isCMARegulated(clientData, requestData)) return null
 
   // Map service types to CMA codes
   const cmaCodeA = mapServiceTypeToCMA(serviceA)

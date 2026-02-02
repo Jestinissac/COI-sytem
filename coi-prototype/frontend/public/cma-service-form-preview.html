@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>COI Request — Service section (CMA design preview)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+  <div class="max-w-3xl mx-auto bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+    <h1 class="text-xl font-semibold text-gray-900 mb-1">COI Request Form</h1>
+    <p class="text-sm text-gray-500 mb-6">Service section — CMA dropdown & info banner (HTML preview)</p>
+
+    <!-- Location (Kuwait selected so banner is visible) -->
+    <div class="mb-4">
+      <label for="client_location" class="block text-sm font-medium text-gray-700 mb-1.5">Location</label>
+      <select
+        id="client_location"
+        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      >
+        <option value="">Select...</option>
+        <option value="State of Kuwait" selected>State of Kuwait</option>
+        <option value="GCC">GCC</option>
+        <option value="International">International</option>
+      </select>
+    </div>
+
+    <!-- Line of Service -->
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Line of Service (local)</label>
+      <select
+        id="service_category"
+        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      >
+        <option value="">Select line of service...</option>
+        <option value="Audit & Assurance">Audit & Assurance</option>
+        <option value="Advisory">Advisory</option>
+        <option value="Tax">Tax</option>
+        <option value="Accounting">Accounting</option>
+      </select>
+    </div>
+
+    <!-- Service Type (local) — with [CMA] tags on CMA-mapped options -->
+    <div class="mb-2">
+      <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Type (local) <span class="text-red-500">*</span></label>
+      <select
+        id="service_type"
+        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        aria-required="true"
+      >
+        <option value="">Select specific service type...</option>
+        <option value="Statutory Audit Services" data-cma-code="EXTERNAL_AUDIT">Statutory Audit Services [CMA]</option>
+        <option value="External Audit" data-cma-code="EXTERNAL_AUDIT">External Audit [CMA]</option>
+        <option value="Internal Audit" data-cma-code="INTERNAL_AUDIT">Internal Audit [CMA]</option>
+        <option value="Valuation of the assets" data-cma-code="ASSET_VALUATION">Valuation of the assets [CMA]</option>
+        <option value="An Investment Advisor" data-cma-code="INVESTMENT_ADVISOR">An Investment Advisor [CMA]</option>
+        <option value="Management Consulting Services">Management Consulting Services</option>
+        <option value="Business Advisory">Business Advisory</option>
+        <option value="Tax Compliance">Tax Compliance</option>
+        <option value="Tax Advisory">Tax Advisory</option>
+        <option value="Bookkeeping">Bookkeeping</option>
+      </select>
+    </div>
+
+    <!-- CMA info banner (shown when Kuwait + service selected) -->
+    <div
+      id="cma_banner"
+      class="mt-2 text-xs px-3 py-2 rounded-md border hidden"
+      role="status"
+    >
+      <span id="cma_banner_text"></span>
+    </div>
+
+    <p class="mt-6 text-xs text-gray-400">Select a service type above to see the banner: CMA-mapped (blue) vs non-CMA (gray).</p>
+  </div>
+
+  <script>
+    (function () {
+      var locationSelect = document.getElementById('client_location');
+      var serviceSelect = document.getElementById('service_type');
+      var banner = document.getElementById('cma_banner');
+      var bannerText = document.getElementById('cma_banner_text');
+
+      function updateBanner() {
+        var location = (locationSelect.value || '').toLowerCase().trim();
+        var isKuwait = location === 'kuwait' || location === 'state of kuwait' || location === 'kwt';
+        var serviceValue = serviceSelect.value;
+        var selectedOption = serviceSelect.options[serviceSelect.selectedIndex];
+        var cmaCode = selectedOption && selectedOption.getAttribute('data-cma-code');
+
+        if (!isKuwait || !serviceValue) {
+          banner.classList.add('hidden');
+          return;
+        }
+
+        banner.classList.remove('hidden');
+        if (cmaCode) {
+          banner.className = 'mt-2 text-xs px-3 py-2 rounded-md border bg-blue-50 text-blue-700 border-blue-200';
+          bannerText.textContent = 'CMA-regulated service (' + cmaCode + '). Combination rules will be checked.';
+        } else {
+          banner.className = 'mt-2 text-xs px-3 py-2 rounded-md border bg-gray-50 text-gray-500 border-gray-200';
+          bannerText.textContent = 'This service is outside CMA scope. CMA combination rules do not apply.';
+        }
+      }
+
+      locationSelect.addEventListener('change', updateBanner);
+      serviceSelect.addEventListener('change', updateBanner);
+      updateBanner();
+    })();
+  </script>
+</body>
+</html>

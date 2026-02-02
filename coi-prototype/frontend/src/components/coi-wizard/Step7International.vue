@@ -6,7 +6,7 @@
         International Operations
       </h3>
     </div>
-    <div class="p-8 bg-gradient-to-b from-teal-50 to-white space-y-8">
+    <div class="p-8 bg-gray-50 space-y-8">
       <div class="flex items-center p-6 bg-white rounded-xl border-2 border-gray-200">
         <label class="flex items-center cursor-pointer">
           <input

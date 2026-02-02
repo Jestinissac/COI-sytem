@@ -110,7 +110,7 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('refreshToken', refreshToken.value)
       api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
       
-      console.log('✅ Token refreshed successfully')
+      if (import.meta.env.DEV) console.log('Token refreshed successfully')
       return { success: true }
     } catch (error: any) {
       console.error('Token refresh failed:', error.response?.data || error)

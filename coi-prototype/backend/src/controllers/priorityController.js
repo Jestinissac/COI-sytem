@@ -1,4 +1,5 @@
 import { getDatabase } from '../database/init.js'
+import { getUserById } from '../utils/userUtils.js'
 import { getFilteredRequests } from '../middleware/dataSegregation.js'
 import {
   getActiveConfig,
@@ -27,7 +28,7 @@ import {
  */
 export async function getQueue(req, res) {
   try {
-    const user = req.user
+    const user = getUserById(req.userId)
     
     // Get requests filtered by user's role (respects data segregation)
     const requests = getFilteredRequests(user)
@@ -173,7 +174,7 @@ export async function updateConfig(req, res) {
   try {
     const { factorId } = req.params
     const { weight, value_mappings, is_active, reason } = req.body
-    const userId = req.user.id
+    const userId = req.userId
     
     // Validate factor exists
     const current = getFactorConfig(factorId)
@@ -275,7 +276,7 @@ export async function getAuditHistory(req, res) {
  */
 export async function getGrouped(req, res) {
   try {
-    const user = req.user
+    const user = getUserById(req.userId)
     
     // Get requests filtered by user's role
     const requests = getFilteredRequests(user)

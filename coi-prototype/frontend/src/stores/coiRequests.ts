@@ -47,9 +47,10 @@ export const useCOIRequestsStore = defineStore('coiRequests', () => {
     error.value = null
     try {
       const response = await api.get('/coi/requests', { params: filters })
-      requests.value = response.data
+      requests.value = Array.isArray(response.data) ? response.data : []
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Failed to fetch requests'
+      error.value = err.response?.data?.error || err.message || 'Failed to fetch requests. Is the backend running on port 3000?'
+      requests.value = []
     } finally {
       loading.value = false
     }

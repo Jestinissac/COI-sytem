@@ -135,8 +135,8 @@ export async function createUser(req, res) {
     return res.status(400).json({ error: 'User with this email already exists' })
   }
 
-  // Hash password (in production, use bcrypt)
-  const password_hash = password // In prototype, store plain text (NOT for production!)
+  // PROTOTYPE ONLY: Store plain text. Production must hash passwords (e.g. bcrypt, min 10 rounds); no plaintext storage.
+  const password_hash = password
 
   // Insert user
   const result = db.prepare(`

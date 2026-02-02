@@ -259,6 +259,13 @@
                         </div>
                       </td>
                     </tr>
+                    <tr v-else-if="coiStore.error && !loading">
+                      <td colspan="6" class="px-6 py-8 text-center">
+                        <p class="text-red-600 font-medium">Could not load requests</p>
+                        <p class="text-sm text-gray-600 mt-1">{{ coiStore.error }}</p>
+                        <button type="button" @click="coiStore.fetchRequests()" class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">Retry</button>
+                      </td>
+                    </tr>
                     <tr v-else-if="enhancedFilteredRequests.length === 0">
                       <td colspan="6" class="px-6 py-8 text-center text-gray-500">
                         <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

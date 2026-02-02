@@ -110,7 +110,7 @@ export async function updateConfig(req, res) {
   try {
     const { configId } = req.params
     const { target_hours, warning_threshold_percent, critical_threshold_percent, is_active, reason } = req.body
-    const userId = req.user.id
+    const userId = req.userId
     
     // Validate inputs
     const updates = {}

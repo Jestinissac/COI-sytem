@@ -1,6 +1,6 @@
 <template>
   <div 
-    class="toast pointer-events-auto w-full max-w-sm overflow-hidden rounded-xl shadow-2xl"
+    class="toast pointer-events-auto w-full max-w-sm overflow-hidden rounded-xl shadow-sm border border-gray-200"
     :class="toastClasses"
     style="animation: slideIn 0.3s ease-out;"
   >

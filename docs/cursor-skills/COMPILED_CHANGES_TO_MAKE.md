@@ -2,7 +2,18 @@
 
 **Source:** Skills-based E2E check (production-handover-readiness, build-verification, business-consultant-partner, cio-cto-solution-alignment, security-compliance-production, ui-ux-coi, vue-coi-frontend, documentation-coi, code-review) + CTO/CIO second-layer review.
 
-**Use:** Single ordered checklist for implementing fixes. Work through P0 first, then P1, P2, P3.
+**Use:** Work through P0 first, then P1, P2, P3. For token-efficient CLI use, open only the priority file you need.
+
+---
+
+## Segregated files (by priority)
+
+| Priority | File | Items |
+|----------|------|--------|
+| **P0** | [COMPILED_CHANGES_P0_CRITICAL.md](./COMPILED_CHANGES_P0_CRITICAL.md) | 1–3 (req.user, commercial data strip, status string) |
+| **P1** | [COMPILED_CHANGES_P1_HIGH.md](./COMPILED_CHANGES_P1_HIGH.md) | 4–9 (JWT, password doc, emojis, shadows/gradients, console.log) |
+| **P2** | [COMPILED_CHANGES_P2_MEDIUM.md](./COMPILED_CHANGES_P2_MEDIUM.md) | 10–12 (dataSegregation, report audit, frontend console) |
+| **P3** | [COMPILED_CHANGES_P3_LOW.md](./COMPILED_CHANGES_P3_LOW.md) | 13–14 (wizard backgrounds, copy review) |
 
 ---
 

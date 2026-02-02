@@ -1,13 +1,19 @@
 import { getDatabase } from '../database/init.js'
+import { getUserById } from '../utils/userUtils.js'
 
+/**
+ * Sets req.query filters by role (department, requester_id, include_team, exclude_commercial).
+ * Note: getFilteredRequests(user, filters) does not read req.query; list/dashboard responses
+ * strip commercial data for Compliance via mapResponseForRole in responseMapper.js.
+ */
 export function applyDataSegregation(req, res, next) {
-  const user = req.user
-  
+  const user = req.userId != null ? getUserById(req.userId) : null
+
   if (!user) {
     return next()
   }
 
-  // Add filters based on role
+  // Add filters based on role (for routes that pass req.query to getFilteredRequests)
   if (user.role === 'Requester') {
     req.query.department = user.department
     req.query.requester_id = user.id
@@ -15,11 +21,9 @@ export function applyDataSegregation(req, res, next) {
     req.query.department = user.department
     req.query.include_team = true
   } else if (user.role === 'Compliance') {
-    // Meeting Requirement 2026-01-12: Compliance sees all services excluding costs/fees
-    req.query.exclude_commercial = true // Excludes financial_parameters (costs/fees)
-    req.query.include_all_services = true // Includes all service information
+    req.query.exclude_commercial = true
+    req.query.include_all_services = true
   }
-  // Super Admin has no restrictions
 
   next()
 }

@@ -6,7 +6,7 @@
         Ownership & Structure
       </h3>
     </div>
-    <div class="p-8 bg-gradient-to-b from-orange-50 to-white space-y-8">
+    <div class="p-8 bg-gray-50 space-y-8">
       <div>
         <label class="block text-sm font-bold text-gray-800 mb-2">Full Ownership Structure</label>
         <textarea

@@ -95,7 +95,7 @@
         <div v-if="impact.warnings && impact.warnings.length > 0" class="space-y-1">
           <div class="text-xs font-medium text-yellow-700 mb-2">Warnings</div>
           <div v-for="(warning, idx) in impact.warnings" :key="idx" class="text-xs text-yellow-600 bg-yellow-50 border border-yellow-200 rounded p-2">
-            ⚠️ {{ warning }}
+            Warning: {{ warning }}
           </div>
         </div>
 
@@ -103,7 +103,7 @@
         <div v-if="impact.errors && impact.errors.length > 0" class="space-y-1">
           <div class="text-xs font-medium text-red-700 mb-2">Errors</div>
           <div v-for="(error, idx) in impact.errors" :key="idx" class="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">
-            ❌ {{ error }}
+            Error: {{ error }}
           </div>
         </div>
 
@@ -274,7 +274,7 @@ watch(() => props.changeType, loadImpactAnalysis)
         <div v-if="impact.warnings && impact.warnings.length > 0" class="space-y-1">
           <div class="text-xs font-medium text-yellow-700 mb-2">Warnings</div>
           <div v-for="(warning, idx) in impact.warnings" :key="idx" class="text-xs text-yellow-600 bg-yellow-50 border border-yellow-200 rounded p-2">
-            ⚠️ {{ warning }}
+            Warning: {{ warning }}
           </div>
         </div>
 
@@ -282,7 +282,7 @@ watch(() => props.changeType, loadImpactAnalysis)
         <div v-if="impact.errors && impact.errors.length > 0" class="space-y-1">
           <div class="text-xs font-medium text-red-700 mb-2">Errors</div>
           <div v-for="(error, idx) in impact.errors" :key="idx" class="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">
-            ❌ {{ error }}
+            Error: {{ error }}
           </div>
         </div>
 

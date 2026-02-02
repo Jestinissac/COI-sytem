@@ -1,6 +1,6 @@
 <template>
   <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 max-w-lg w-full">
       <div class="p-6 border-b border-gray-200">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">

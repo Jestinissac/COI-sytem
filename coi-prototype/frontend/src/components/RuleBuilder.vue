@@ -1718,7 +1718,7 @@ function populateTemplate(template: any) {
   }, 200)
   
   const displayName = templateName.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
-  showSuccess(`✅ Template "${displayName}" loaded successfully! Review and customize as needed.`)
+  showSuccess(`Template "${displayName}" loaded successfully. Review and customize as needed.`)
   
   // Scroll to top of form to show the loaded fields
   setTimeout(() => {

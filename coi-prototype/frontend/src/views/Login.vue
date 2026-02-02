@@ -150,7 +150,9 @@ async function handleLogin() {
     const result = await authStore.login(email.value, password.value)
     
     if (!result.success) {
-      error.value = result.error || 'Invalid credentials'
+      error.value = result.error === 'Login failed'
+        ? 'Cannot reach server. Is the backend running on port 3000?'
+        : (result.error || 'Invalid credentials')
       loading.value = false
       return
     }

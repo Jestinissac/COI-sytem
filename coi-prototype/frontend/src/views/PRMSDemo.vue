@@ -19,7 +19,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Engagement Code Validation -->
-      <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
           <h2 class="text-lg font-bold text-white">Validate Engagement Code</h2>
         </div>
@@ -90,7 +90,7 @@
       </div>
 
       <!-- Project Creation Simulation -->
-      <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
           <h2 class="text-lg font-bold text-white">Simulate Project Creation</h2>
         </div>
@@ -186,7 +186,7 @@
         <div class="flex flex-wrap items-center justify-center gap-4 text-center">
           <div class="flex flex-col items-center">
             <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-2">
-              <span class="text-2xl">📝</span>
+              <span class="text-2xl" aria-hidden="true">Doc</span>
             </div>
             <span class="text-sm font-medium text-gray-900">COI Request</span>
             <span class="text-xs text-gray-500">Created</span>
@@ -216,7 +216,7 @@
           
           <div class="flex flex-col items-center">
             <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center mb-2">
-              <span class="text-2xl">📁</span>
+              <span class="text-2xl" aria-hidden="true">Folder</span>
             </div>
             <span class="text-sm font-medium text-gray-900">PRMS Project</span>
             <span class="text-xs text-gray-500">Created with valid code</span>

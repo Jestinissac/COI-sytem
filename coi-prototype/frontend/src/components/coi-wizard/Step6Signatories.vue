@@ -6,7 +6,7 @@
         Signatory Details
       </h3>
     </div>
-    <div class="p-8 bg-gradient-to-b from-indigo-50 to-white space-y-6">
+    <div class="p-8 bg-gray-50 space-y-6">
       <div 
         v-for="(signatory, index) in formData.signatories" 
         :key="index" 

@@ -69,6 +69,91 @@ export async function initDatabase() {
     }
   }
 
+  // Seed demo users when users table is empty (development)
+  const userCount = db.prepare('SELECT COUNT(*) as n FROM users').get()
+  if (userCount && userCount.n === 0) {
+    const insertUser = db.prepare(`
+      INSERT INTO users (name, email, password_hash, role, department, line_of_service, system_access, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+    `)
+    const demoUsers = [
+      ['Super Admin', 'admin@company.com', 'password', 'Super Admin', 'Other', null, '["HRMS","PRMS","COI"]'],
+      ['Patricia White', 'patricia.white@company.com', 'password', 'Requester', 'Audit', null, '["COI"]'],
+      ['John Smith', 'john.smith@company.com', 'password', 'Director', 'Audit', null, '["COI"]'],
+      ['Emily Davis', 'emily.davis@company.com', 'password', 'Compliance', 'Audit', null, '["COI"]'],
+      ['Robert Taylor', 'robert.taylor@company.com', 'password', 'Partner', 'Audit', null, '["COI","PRMS"]'],
+      ['Lisa Thomas', 'lisa.thomas@company.com', 'password', 'Finance', 'Audit', null, '["COI"]'],
+      ['James Jackson', 'james.jackson@company.com', 'password', 'Admin', 'Audit', null, '["COI"]']
+    ]
+    for (const u of demoUsers) {
+      try {
+        insertUser.run(...u)
+      } catch (e) {
+        if (!e.message.includes('UNIQUE constraint')) throw e
+      }
+    }
+    // Link Requester (Patricia) to Director (John) so Director sees her requests
+    try {
+      db.prepare(`
+        UPDATE users SET director_id = (SELECT id FROM users WHERE email = 'john.smith@company.com' LIMIT 1)
+        WHERE email = 'patricia.white@company.com'
+      `).run()
+    } catch (e) {
+      // ignore if column missing
+    }
+    console.log('Demo users seeded (password: password)')
+  }
+
+  // Ensure Requester (Patricia) is linked to Director (John) so Director dashboard shows requests
+  try {
+    const col = db.prepare("PRAGMA table_info(users)").all().find(c => c.name === 'director_id')
+    if (col) {
+      db.prepare(`
+        UPDATE users SET director_id = (SELECT id FROM users WHERE email = 'john.smith@company.com' LIMIT 1)
+        WHERE email = 'patricia.white@company.com' AND director_id IS NULL
+      `).run()
+    }
+  } catch (_) {}
+
+  // Seed demo clients when clients table is empty (so dashboards have data)
+  const clientCount = db.prepare('SELECT COUNT(*) as n FROM clients').get()
+  if (clientCount && clientCount.n === 0) {
+    try {
+      db.prepare(`
+        INSERT INTO clients (client_code, client_name, status) VALUES
+        ('CLI-001', 'Acme Corp', 'Active'),
+        ('CLI-002', 'Global Industries Ltd', 'Active'),
+        ('CLI-003', 'Tech Solutions Inc', 'Active')
+      `).run()
+      console.log('Demo clients seeded')
+    } catch (e) {
+      if (!e.message.includes('UNIQUE constraint')) console.log('Demo clients seed:', e.message)
+    }
+  }
+
+  // Seed sample COI requests when coi_requests table is empty (so dashboards have data)
+  const requestCount = db.prepare('SELECT COUNT(*) as n FROM coi_requests').get()
+  if (requestCount && requestCount.n === 0) {
+    const patricia = db.prepare('SELECT id FROM users WHERE email = ?').get('patricia.white@company.com')
+    const firstClient = db.prepare('SELECT id FROM clients ORDER BY id LIMIT 1').get()
+    if (patricia && firstClient) {
+      try {
+        const year = new Date().getFullYear()
+        db.prepare(`
+          INSERT INTO coi_requests (request_id, client_id, requester_id, department, service_description, status, stage, requestor_name)
+          VALUES (?, ?, ?, 'Audit', 'Audit of financial statements', 'Draft', 'Proposal', 'Patricia White')
+        `).run(`COI-${year}-001`, firstClient.id, patricia.id)
+        db.prepare(`
+          INSERT INTO coi_requests (request_id, client_id, requester_id, department, service_description, status, stage, requestor_name)
+          VALUES (?, ?, ?, 'Audit', 'Tax compliance review', 'Pending Director Approval', 'Proposal', 'Patricia White')
+        `).run(`COI-${year}-002`, firstClient.id, patricia.id)
+        console.log('Sample COI requests seeded')
+      } catch (e) {
+        if (!e.message.includes('UNIQUE constraint')) console.log('Sample COI requests seed:', e.message)
+      }
+    }
+  }
+
   // Add stale request handling columns to coi_requests
   const staleColumns = [
     { name: 'requires_re_evaluation', def: 'BOOLEAN DEFAULT 0' },
@@ -85,6 +170,15 @@ export async function initDatabase() {
       if (!error.message.includes('duplicate column')) {
         // Column already exists, that's fine
       }
+    }
+  }
+
+  // Add service_type_cma_code column for CMA audit trail
+  try {
+    db.exec('ALTER TABLE coi_requests ADD COLUMN service_type_cma_code TEXT')
+  } catch (error) {
+    if (!error.message.includes('duplicate column')) {
+      console.log('service_type_cma_code column check:', error.message)
     }
   }
 
@@ -1053,6 +1147,29 @@ export async function initDatabase() {
   } catch (error) {
     // Ignore errors during backfill
   }
+
+  // Ensure entity_codes table exists (dropdowns depend on it; migration file may have failed)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS entity_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_code VARCHAR(50) UNIQUE NOT NULL,
+        entity_name VARCHAR(255) NOT NULL,
+        entity_display_name VARCHAR(255),
+        is_active INTEGER DEFAULT 1,
+        is_default INTEGER DEFAULT 0,
+        catalog_mode VARCHAR(50) DEFAULT 'independent',
+        created_by INTEGER,
+        updated_by INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_entity_codes_code ON entity_codes(entity_code)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_entity_codes_active ON entity_codes(is_active)')
+  } catch (err) {
+    if (!err.message.includes('already exists')) console.error('entity_codes ensure error:', err.message)
+  }
   
   // Seed Entity Codes
   try {
@@ -1060,6 +1177,53 @@ export async function initDatabase() {
     seedEntityCodes()
   } catch (error) {
     console.log('Note: Entity codes seeding skipped (may already exist)')
+  }
+
+  // Ensure service catalog tables exist (Line of Service dropdown depends on them; migration path may not resolve)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS service_catalog_global (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_code VARCHAR(50) UNIQUE NOT NULL,
+        category VARCHAR(100) NOT NULL,
+        sub_category VARCHAR(100),
+        service_name VARCHAR(255) NOT NULL,
+        description TEXT,
+        is_active INTEGER DEFAULT 1,
+        display_order INTEGER DEFAULT 0,
+        metadata TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS service_catalog_entities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_name VARCHAR(100) NOT NULL,
+        service_code VARCHAR(50) NOT NULL,
+        is_enabled INTEGER DEFAULT 1,
+        custom_name VARCHAR(255),
+        custom_description TEXT,
+        display_order INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(entity_name, service_code)
+      )
+    `)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS service_catalog_custom_services (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_name VARCHAR(100) NOT NULL,
+        category VARCHAR(100) NOT NULL,
+        service_name VARCHAR(255) NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        display_order INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+  } catch (err) {
+    if (!err.message.includes('already exists')) console.error('Service catalog tables ensure error:', err.message)
   }
 
   // Seed Service Catalogs (Kuwait Local + Global)
@@ -1216,32 +1380,33 @@ export async function initDatabase() {
     console.log('Note: CMA business rules seed skipped:', cmaBizError?.message)
   }
 
-  // Create countries table and seed
+  // Ensure countries table exists (dropdowns depend on it)
   try {
-    const countriesMigrationPath = join(__dirname, '../../../database/migrations/20260115_countries.sql')
-    if (existsSync(countriesMigrationPath)) {
-      const countriesMigration = readFileSync(countriesMigrationPath, 'utf-8')
-      const statements = countriesMigration
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--'))
-      
-      statements.forEach(statement => {
-        try {
-          db.exec(statement)
-        } catch (error) {
-          if (!error.message.includes('already exists')) {
-            console.error('Countries migration error:', error.message)
-          }
-        }
-      })
-      
-      // Seed countries
-      const { seedCountries } = await import('../scripts/seedCountries.js')
-      seedCountries()
-    }
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS countries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        country_code VARCHAR(3) UNIQUE NOT NULL,
+        country_name VARCHAR(255) NOT NULL,
+        country_name_ar VARCHAR(255),
+        iso_alpha_2 VARCHAR(2),
+        region VARCHAR(100),
+        is_active INTEGER DEFAULT 1,
+        display_order INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    db.exec('CREATE INDEX IF NOT EXISTS idx_countries_code ON countries(country_code)')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_countries_active ON countries(is_active)')
+  } catch (err) {
+    if (!err.message.includes('already exists')) console.error('countries ensure error:', err.message)
+  }
+  // Seed countries
+  try {
+    const { seedCountries } = await import('../scripts/seedCountries.js')
+    seedCountries()
   } catch (error) {
-    console.log('Note: Countries migration/seeding skipped (may already exist)')
+    console.log('Note: Countries seeding skipped (may already exist)')
   }
   
   // Add missing indexes for reports performance

@@ -9,6 +9,7 @@ import { evaluateRules } from '../services/businessRulesEngine.js'
 import FieldMappingService from '../services/fieldMappingService.js'
 import { parseRecommendations, logComplianceDecision } from '../services/auditTrailService.js'
 import { getUserById } from '../utils/userUtils.js'
+import { mapResponseForRole } from '../utils/responseMapper.js'
 import { validateGroupStructure, GroupStructureValidationError } from '../validators/groupStructureValidator.js'
 import { validateCompanyRelationship, CompanyRelationshipValidationError } from '../validators/companyRelationshipValidator.js'
 import { isClientParentTBDOrEmpty } from './parentCompanyUpdateController.js'
@@ -98,7 +99,8 @@ export async function getMyRequests(req, res) {
       return res.status(404).json({ error: 'User not found' })
     }
     const requests = getFilteredRequests(user, req.query)
-    res.json(requests)
+    const mapped = mapResponseForRole(requests, user.role)
+    res.json(mapped)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -108,12 +110,8 @@ export async function getRequestById(req, res) {
   try {
     const user = getUserById(req.userId)
     
-    console.log('[NEW CODE v2] Request ID:', req.params.id)
-    
     // Fetch request data
     const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
-    
-    console.log('[NEW CODE v2] Request found:', !!request)
     
     if (!request) {
       return res.status(404).json({ error: 'Request not found' })
@@ -158,19 +156,8 @@ export async function getRequestById(req, res) {
       signatories
     }
     
-    // Data segregation: Remove commercial data (costs/fees) for Compliance role
-    // Meeting Requirement 2026-01-12: All services (excluding costs/fees) should be visible to Compliance team
-    if (user.role === 'Compliance') {
-      // Remove financial parameters (costs/fees) but keep all service information
-      delete response.financial_parameters
-      // Note: All service information (service_type, service_description, service_category, etc.) remains visible
-      // Note: total_fees may not be in request object, but if it exists, exclude it
-      if (response.total_fees !== undefined) {
-        delete response.total_fees
-      }
-    }
-    
-    res.json(response)
+    const mapped = mapResponseForRole(response, user.role)
+    res.json(mapped)
   } catch (error) {
     console.error('ERROR in getRequestById:', error)
     res.status(500).json({ error: error.message })
@@ -1618,20 +1605,21 @@ export async function getDashboardData(req, res) {
     const { role } = req.params
 
     const requests = getFilteredRequests(user, req.query)
+    const mappedRequests = mapResponseForRole(requests, user.role)
     
     // Calculate stats based on role
     const stats = {
-      total: requests.length,
+      total: mappedRequests.length,
       byStatus: {},
       byDepartment: {}
     }
 
-    requests.forEach(req => {
-      stats.byStatus[req.status] = (stats.byStatus[req.status] || 0) + 1
-      stats.byDepartment[req.department] = (stats.byDepartment[req.department] || 0) + 1
+    mappedRequests.forEach(r => {
+      stats.byStatus[r.status] = (stats.byStatus[r.status] || 0) + 1
+      stats.byDepartment[r.department] = (stats.byDepartment[r.department] || 0) + 1
     })
 
-    res.json({ requests, stats })
+    res.json({ requests: mappedRequests, stats })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }

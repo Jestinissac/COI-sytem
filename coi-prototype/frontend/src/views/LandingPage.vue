@@ -50,8 +50,8 @@ const { info } = useToast()
 
 const systems = [
   { name: 'HRMS', label: 'Envision HR System', icon: '👥', route: '/hrms' },
-  { name: 'PRMS', label: 'Envision PRMS', icon: '📊', route: '/prms' },
-  { name: 'COI', label: 'COI System', icon: '✅', route: '/coi' },
+  { name: 'PRMS', label: 'Envision PRMS', icon: '', route: '/prms' },
+  { name: 'COI', label: 'COI System', icon: '', route: '/coi' },
 ]
 
 const availableSystems = computed(() => {

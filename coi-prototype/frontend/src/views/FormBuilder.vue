@@ -401,7 +401,7 @@ const sections = [
 ]
 
 const fieldTypes = [
-  { value: 'text', label: 'Text Input', icon: '📝' },
+  { value: 'text', label: 'Text Input', icon: '' },
   { value: 'textarea', label: 'Textarea', icon: '📄' },
   { value: 'select', label: 'Dropdown', icon: '📋' },
   { value: 'date', label: 'Date', icon: '📅' },
@@ -592,13 +592,13 @@ function isFieldFromSystem(field: any): boolean {
 
 function getFieldTypeIcon(type: string): string {
   const icons: Record<string, string> = {
-    'text': '📝',
+    'text': '',
     'textarea': '📄',
-    'select': '📋',
+    'select': '',
     'date': '📅',
     'number': '🔢'
   }
-  return icons[type] || '📝'
+  return icons[type] || ''
 }
 
 function getSourceFieldPlaceholder(system: string): string {

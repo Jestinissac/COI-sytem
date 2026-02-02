@@ -179,7 +179,7 @@ export function useKeyboardShortcuts() {
       const shortcut = shortcuts.get(normalizedKey)
       console.log('[Keyboard] Checking modifier shortcut:', normalizedKey, 'Found:', !!shortcut)
       if (shortcut) {
-        console.log('[Keyboard] ✅ Matched modifier shortcut:', normalizedKey, shortcut.description)
+        if (import.meta.env.DEV) console.log('[Keyboard] Matched modifier shortcut:', normalizedKey, shortcut.description)
         event.preventDefault()
         event.stopPropagation()
         try {

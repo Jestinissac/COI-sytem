@@ -430,7 +430,7 @@ export function getComplianceSummaryReport(userId, filters = {}) {
   // Get conflicts and duplications
   const conflictsFlagged = requests.filter(r => {
     // Check if request has conflicts (simplified - check for rule recommendations)
-    return r.status === 'Pending Compliance Review' || r.status === 'Rejected'
+    return r.status === 'Pending Compliance' || r.status === 'Rejected'
   }).length
   
   // Get duplications (requests with duplicate_justification or flagged duplicates)
@@ -461,7 +461,7 @@ export function getComplianceSummaryReport(userId, filters = {}) {
   
   return {
     summary: {
-      totalPendingReviews: requests.filter(r => r.status === 'Pending Compliance Review').length,
+      totalPendingReviews: requests.filter(r => r.status === 'Pending Compliance').length,
       conflictsFlagged,
       duplicationsDetected,
       globalClearanceRequired,
@@ -656,7 +656,7 @@ export function getSystemOverviewReport(userId, filters = {}) {
   const staleRequests = db.prepare(`
     SELECT COUNT(*) as count
     FROM coi_requests
-    WHERE status IN ('Pending Compliance Review', 'Pending Director Approval', 'Pending Partner Approval')
+    WHERE status IN ('Pending Compliance', 'Pending Director Approval', 'Pending Partner Approval')
     AND updated_at < date('now', '-30 days')
   `).get()?.count || 0
   

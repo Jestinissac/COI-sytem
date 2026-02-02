@@ -100,7 +100,7 @@ export async function updateGlobalSubmission(req, res) {
 // Export to Excel format (returns data for frontend to generate Excel)
 export async function exportToExcel(req, res) {
   const { requestId } = req.params;
-  const userId = req.user?.id;
+  const userId = req.userId;
   
   try {
     const submission = await db.get(

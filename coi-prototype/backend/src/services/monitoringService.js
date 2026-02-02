@@ -630,13 +630,13 @@ Dear ${recipient.name},
 
 This is a reminder that the following engagement is approaching its 3-year renewal date:
 
-📋 Request ID: ${engagement.request_id}
-🏢 Client: ${engagement.client_name || 'N/A'}
-💼 Service Type: ${engagement.service_type || 'N/A'}
-📌 Engagement Code: ${engagement.engagement_code || 'N/A'}
-📅 Original Acceptance Date: ${engagement.client_response_date ? new Date(engagement.client_response_date).toLocaleDateString() : 'N/A'}
-⏰ Renewal Date: ${engagement.renewal_date || 'N/A'}
-🔔 Days Until Renewal: ${daysUntilRenewal}
+Request ID: ${engagement.request_id}
+Client: ${engagement.client_name || 'N/A'}
+Service Type: ${engagement.service_type || 'N/A'}
+Engagement Code: ${engagement.engagement_code || 'N/A'}
+Original Acceptance Date: ${engagement.client_response_date ? new Date(engagement.client_response_date).toLocaleDateString() : 'N/A'}
+Renewal Date: ${engagement.renewal_date || 'N/A'}
+Days Until Renewal: ${daysUntilRenewal}
 
 ACTION REQUIRED:
 Please review this engagement and initiate the renewal process if the client wishes to continue.

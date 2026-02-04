@@ -1,0 +1,347 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - img [ref=e8]
+          - generic [ref=e11]: ENVISION
+        - generic [ref=e13]: COI System
+      - generic [ref=e14]:
+        - button "Notifications" [ref=e15]:
+          - img [ref=e16]
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - generic [ref=e20]: Patricia White
+            - generic [ref=e21]: Requester
+          - generic [ref=e22]: PW
+        - button "Logout" [ref=e23]
+  - navigation [ref=e24]:
+    - generic [ref=e25]:
+      - link "Dashboard" [ref=e26] [cursor=pointer]:
+        - /url: /coi/requester
+        - img [ref=e27]
+        - text: Dashboard
+      - link "New Request" [ref=e29] [cursor=pointer]:
+        - /url: /coi/request/new
+        - img [ref=e30]
+        - text: New Request
+      - link "Reports" [ref=e32] [cursor=pointer]:
+        - /url: /coi/reports
+        - img [ref=e33]
+        - text: Reports
+  - main [ref=e35]:
+    - generic [ref=e36]:
+      - generic [ref=e39]:
+        - generic [ref=e40]:
+          - heading "New COI Request" [level=1] [ref=e41]
+          - paragraph [ref=e42]: New COI request
+        - status [ref=e43]:
+          - generic [ref=e44]: Auto-saved
+      - generic [ref=e47]:
+        - generic [ref=e49]:
+          - generic [ref=e51]:
+            - generic [ref=e52]: Progress
+            - generic [ref=e53]: 2 of 7
+          - navigation [ref=e56]:
+            - link "1 Requestor Info" [ref=e57] [cursor=pointer]:
+              - /url: "#"
+              - generic [ref=e59]: "1"
+              - text: Requestor Info
+            - link "Document Type" [ref=e60] [cursor=pointer]:
+              - /url: "#"
+              - img [ref=e62]
+              - text: Document Type
+            - link "3 Client Details" [ref=e64] [cursor=pointer]:
+              - /url: "#"
+              - generic [ref=e66]: "3"
+              - text: Client Details
+            - link "4 Service Info" [ref=e67] [cursor=pointer]:
+              - /url: "#"
+              - generic [ref=e69]: "4"
+              - text: Service Info
+            - link "5 Ownership" [ref=e70] [cursor=pointer]:
+              - /url: "#"
+              - generic [ref=e72]: "5"
+              - text: Ownership
+            - link "Signatories" [ref=e73] [cursor=pointer]:
+              - /url: "#"
+              - img [ref=e75]
+              - text: Signatories
+          - generic [ref=e77]:
+            - button "Save Draft" [ref=e78]
+            - button "Submit Request" [disabled] [ref=e79]
+        - generic [ref=e80]:
+          - generic [ref=e82]:
+            - img [ref=e83]
+            - generic [ref=e85]:
+              - heading "Director Approval Required" [level=3] [ref=e86]
+              - paragraph [ref=e87]:
+                - generic [ref=e88]:
+                  - text: "Your director:"
+                  - strong [ref=e89]: John Smith
+                  - text: .
+                - text: Upload written approval or wait for in-system approval.
+          - generic [ref=e90]:
+            - generic [ref=e92]:
+              - generic [ref=e93]: "1"
+              - heading "Requestor Information" [level=2] [ref=e95]
+            - generic [ref=e97]:
+              - generic [ref=e98]:
+                - generic [ref=e99]: Requestor Name
+                - textbox [ref=e100]: Patricia White
+              - generic [ref=e101]:
+                - generic [ref=e102]: Department
+                - textbox [ref=e103]: Audit
+              - generic [ref=e104]:
+                - generic [ref=e105]: Designation *
+                - combobox [ref=e106]:
+                  - option "Select designation..." [selected]
+                  - option "Partner"
+                  - option "Senior Director"
+                  - option "Director"
+                  - option "Associate Director"
+                  - option "Senior Manager"
+                  - option "Manager"
+                  - option "Assistant Manager"
+              - generic [ref=e107]:
+                - generic [ref=e108]: Entity *
+                - combobox [ref=e109]:
+                  - option "Select entity..."
+                  - option "BDO Al Nisf & Partners" [selected]
+                  - option "BDO Consulting"
+          - generic [ref=e110]:
+            - generic [ref=e111]:
+              - generic [ref=e112]:
+                - generic [ref=e113]: "2"
+                - heading "Document Type" [level=2] [ref=e115]
+              - generic [ref=e116]: Complete
+            - generic [ref=e117]:
+              - generic [ref=e118]:
+                - generic [ref=e119] [cursor=pointer]:
+                  - radio "Proposal" [checked] [ref=e120]
+                  - generic [ref=e121]:
+                    - img [ref=e122]
+                    - paragraph [ref=e125]: Proposal
+                  - img [ref=e127]
+                - generic [ref=e129] [cursor=pointer]:
+                  - radio "Engagement Letter" [ref=e130]
+                  - generic [ref=e131]:
+                    - img [ref=e133]
+                    - paragraph [ref=e136]: Engagement Letter
+              - generic [ref=e137]:
+                - generic [ref=e138]:
+                  - generic [ref=e139]: Language
+                  - combobox [ref=e140]:
+                    - option "English" [selected]
+                    - option "Arabic"
+                    - option "Bilingual"
+                - generic [ref=e141]:
+                  - generic [ref=e142]: Lead Source
+                  - combobox [ref=e143]:
+                    - option "Select lead source..." [selected]
+                    - option "BDO Global"
+                    - option "Client Referral"
+                    - option "Internal Referral (Partner/Director)"
+                    - option "System generated"
+                    - option "Cold Outreach"
+                    - option "Event / Conference"
+                    - option "Marketing Campaign"
+                    - option "Direct Client Creation"
+                    - option "Unknown / Legacy"
+          - generic [ref=e144]:
+            - generic [ref=e146]:
+              - generic [ref=e147]: "3"
+              - heading "Client Details" [level=2] [ref=e149]
+            - generic [ref=e151]:
+              - generic [ref=e152]:
+                - generic [ref=e153]: Select Client or Prospect *
+                - generic [ref=e156]:
+                  - combobox "Search by name or code..." [ref=e157]
+                  - button "Toggle list" [ref=e158]:
+                    - img [ref=e159]
+              - heading "Identification" [level=4] [ref=e161]
+              - generic [ref=e162]:
+                - generic [ref=e163]:
+                  - generic [ref=e164]: Client Code
+                  - textbox "-" [ref=e165]
+                - generic [ref=e166]:
+                  - generic [ref=e167]: Client Type
+                  - combobox [ref=e168]:
+                    - option "Select..." [selected]
+                    - option "W.L.L."
+                    - option "W.L.L. Holding"
+                    - option "K.S.C.C."
+                    - option "K.S.C.C. (Holding)"
+                    - option "K.S.C.P."
+                    - option "K.S.C.P. (Holding)"
+                    - option "S.C.P. (Holding)"
+                    - option "S.P.C."
+                    - option "S.P.C. Holding"
+                    - option "Portfolio"
+                    - option "Fund"
+                    - option "Scheme"
+                    - option "Joint Venture Company"
+                    - option "Solidarity Company"
+                    - option "Simple Rec. Company"
+                    - option "Shares Rec. Company"
+                - generic [ref=e169]:
+                  - generic [ref=e170]: Regulated By
+                  - combobox [ref=e171]:
+                    - option "Select..." [selected]
+                    - option "MOCI"
+                    - option "MOCI & CMA"
+                    - option "MOCI & CBK"
+                    - option "MOCI, CMA & CBK"
+                    - option "MOCI & Boursa"
+                    - option "Governmental Authority"
+              - generic [ref=e172]:
+                - generic [ref=e173]:
+                  - generic [ref=e174]: Status
+                  - combobox [ref=e175]:
+                    - option "Select..." [selected]
+                    - option "N/A"
+                    - option "Listed"
+                    - option "Licensed"
+                    - option "Listed & Licensed"
+                    - option "OTC"
+                    - option "Other"
+                - generic [ref=e176]:
+                  - generic [ref=e177]: Location
+                  - combobox [ref=e178]:
+                    - option "Select..."
+                    - option "State of Kuwait" [selected]
+                    - option "Other Country"
+                - generic [ref=e179]:
+                  - generic [ref=e180]: Relationship
+                  - combobox [ref=e181]:
+                    - option "Select..." [selected]
+                    - option "New Client"
+                    - option "Existing Client"
+                    - option "Former Client"
+              - heading "PIE & structure" [level=4] [ref=e182]
+              - generic [ref=e183]:
+                - generic [ref=e184]: PIE Status
+                - generic [ref=e185]:
+                  - generic [ref=e186]:
+                    - radio "Yes - PIE" [ref=e187]
+                    - generic [ref=e188]: Yes - PIE
+                  - generic [ref=e189]:
+                    - radio "No" [checked] [ref=e190]
+                    - generic [ref=e191]: "No"
+              - generic [ref=e193]:
+                - generic [ref=e194]: Company Type
+                - combobox [ref=e195]:
+                  - option "Select company type..." [selected]
+                  - option "Standalone"
+                  - option "Subsidiary"
+                  - option "Affiliate"
+                  - option "Sister"
+                  - option "Parent"
+          - generic [ref=e196]:
+            - generic [ref=e198]:
+              - generic [ref=e199]: "4"
+              - heading "Service Information" [level=2] [ref=e201]
+            - generic [ref=e202]:
+              - generic [ref=e204]:
+                - checkbox "Client has international operations" [ref=e205]
+                - generic [ref=e206]: Client has international operations
+              - generic [ref=e207]:
+                - generic [ref=e208]:
+                  - generic [ref=e209]: Line of Service (local request) *
+                  - combobox [ref=e210]:
+                    - option "Select line of service..." [selected]
+                - generic [ref=e211]:
+                  - generic [ref=e212]: Service Type (local) *
+                  - combobox [disabled] [ref=e213]:
+                    - option "Select line of service first" [selected]
+              - generic [ref=e214]:
+                - generic [ref=e215]: Service Description *
+                - textbox "Describe the services to be provided..." [ref=e216]
+                - generic [ref=e217]:
+                  - alert [ref=e218]: Service description is required.
+                  - generic [ref=e219]: 0 / 2000
+              - generic [ref=e220]:
+                - generic [ref=e221]:
+                  - generic [ref=e222]: Service Period Start
+                  - textbox [ref=e223]
+                - generic [ref=e224]:
+                  - generic [ref=e225]: Service Period End
+                  - textbox [ref=e226]
+              - generic [ref=e227]:
+                - heading "External Deadline" [level=3] [ref=e228]
+                - generic [ref=e229]:
+                  - generic [ref=e230]:
+                    - generic [ref=e231]: Deadline Date
+                    - textbox [ref=e232]
+                  - generic [ref=e233]:
+                    - generic [ref=e234]: Reason for Deadline
+                    - combobox [ref=e235]:
+                      - option "None / No external deadline" [selected]
+                      - option "Regulatory Filing"
+                      - option "Client Board Meeting"
+                      - option "AGM/Shareholder Meeting"
+                      - option "Statutory Requirement"
+                      - option "Client Contract Commitment"
+                      - option "Tender/Bid Deadline"
+                      - option "Other"
+          - generic [ref=e236]:
+            - generic [ref=e238]:
+              - generic [ref=e239]: "5"
+              - heading "Ownership Structure" [level=2] [ref=e241]
+            - generic [ref=e242]:
+              - generic [ref=e243]:
+                - generic [ref=e244]: Full Ownership Structure
+                - button "Add shareholder / ownership row" [ref=e246]:
+                  - img [ref=e247]
+                  - text: Add shareholder / ownership row
+                - textbox "Or describe the ownership structure in your own words (shareholders and percentages)..." [ref=e250]
+              - generic [ref=e251]:
+                - generic [ref=e252]: Related/Affiliated Entities
+                - textbox "List any related or affiliated entities..." [ref=e253]
+          - generic [ref=e254]:
+            - generic [ref=e255]:
+              - generic [ref=e256]:
+                - generic [ref=e257]: "6"
+                - heading "Signatories" [level=2] [ref=e259]
+              - generic [ref=e260]: Complete
+            - generic [ref=e261]:
+              - paragraph [ref=e263]: "Primary approver: John Smith"
+              - generic [ref=e264]:
+                - generic [ref=e265]: Backup approver (optional)
+                - combobox [ref=e266]:
+                  - option "None — use default escalation"
+                  - option "Amy Campbell (Compliance, Accounting)"
+                  - option "David Wilson (Compliance, Audit)"
+                  - option "Emily Davis (Compliance, Audit)"
+                  - option "George Morris (Compliance, Other)"
+                  - option "Jessica Lewis (Compliance, Tax)"
+                  - option "Joseph Rodriguez (Compliance, Tax)"
+                  - option "Sandra Green (Compliance, Advisory)"
+                  - option "John Smith (Director, Audit)"
+                  - option "Kenneth Phillips (Director, Accounting)"
+                  - option "Mark Scott (Director, Advisory)"
+                  - option "Richard Moore (Director, Tax)"
+                  - option "Sarah Johnson (Director, Audit)"
+                  - option "Angela Evans (Finance, Accounting)"
+                  - option "Carol Carter (Finance, Advisory)"
+                  - option "Charles Allen (Finance, Tax)"
+                  - option "Frank Reed (Finance, Other)"
+                  - option "Lisa Thomas (Finance, Audit)"
+                  - option "Donna Baker (Partner, Advisory)"
+                  - option "Jennifer Martinez (Partner, Audit)"
+                  - option "Joshua Parker (Partner, Accounting)"
+                  - option "Karen Hall (Partner, Tax)"
+                  - option "Robert Taylor (Partner, Audit)"
+                  - option "Ruth Rogers (Partner, Other)"
+                  - option "Steven Nelson (Partner, Advisory)"
+                  - option "Thomas Walker (Partner, Tax)"
+                  - option "William Anderson (Partner, Audit)"
+          - generic [ref=e267]:
+            - generic [ref=e269]:
+              - generic [ref=e270]: "7"
+              - heading "Director Approval Document" [level=2] [ref=e272]
+            - generic [ref=e274]: Save as draft first to upload documents
+```

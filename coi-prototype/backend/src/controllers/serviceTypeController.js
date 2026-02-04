@@ -1,4 +1,6 @@
 import { getDatabase } from '../database/init.js'
+import { getCMAMetadataForService } from '../services/cmaConflictMatrix.js'
+import { getAllAmbiguousServiceConfigs } from '../config/ambiguousServiceConfig.js'
 
 const db = getDatabase()
 
@@ -39,7 +41,7 @@ function buildKuwaitTemplateList() {
     'Capital Adequacy Services (Book 17)',
     'Clients\' Funds and Clients\' Assets Report Services (Book 7)',
     'Payroll and HR Services',
-    'Other Advisory Services',
+    'Other Advisory',
     // Tax Services (6)
     'Corporate International Tax Services',
     'Tax Compliance & Assurance Engagements Services',
@@ -52,7 +54,7 @@ function buildKuwaitTemplateList() {
     'Accounting Services',
     // IT Services (1)
     'IT Services',
-    // Other Services (2)
+    // Other / Not Applicable (2)
     'Other Services',
     'Not Applicable'
   ]
@@ -110,7 +112,7 @@ function buildKuwaitTemplateList() {
           'Capital Adequacy Services (Book 17)',
           'Clients\' Funds and Clients\' Assets Report Services (Book 7)',
           'Payroll and HR Services',
-          'Other Advisory Services'
+          'Other Advisory'
         ]
       },
       {
@@ -138,7 +140,7 @@ function buildKuwaitTemplateList() {
         ]
       },
       {
-        category: 'Other Services',
+        category: 'Other / Not Applicable',
         services: [
           'Other Services',
           'Not Applicable'
@@ -216,26 +218,26 @@ function buildKuwaitTemplateList() {
     })
   }
   
-  // 6. Other Services - Consolidate remaining categories (matches COI Template)
+  // 6. Other / Not Applicable - Consolidate remaining categories (matches COI Template)
   const otherServices = []
   const otherCategories = [
     'Internal Audit Services',
     'Transaction Services',
     'Risk Management Services',
     'Forensics Services',
-    'Other Services'
+    'Other / Not Applicable'
   ]
-  
+
   otherCategories.forEach(cat => {
     if (servicesByCategory[cat]) {
       otherServices.push(...servicesByCategory[cat])
     }
   })
-  
+
   if (otherServices.length > 0) {
     const uniqueOtherServices = [...new Set(otherServices)]
     kuwaitTemplateList.push({
-      category: 'Other Services',
+      category: 'Other / Not Applicable',
       services: uniqueOtherServices
     })
   }
@@ -425,7 +427,22 @@ export async function getServiceTypes(req, res) {
       }
     })
     process.stdout.write(`[ServiceTypes] After mapping - serviceTypesWithSubCategories length: ${serviceTypesWithSubCategories.length}\n`)
-    
+
+    // Annotate services with CMA metadata when requested (Kuwait clients: [CMA] tag + info banner)
+    const includeCmaMetadata = req.query.include_cma_metadata === 'true'
+    if (includeCmaMetadata) {
+      serviceTypesWithSubCategories.forEach(cat => {
+        cat.services = cat.services.map(svc => {
+          const name = typeof svc === 'string' ? svc : (svc.value || svc.label || svc)
+          const meta = getCMAMetadataForService(name)
+          if (typeof svc === 'string') {
+            return { value: name, label: name, is_cma_regulated: meta.isCMARegulated, cma_code: meta.cmaCode }
+          }
+          return { ...svc, is_cma_regulated: meta.isCMARegulated, cma_code: meta.cmaCode }
+        })
+      })
+    }
+
     // Transform grouped subCategories to match frontend expectations
     // Frontend expects: { "Business Valuation": ["Acquisition", "Capital Increase", ...], ... }
     const subCategoriesForFrontend = {}
@@ -448,6 +465,20 @@ export async function getServiceTypes(req, res) {
     res.json(response)
   } catch (error) {
     console.error('Error fetching service types:', error)
+    res.status(500).json({ error: error.message })
+  }
+}
+
+/**
+ * Get ambiguous service config (clarification modal for Kuwait/CMA).
+ * Returns config for all ambiguous service types: question + options (label, cma_code).
+ */
+export async function getAmbiguousServiceConfig(req, res) {
+  try {
+    const configs = getAllAmbiguousServiceConfigs()
+    res.json({ ambiguousServiceConfig: configs })
+  } catch (error) {
+    console.error('Error fetching ambiguous service config:', error)
     res.status(500).json({ error: error.message })
   }
 }

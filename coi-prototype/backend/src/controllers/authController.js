@@ -13,11 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'prototype-secret'
 
 export async function login(req, res) {
   const { email, password } = req.body
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:7',message:'Login attempt',data:{email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-  
+
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' })
   }
@@ -30,11 +26,7 @@ export async function login(req, res) {
     SELECT * FROM users 
     WHERE email = ? AND COALESCE(active, 1) = 1
   `).get(email)
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:17',message:'User lookup result',data:{userFound:!!user,userId:user?.id,userRole:user?.role,userEmail:user?.email,userActive:user?.active},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
-  
+
   if (!user) {
     return res.status(401).json({ error: 'Invalid credentials or account is disabled' })
   }
@@ -61,10 +53,6 @@ export async function login(req, res) {
 
   // Return user without password
   const { password_hash, ...userWithoutPassword } = user
-
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:42',message:'Login success response',data:{userId:user.id,role:user.role,email:user.email,systemAccess},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
 
   res.json({
     token: accessToken, // Keep 'token' for backward compatibility

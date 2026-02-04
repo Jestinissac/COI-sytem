@@ -439,7 +439,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useToast } from '@/composables/useToast'
 import api from '@/services/api'
 
@@ -523,9 +523,14 @@ const REPLICATED_FROM_MAIN = [
   'servicesDetails', 'natureOfEngagement', 'industrySector', 'website', 'engagementInvolvesAnotherParty'
 ]
 
+// When true, we are applying parent's initialData; skip emit to avoid recursive updates (parent → child sync → emit → parent → loop).
+const isSyncingFromParent = ref(false)
+
 // Watch for changes to initialData prop to update form (replicate main form context)
 watch(() => props.initialData, (newData) => {
-  if (newData) {
+  if (!newData) return
+  isSyncingFromParent.value = true
+  try {
     Object.keys(newData).forEach(key => {
       const typedKey = key as keyof typeof newData
       const value = newData[typedKey]
@@ -534,20 +539,23 @@ watch(() => props.initialData, (newData) => {
           formData.value.countries = transformCountries(value)
         }
       } else if (REPLICATED_FROM_MAIN.includes(key)) {
-        // Always replicate from main form so UI/UX state is consistent (e.g. PIE Yes in Section 3 → Client is PIE Yes here)
         if (value !== undefined && value !== null) {
           (formData.value as any)[key] = value
         }
       } else if (value && (!(formData.value as any)[key] || (formData.value as any)[key] === '')) {
-        // Other fields: only fill when empty
         (formData.value as any)[key] = value
       }
+    })
+  } finally {
+    nextTick(() => {
+      isSyncingFromParent.value = false
     })
   }
 }, { deep: true, immediate: true })
 
-// Watch for changes and emit updates
+// Watch for changes and emit updates. Skip when we're applying parent data to avoid recursive loop.
 watch(formData, (newData) => {
+  if (isSyncingFromParent.value) return
   emit('update:data', newData)
 }, { deep: true })
 

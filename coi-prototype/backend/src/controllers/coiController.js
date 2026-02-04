@@ -13,6 +13,7 @@ import { mapResponseForRole } from '../utils/responseMapper.js'
 import { validateGroupStructure, GroupStructureValidationError } from '../validators/groupStructureValidator.js'
 import { validateCompanyRelationship, CompanyRelationshipValidationError } from '../validators/companyRelationshipValidator.js'
 import { isClientParentTBDOrEmpty } from './parentCompanyUpdateController.js'
+import { mapServiceTypeToCMA } from '../services/cmaConflictMatrix.js'
 import { eventBus, EVENT_TYPES } from '../services/eventBus.js'
 import { logFunnelEvent, logStatusChange, FUNNEL_STAGES } from '../services/funnelTrackingService.js'
 
@@ -49,7 +50,8 @@ const STANDARD_FIELD_MAPPINGS = {
   'international_operations': 'international_operations',
   'foreign_subsidiaries': 'foreign_subsidiaries',
   'global_clearance_status': 'global_clearance_status',
-  'backup_approver_id': 'backup_approver_id'
+  'backup_approver_id': 'backup_approver_id',
+  'service_type_cma_code': 'service_type_cma_code'
 }
 
 function getCurrentFormVersion() {
@@ -242,6 +244,16 @@ export async function createRequest(req, res) {
       }
     }
 
+    // Persist CMA service code for Kuwait clients (audit / reporting)
+    const clientLocation = (standardData.client_location || data.client_location || '').toString().toLowerCase().trim()
+    const isKuwait = ['kuwait', 'state of kuwait', 'kwt'].includes(clientLocation)
+    const serviceTypeForCma = standardData.service_type || data.service_type || ''
+    // Use clarified CMA code from ambiguous-service modal when provided; otherwise derive from service type
+    const hasClarifiedCma = standardData.service_type_cma_code !== undefined
+    const serviceTypeCmaCode = isKuwait
+      ? (hasClarifiedCma ? standardData.service_type_cma_code : (serviceTypeForCma ? mapServiceTypeToCMA(serviceTypeForCma) : null))
+      : null
+
     const result = db.prepare(`
       INSERT INTO coi_requests (
         request_id, client_id, requester_id, department,
@@ -253,8 +265,9 @@ export async function createRequest(req, res) {
         full_ownership_structure, pie_status, related_affiliated_entities,
         international_operations, foreign_subsidiaries, global_clearance_status,
         custom_fields, form_version, group_structure, backup_approver_id,
+        service_type_cma_code,
         status, stage
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       requestId, 
       standardData.client_id || data.client_id || null, 
@@ -295,6 +308,7 @@ export async function createRequest(req, res) {
       formVersion || 1,
       standardData.group_structure || data.group_structure || null,
       standardData.backup_approver_id || data.backup_approver_id || null,
+      serviceTypeCmaCode,
       'Draft',
       'Proposal'
     )
@@ -623,6 +637,14 @@ export async function submitRequest(req, res) {
       newStatus = 'Pending Director Approval'
     }
     // If hasBlockRecommendation, hasRequireApproval, or hasCriticalGroupConflicts, status is already 'Pending Compliance' (set above)
+
+    // CMA conditional (e.g. independent teams): flag for Compliance verification
+    const hasCmaConditionalAllowed = (duplicates?.matches || []).some(m =>
+      (m.conflicts || []).some(c => c.type === 'CMA_CONDITIONAL_ALLOWED')
+    )
+    if (hasCmaConditionalAllowed) {
+      db.prepare('UPDATE coi_requests SET requires_compliance_verification = 1 WHERE id = ?').run(req.params.id)
+    }
 
     // ========================================
     // PROSPECT TAGGING (Requirement 3)

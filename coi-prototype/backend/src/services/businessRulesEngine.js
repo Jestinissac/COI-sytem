@@ -61,7 +61,7 @@ export function evaluateRules(requestData) {
           clientData = enhancedRequestData.client
         }
         
-        if (!clientData || !isCMARegulated(clientData)) {
+        if (!clientData || !isCMARegulated(clientData, enhancedRequestData)) {
           // Log non-match for audit
           executionLogs.push({
             rule_id: rule.id,

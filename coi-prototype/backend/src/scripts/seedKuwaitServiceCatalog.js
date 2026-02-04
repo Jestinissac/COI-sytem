@@ -68,7 +68,7 @@ export function seedKuwaitServiceCatalog() {
         'Capital Adequacy Services (Book 17)',
         'Clients\' Funds and Clients\' Assets Report Services (Book 7)',
         'Payroll and HR Services',
-        'Other Advisory Services'
+        'Other Advisory'
       ]
     },
     // Tax Services (6 services)
@@ -98,9 +98,9 @@ export function seedKuwaitServiceCatalog() {
         'IT Services'
       ]
     },
-    // Other Services (2 services)
+    // Other / Not Applicable (2 services) — category renamed to avoid overlap with "Other Services" option
     {
-      category: 'Other Services',
+      category: 'Other / Not Applicable',
       services: [
         'Other Services',
         'Not Applicable'

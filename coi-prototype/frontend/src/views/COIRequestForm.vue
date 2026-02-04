@@ -454,8 +454,8 @@
                     >
                       <option value="">Select...</option>
                       <option 
-                        v-for="c in locationOptions" 
-                        :key="c.country_code" 
+                        v-for="(c, i) in locationOptions" 
+                        :key="c.country_code || c.country_name || String(i)" 
                         :value="c.country_name"
                       >
                         {{ c.country_name }}
@@ -636,7 +636,6 @@
                   />
                   <span class="ml-2 text-sm font-medium text-gray-700">Client has international operations</span>
                 </label>
-                <p v-if="!isInternationalOperationsAllowed" class="mt-2 text-xs text-gray-500 ml-6">Requires Subsidiary or Affiliate.</p>
               </div>
 
               <!-- Line of Service (local request) - always shown -->
@@ -1031,6 +1030,15 @@
       @confirm="submitWithJustification"
     />
 
+    <ClarificationModal
+      :show="showClarificationModal"
+      :service-type-name="formData.service_type"
+      :question-text="clarificationModalConfig.question_text"
+      :options="clarificationModalConfig.options"
+      @confirm="onClarificationConfirm"
+      @cancel="onClarificationCancel"
+    />
+
     <CreateProspectModal
       :open="showCreateProspectModal"
       :prospect="newProspect"
@@ -1076,6 +1084,7 @@ import FileUpload from '@/components/FileUpload.vue'
 import InternationalOperationsForm from '@/components/coi/InternationalOperationsForm.vue'
 import ClientProspectCombobox from '@/components/coi/ClientProspectCombobox.vue'
 import DuplicateJustificationModal from '@/components/coi/DuplicateJustificationModal.vue'
+import ClarificationModal from '@/components/coi/ClarificationModal.vue'
 import CreateProspectModal from '@/components/coi/CreateProspectModal.vue'
 import { CLIENT_TYPES, REGULATED_BODIES, DEADLINE_REASONS } from '@/constants/coiFormOptions'
 import api from '@/services/api'
@@ -1110,15 +1119,29 @@ const prospects = ref<any[]>([]) // Prospects from CRM for Smart Suggest
 const selectedClientCode = ref('')
 const directorName = ref('')
 const allUsers = ref<any[]>([])
-const entities = ref<any[]>([])
+// Fallback options when API fails (used for first-paint and InternationalOperationsForm)
+const FALLBACK_ENTITIES = [
+  { entity_code: 'BDO_AL_NISF', entity_name: 'BDO Al Nisf & Partners', entity_display_name: 'BDO Al Nisf & Partners', is_active: 1, is_default: 1 },
+  { entity_code: 'BDO_CONSULTING', entity_name: 'BDO Consulting', entity_display_name: 'BDO Consulting', is_active: 1, is_default: 0 }
+]
+const FALLBACK_COUNTRIES = [
+  { country_code: 'KWT', country_name: 'State of Kuwait', is_active: 1 },
+  { country_code: 'OTHER', country_name: 'Other Country', is_active: 1 }
+]
+const entities = ref<any[]>([...FALLBACK_ENTITIES])
 const serviceTypes = ref<any[]>([])
 const globalServiceTypes = ref<any[]>([])
 const loadingGlobalServices = ref(false)
 const approverUsers = ref<{ id: number; name: string; email: string; role: string; department?: string }[]>([])
-const countries = ref<any[]>([])
+const countries = ref<any[]>([...FALLBACK_COUNTRIES])
 const serviceSubCategories = ref<any>({}) // Store sub-categories by service type
 const loadingServices = ref(false)
 const leadSources = ref<any[]>([]) // Lead sources for proposals
+
+// Ambiguous service clarification (Kuwait/CMA): modal when user selects catch-all service type
+const ambiguousServiceConfig = ref<Record<string, { question_text: string; options: Array<{ label: string; cma_code: string | null }> }>>({})
+const showClarificationModal = ref(false)
+const clarificationModalConfig = ref<{ question_text: string; options: Array<{ label: string; cma_code: string | null }> }>({ question_text: '', options: [] })
 
 // Smart Suggest: Track selection type (client, prospect, or new)
 const selectedEntityType = ref<'client' | 'prospect' | null>(null)
@@ -1204,7 +1227,7 @@ watch(
     )
     formData.value.full_ownership_structure = lines.join('\n')
   },
-  { deep: true }
+  { deep: true, flush: 'post' }
 )
 
 // Normalize service option to { value, label, ...rest } so dropdown binding works (backend may return string or object)
@@ -1226,6 +1249,13 @@ const filteredServicesByCategory = computed(() => {
     return []
   }
   return selectedCategory.services.map((s: any) => normalizeServiceOption(s)).filter((o: { value: string }) => o.value !== '')
+})
+
+// CMA code of selected service (for info banner when Kuwait client)
+const selectedServiceCmaCode = computed(() => {
+  if (!formData.value.service_type || !filteredServicesByCategory.value.length) return null
+  const s = filteredServicesByCategory.value.find((x: any) => (x.value || x) === formData.value.service_type)
+  return (s as any)?.cma_code ?? null
 })
 
 const filteredGlobalServicesByCategory = computed(() => {
@@ -1284,6 +1314,7 @@ const formData = ref({
   ownership_percentage: null as number | null,
   control_type: '',  // 'Majority', 'Minority', 'Joint', 'Significant Influence', 'None'
   service_type: '',
+  service_type_cma_code: undefined as string | null | undefined, // Clarified CMA code from ambiguous-service modal (Kuwait)
   service_category: '',
   service_sub_category: '',
   global_service_category: '',
@@ -1701,22 +1732,17 @@ async function createAndSelectProspect() {
   }
 }
 
-// Fallback entity list when API fails (e.g. entity_codes table missing at startup)
-const FALLBACK_ENTITIES = [
-  { entity_code: 'BDO_AL_NISF', entity_name: 'BDO Al Nisf & Partners', entity_display_name: 'BDO Al Nisf & Partners', is_active: 1, is_default: 1 },
-  { entity_code: 'BDO_CONSULTING', entity_name: 'BDO Consulting', entity_display_name: 'BDO Consulting', is_active: 1, is_default: 0 }
-]
-
 // Stable options for Entity dropdown (avoids empty list when API fails or during updates)
 const entityOptions = computed(() => (entities.value?.length ? entities.value : FALLBACK_ENTITIES))
 
-// Fetch entity codes
+// Fetch entity codes (for Entity dropdown)
 async function fetchEntities() {
   try {
     const response = await api.get('/entity-codes')
-    const list = Array.isArray(response.data) ? response.data : []
-    entities.value = list.filter((e: any) => e.is_active !== 0 && e.is_active !== false)
-    if (entities.value.length === 0) entities.value = [...FALLBACK_ENTITIES]
+    const raw = response?.data
+    const list = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : [])
+    const filtered = list.filter((e: any) => e && (e.is_active !== 0 && e.is_active !== false))
+    entities.value = filtered.length > 0 ? filtered : [...FALLBACK_ENTITIES]
   } catch {
     entities.value = [...FALLBACK_ENTITIES]
   }
@@ -1729,27 +1755,27 @@ async function fetchEntities() {
   }
 }
 
-// Fallback countries when API fails
-const FALLBACK_COUNTRIES = [
-  { country_code: 'KWT', country_name: 'State of Kuwait', is_active: 1 },
-  { country_code: 'OTHER', country_name: 'Other Country', is_active: 1 }
-]
-
-// Fetch countries (master data)
+// Fetch countries (master data for Location dropdown). Never leaves countries empty.
 async function fetchCountries() {
   try {
     const response = await api.get('/countries')
-    const list = Array.isArray(response.data) ? response.data : []
-    countries.value = list.length > 0 ? list : FALLBACK_COUNTRIES
+    const raw = response?.data
+    const list = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : [])
+    const valid = list.filter((c: any) => c && (c.country_code != null || c.country_name != null))
+    countries.value = valid.length > 0 ? [...valid] : [...FALLBACK_COUNTRIES]
   } catch {
-    countries.value = FALLBACK_COUNTRIES
+    countries.value = [...FALLBACK_COUNTRIES]
   }
+  if (!countries.value.length) countries.value = [...FALLBACK_COUNTRIES]
 }
 
-// Stable options for Location dropdown (avoids re-evaluation order issues)
-const locationOptions = computed(() => (countries.value?.length ? countries.value : FALLBACK_COUNTRIES))
+// Stable options for Location dropdown: always a new array so the select gets a consistent list.
+const locationOptions = computed(() => {
+  const src = countries.value?.length ? countries.value : FALLBACK_COUNTRIES
+  return Array.isArray(src) ? [...src] : [...FALLBACK_COUNTRIES]
+})
 
-// Normalize "Kuwait" to "State of Kuwait" when options use the latter (run only when countries load to avoid recursive updates)
+// Normalize "Kuwait" to "State of Kuwait" when options use the latter. Watch array reference only (no deep) to avoid recursive updates.
 const KUWAIT_NAMES = { short: 'Kuwait', canonical: 'State of Kuwait' }
 watch(() => countries.value, () => {
   const loc = formData.value.client_location
@@ -1759,42 +1785,58 @@ watch(() => countries.value, () => {
   const hasCanonical = opts.some((c: any) => (c.country_name || '') === KUWAIT_NAMES.canonical)
   if (!hasShort && hasCanonical) {
     nextTick(() => {
-      formData.value.client_location = KUWAIT_NAMES.canonical
+      if (formData.value.client_location === KUWAIT_NAMES.short) {
+        formData.value.client_location = KUWAIT_NAMES.canonical
+      }
     })
   }
-}, { deep: true })
+}, { flush: 'post' })
 
-// Check if selected client is CMA-regulated
+// Kuwait location check (CMA applies to all Kuwait clients)
+const KUWAIT_LOCATIONS = ['kuwait', 'state of kuwait', 'kwt']
+function isLocationKuwait(loc: string | undefined | null): boolean {
+  if (!loc) return false
+  const normalized = String(loc).toLowerCase().trim()
+  return KUWAIT_LOCATIONS.some(k => normalized === k || normalized.includes(k))
+}
+
+// Check if selected client is CMA-regulated (location-based: Kuwait = CMA; fallback to regulated_body / is_cma_regulated)
 const isClientCMARegulated = computed(() => {
-  if (!formData.value.client_id) return false
-  
-  // Check if client has regulated_body = 'CMA' or is_cma_regulated = true
-  const client = clients.value.find((c: any) => c.id === formData.value.client_id)
+  // Location-based: form or client location indicates Kuwait
+  if (isLocationKuwait(formData.value.client_location)) return true
+  const client = formData.value.client_id ? clients.value.find((c: any) => c.id === formData.value.client_id) : null
+  if (client && isLocationKuwait((client as any).client_location || (client as any).country)) return true
   if (!client) return false
-  
-  // Check regulated_body field
-  if (client.regulated_body && (
-    client.regulated_body.includes('CMA') || 
-    client.regulated_body.includes('Capital Markets Authority')
-  )) {
-    return true
-  }
-  
-  // Check is_cma_regulated flag
-  if (client.is_cma_regulated === true || client.is_cma_regulated === 1) {
-    return true
-  }
-  
-  // Check formData regulated_body (if set manually)
+  // Fallback: regulated_body or is_cma_regulated
+  if ((client as any).regulated_body && (
+    String((client as any).regulated_body).includes('CMA') ||
+    String((client as any).regulated_body).includes('Capital Markets Authority')
+  )) return true
+  if ((client as any).is_cma_regulated === true || (client as any).is_cma_regulated === 1) return true
   if (formData.value.regulated_body && (
-    formData.value.regulated_body.includes('CMA') ||
-    formData.value.regulated_body.includes('Capital Markets Authority')
-  )) {
-    return true
-  }
-  
+    String(formData.value.regulated_body).includes('CMA') ||
+    String(formData.value.regulated_body).includes('Capital Markets Authority')
+  )) return true
   return false
 })
+
+// Fetch ambiguous service config (clarification modal for Kuwait/CMA)
+async function fetchAmbiguousServiceConfig() {
+  try {
+    const response = await api.get('/integration/ambiguous-service-config')
+    const raw = response.data?.ambiguousServiceConfig || {}
+    const normalized: Record<string, { question_text: string; options: Array<{ label: string; cma_code: string | null }> }> = {}
+    for (const [key, val] of Object.entries(raw)) {
+      const v = val as any
+      if (v?.requires_question && v?.question_text && Array.isArray(v?.options)) {
+        normalized[key] = { question_text: v.question_text, options: v.options }
+      }
+    }
+    ambiguousServiceConfig.value = normalized
+  } catch {
+    ambiguousServiceConfig.value = {}
+  }
+}
 
 // Fetch service types filtered by entity
 async function fetchServiceTypes() {
@@ -1807,35 +1849,14 @@ async function fetchServiceTypes() {
   loadingServices.value = true
 
   try {
-    // If client is CMA-regulated, fetch CMA services instead
-    if (isClientCMARegulated.value) {
-      const response = await api.get('/config/cma/service-types-grouped')
-      
-      // Transform CMA grouped services to match serviceTypes structure
-      serviceTypes.value = response.data.serviceTypes || []
-      serviceSubCategories.value = {}
-      
-      return
-    }
-    
-    // Regular service types for non-CMA clients
-    // Find entity code - try to match by entity_name first
+    // Full Kuwait template list; when CMA-regulated, include CMA metadata for [CMA] tag and info banner
     let entityCode = entities.value.find((e: any) => e.entity_name === formData.value.entity)?.entity_code
-    
-    // If not found, try to find by exact match or partial match
     if (!entityCode && entities.value.length > 0) {
-      // Try first entity as fallback
       entityCode = entities.value[0]?.entity_code
     }
-    
-    const params: any = {}
-    
-    if (entityCode) {
-      params.entity = entityCode
-    }
-    
-    // Always use Kuwait list for Line of Service (local request)
-    params.international = 'false'
+    const params: any = { international: 'false' }
+    if (entityCode) params.entity = entityCode
+    if (isClientCMARegulated.value) params.include_cma_metadata = 'true'
     const response = await api.get('/integration/service-types', { params })
     const list = response.data?.serviceTypes || []
     serviceTypes.value = list
@@ -1887,30 +1908,53 @@ async function fetchGlobalServiceTypes() {
 
 // Handle service type change
 function onServiceTypeChange() {
+  const serviceType = formData.value.service_type
+  // Clear clarified CMA code when service type changes; will be set again if ambiguous + modal confirm
+  formData.value.service_type_cma_code = undefined
+
   // Auto-populate category from the selected service type if not already set
-  if (formData.value.service_type && !formData.value.service_category) {
+  if (serviceType && !formData.value.service_category) {
     const serviceCategory = serviceTypes.value.find((cat: any) => 
-      cat.services.some((s: any) => (s.value || s) === formData.value.service_type)
+      cat.services.some((s: any) => (s.value || s) === serviceType)
     )
     if (serviceCategory) {
       formData.value.service_category = serviceCategory.category
     }
   }
+
+  // Ambiguous service (Kuwait): show clarification modal so we can map to CMA code or NULL
+  if (isClientCMARegulated.value && serviceType) {
+    const config = ambiguousServiceConfig.value[serviceType]
+    if (config?.requires_question && config?.question_text && config?.options?.length) {
+      clarificationModalConfig.value = { question_text: config.question_text, options: config.options }
+      showClarificationModal.value = true
+      return
+    }
+  }
   
-  // Validate CMA compliance if client is CMA-regulated
-  if (isClientCMARegulated.value && formData.value.service_type) {
+  // Validate CMA compliance if client is CMA-regulated (non-ambiguous path)
+  if (isClientCMARegulated.value && serviceType) {
     const selectedService = filteredServicesByCategory.value.find((s: any) => 
-      (s.value || s) === formData.value.service_type
+      (s.value || s) === serviceType
     )
-    
     if (!selectedService || !selectedService.is_cma_regulated) {
-      // Service is not CMA-compliant
-      // Note: We don't block here, but the backend will validate during conflict check
+      // Service is not CMA-compliant; backend will validate during conflict check
     }
   }
   
   // Clear sub-category when service type changes
   formData.value.service_sub_category = ''
+}
+
+function onClarificationConfirm(cmaCode: string | null) {
+  formData.value.service_type_cma_code = cmaCode
+  showClarificationModal.value = false
+}
+
+function onClarificationCancel() {
+  formData.value.service_type = ''
+  formData.value.service_type_cma_code = undefined
+  showClarificationModal.value = false
 }
 
 // Handle company type change - auto-infer control type and sync with group_structure
@@ -2056,19 +2100,6 @@ const pendingRequestId = ref<number | null>(null)
 // Handle submit
 async function handleSubmit() {
   showConfirmModal.value = false
-  
-  // Validate CMA compliance for CMA-regulated clients
-  if (isClientCMARegulated.value && formData.value.service_type) {
-    const selectedService = filteredServicesByCategory.value.find((s: any) => 
-      (s.value || s) === formData.value.service_type
-    )
-    
-    if (!selectedService || !selectedService.is_cma_regulated) {
-      showError('CMA-regulated clients must select a CMA-compliant service type. Please select a service from the CMA Matrix.')
-      scrollToSection('section-4')
-      return
-    }
-  }
   
   loading.value = true
   try {
@@ -2265,7 +2296,7 @@ watch(() => formData.value.entity, (newEntity, oldEntity) => {
   }
 })
 
-// Watch main form fields to auto-update Global COI Form when international_operations is enabled (e.g. PIE replicates into Global form)
+// Watch main form fields to auto-update Global COI Form when international_operations is enabled. flush: 'post' to avoid recursive updates.
 watch([
   () => formData.value.client_name,
   () => formData.value.parent_company,
@@ -2280,7 +2311,7 @@ watch([
   if (formData.value.international_operations) {
     populateGlobalCOIForm()
   }
-}, { deep: true })
+}, { flush: 'post' })
 
 // Fetch lead sources for proposals (CRM feature)
 async function fetchLeadSources() {
@@ -2297,6 +2328,10 @@ async function loadFormData() {
   formLoadError.value = null
   let criticalFailures = 0
 
+  // Ensure Entity and Location dropdowns have options immediately (avoid empty while API loads)
+  if (!entities.value?.length) entities.value = [...FALLBACK_ENTITIES]
+  if (!countries.value?.length) countries.value = [...FALLBACK_COUNTRIES]
+
   try {
     await fetchClients()
   } catch {
@@ -2304,7 +2339,7 @@ async function loadFormData() {
   }
 
   try {
-    await fetchEntities()
+    await Promise.all([fetchEntities(), fetchCountries()])
   } catch {
     criticalFailures++
   }
@@ -2323,7 +2358,6 @@ async function loadFormData() {
 
   // Non-critical fetches – best effort
   try { await fetchProspects() } catch { /* optional */ }
-  try { await fetchCountries() } catch { /* optional */ }
   try { await fetchLeadSources() } catch { /* optional */ }
   try { await fetchDirectorName() } catch { /* optional */ }
   try {
@@ -2361,6 +2395,10 @@ function retryFormLoad() {
 
 // Lifecycle
 onMounted(async () => {
+  // Ensure Location and Entity dropdowns have options on first paint (synchronous, before any async).
+  if (!entities.value?.length) entities.value = [...FALLBACK_ENTITIES]
+  if (!countries.value?.length) countries.value = [...FALLBACK_COUNTRIES]
+  await fetchAmbiguousServiceConfig()
   await loadFormData()
   
   // Check if editing existing draft
@@ -2387,6 +2425,7 @@ onMounted(async () => {
         group_structure: request.group_structure || '',
         parent_company: request.parent_company || '',
         service_type: request.service_type || '',
+        service_type_cma_code: request.service_type_cma_code ?? undefined,
         service_category: request.service_category || '',
         service_sub_category: request.service_sub_category || '',
         global_service_category: request.global_service_category || '',
@@ -2472,7 +2511,7 @@ onUnmounted(() => {
   }
 })
 
-// Watch for form changes (mark dirty and persist). Debounce to avoid recursive updates.
+// Watch for form changes (mark dirty and persist). flush: 'post' + debounce to avoid recursive updates.
 let formDataWatchTimeout: number | null = null
 watch(formData, () => {
   isDirty.value = true
@@ -2482,7 +2521,7 @@ watch(formData, () => {
     saveToLocalStorage()
     scheduleServerAutoSave()
   }, 150)
-}, { deep: true })
+}, { deep: true, flush: 'post' })
 </script>
 
 <style scoped>

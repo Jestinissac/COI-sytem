@@ -27,14 +27,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isStandard = computed(() => edition.value === 'standard')
 
   async function login(email: string, password: string) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:23',message:'Frontend login attempt',data:{email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     try {
       const response = await api.post('/auth/login', { email, password })
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:26',message:'Frontend login response received',data:{userId:response.data.user?.id,role:response.data.user?.role,email:response.data.user?.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       
       // Store both access and refresh tokens
       token.value = response.data.token || response.data.accessToken
@@ -53,15 +47,8 @@ export const useAuthStore = defineStore('auth', () => {
         console.warn('Failed to load edition after login:', editionError)
         // Don't fail login if edition loading fails
       }
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:33',message:'Frontend login success',data:{storedRole:user.value?.role,storedEmail:user.value?.email,edition:edition.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
       return { success: true }
     } catch (error: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:35',message:'Frontend login error',data:{error:error.response?.data?.error||'Login failed',status:error.response?.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
       return { success: false, error: error.response?.data?.error || 'Login failed' }
     }
   }
@@ -137,23 +124,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function loadEdition() {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:80',message:'loadEdition called',data:{currentEdition:edition.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     try {
       const response = await api.get('/config/features')
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:83',message:'loadEdition response received',data:{editionFromAPI:response.data.edition,featuresCount:response.data.features?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       edition.value = response.data.edition || 'standard'
       features.value = response.data.features || []
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:86',message:'loadEdition completed',data:{editionSet:edition.value,isPro:edition.value==='pro'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/97269499-42c7-4d24-b1e1-ecb46a2d8414',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:88',message:'loadEdition error',data:{error:error instanceof Error?error.message:'Unknown error'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       console.error('Error loading edition:', error)
       edition.value = 'standard'
       features.value = []

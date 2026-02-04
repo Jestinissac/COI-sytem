@@ -75,7 +75,8 @@ export async function checkDuplication(clientName, excludeRequestId = null, newS
         const serviceConflict = checkServiceTypeConflict(
           request.service_type,
           newServiceType,
-          clientData
+          clientData,
+          requestData
         )
         if (serviceConflict) {
           match.conflicts.push(serviceConflict)
@@ -143,11 +144,11 @@ export async function checkDuplication(clientName, excludeRequestId = null, newS
  * Check service type conflict: CMA rules only (Priority 1).
  * IESBA pair logic is handled by IESBA Decision Matrix (evaluateIESBADecisionMatrix).
  */
-function checkServiceTypeConflict(existingServiceType, newServiceType, clientData = null) {
+function checkServiceTypeConflict(existingServiceType, newServiceType, clientData = null, requestData = null) {
   const conflicts = []
 
-  // CMA Rules Check - Priority 1 (always runs; all clients treated as CMA)
-  const cmaConflict = checkCMARules(existingServiceType, newServiceType, clientData)
+  // CMA Rules Check - Priority 1 (Kuwait only; requestData used for client_location when client row has none)
+  const cmaConflict = checkCMARules(existingServiceType, newServiceType, clientData, requestData)
   if (cmaConflict) {
     conflicts.push({
       ...cmaConflict,

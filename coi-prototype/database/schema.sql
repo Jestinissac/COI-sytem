@@ -61,6 +61,7 @@ CREATE TABLE coi_requests (
     requested_service_period_start DATE,
     requested_service_period_end DATE,
     service_category VARCHAR(50),
+    service_type_cma_code TEXT, -- CMA audit: Kuwait service code from mapServiceTypeToCMA
     
     -- Ownership & Structure
     full_ownership_structure TEXT,
@@ -92,6 +93,7 @@ CREATE TABLE coi_requests (
     compliance_review_notes TEXT,
     compliance_restrictions TEXT, -- Details if approved with restrictions
     duplication_matches TEXT, -- JSON array of matches
+    requires_compliance_verification INTEGER DEFAULT 0, -- Set for CMA conditional / group conflicts
     
     -- Partner Approval
     partner_approval_status VARCHAR(50) DEFAULT 'Pending' CHECK (partner_approval_status IN ('Pending', 'Approved', 'Approved with Restrictions', 'Need More Info', 'Rejected')),

@@ -54,13 +54,13 @@
             </div>
 
             <!-- Section Navigation -->
-            <nav class="py-2" aria-label="Form sections">
-              <button
+            <nav class="py-2">
+              <a
                 v-for="section in sections"
                 :key="section.id"
-                type="button"
-                @click="scrollToSection(section.id)"
-                class="w-full flex items-center px-4 py-3 text-sm transition-colors border-l-2 text-left"
+                href="#"
+                @click.prevent="scrollToSection(section.id)"
+                class="flex items-center px-4 py-3 text-sm transition-colors border-l-2"
                 :class="activeSection === section.id 
                   ? 'bg-gray-50 border-gray-300 text-gray-900 font-medium' 
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
@@ -79,7 +79,7 @@
                   <span v-else>{{ section.number }}</span>
                 </span>
                 {{ section.label }}
-              </button>
+              </a>
             </nav>
 
             <!-- Action Buttons -->
@@ -94,7 +94,6 @@
               <button
                 @click="showConfirmModal = true"
                 :disabled="loading || !isFormValid"
-                :aria-disabled="loading || !isFormValid"
                 class="w-full px-4 py-2.5 rounded-md text-sm font-medium text-white transition-colors"
                 :class="isFormValid ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'"
               >
@@ -108,28 +107,28 @@
         <!-- Main Content Area -->
         <div class="flex-1 space-y-6">
           <!-- Workflow Notice -->
-          <div v-if="isTeamMember" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div v-if="isTeamMember" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div class="flex items-start">
               <svg class="w-5 h-5 text-gray-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
               <div class="flex-1">
-                <h3 class="text-sm font-medium text-gray-900 mb-1">Director Approval Required</h3>
-                <p class="text-sm text-gray-700">
+                <h3 class="text-sm font-medium text-blue-900 mb-1">Director Approval Required</h3>
+                <p class="text-sm text-blue-700">
                   <span v-if="directorName">Your director: <strong>{{ directorName }}</strong>.</span>
                   Upload written approval or wait for in-system approval.
                 </p>
               </div>
             </div>
           </div>
-          <div v-else-if="isDirector" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div v-else-if="isDirector" class="bg-green-50 border border-green-200 rounded-lg p-4">
             <div class="flex items-start">
-              <svg class="w-5 h-5 text-gray-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-5 h-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
               <div class="flex-1">
-                <h3 class="text-sm font-medium text-gray-900 mb-1">Direct to Compliance</h3>
-                <p class="text-sm text-gray-700">Your requests go directly to Compliance.</p>
+                <h3 class="text-sm font-medium text-green-900 mb-1">Direct to Compliance</h3>
+                <p class="text-sm text-green-700">Your requests go directly to Compliance.</p>
               </div>
             </div>
           </div>
@@ -730,7 +729,7 @@
                     v-for="subCat in availableSubCategories" 
                     :key="subCat"
                     class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition-colors"
-                    :class="formData.service_sub_category === subCat ? 'bg-gray-50 border-gray-400' : ''"
+                    :class="formData.service_sub_category === subCat ? 'bg-blue-50 border-blue-500' : ''"
                   >
                     <input
                       type="radio"
@@ -952,8 +951,8 @@
                   <span class="font-medium text-gray-900">Primary approver:</span> {{ directorName }}
                 </p>
               </div>
-              <div v-else-if="isDirector" class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
-                <p class="text-sm text-gray-700">Your requests go directly to Compliance.</p>
+              <div v-else-if="isDirector" class="rounded-lg bg-green-50 border border-green-200 px-4 py-3">
+                <p class="text-sm text-green-800">Your requests go directly to Compliance.</p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Backup approver (optional)</label>

@@ -51,7 +51,10 @@ const STANDARD_FIELD_MAPPINGS = {
   'foreign_subsidiaries': 'foreign_subsidiaries',
   'global_clearance_status': 'global_clearance_status',
   'backup_approver_id': 'backup_approver_id',
-  'service_type_cma_code': 'service_type_cma_code'
+  'service_type_cma_code': 'service_type_cma_code',
+  'global_coi_form_data': 'global_coi_form_data',
+  'external_deadline': 'external_deadline',
+  'deadline_reason': 'deadline_reason'
 }
 
 function getCurrentFormVersion() {
@@ -141,12 +144,20 @@ export async function getRequestById(req, res) {
       db.prepare('SELECT name as director_approval_by_name FROM users WHERE id = ?').get(request.director_approval_by) : 
       null
     
-    const partnerApprovalBy = request.partner_approved_by ? 
+    const partnerApprovalBy = request.partner_approved_by ?
       db.prepare('SELECT name as partner_approved_by_name FROM users WHERE id = ?').get(request.partner_approved_by) : 
       null
-    
+
+    const backupApprover = request.backup_approver_id ?
+      db.prepare('SELECT name FROM users WHERE id = ?').get(request.backup_approver_id) :
+      null
+
+    const leadSource = request.lead_source_id ?
+      db.prepare('SELECT source_name, source_code FROM lead_sources WHERE id = ?').get(request.lead_source_id) :
+      null
+
     const signatories = db.prepare('SELECT * FROM coi_signatories WHERE coi_request_id = ?').all(request.id)
-    
+
     // Merge data
     const response = {
       ...request,
@@ -155,6 +166,8 @@ export async function getRequestById(req, res) {
       requester_name: requester?.requester_name || request.requestor_name || null,
       director_approval_by_name: directorApprovalBy?.director_approval_by_name || null,
       partner_approved_by_name: partnerApprovalBy?.partner_approved_by_name || null,
+      backup_approver_name: backupApprover?.name || null,
+      lead_source_name: leadSource?.source_name || leadSource?.source_code || null,
       signatories
     }
     
@@ -254,6 +267,10 @@ export async function createRequest(req, res) {
       ? (hasClarifiedCma ? standardData.service_type_cma_code : (serviceTypeForCma ? mapServiceTypeToCMA(serviceTypeForCma) : null))
       : null
 
+    const globalCoiFormDataRaw = data.global_coi_form_data
+    const globalCoiFormDataStr = globalCoiFormDataRaw == null ? null
+      : (typeof globalCoiFormDataRaw === 'string' ? globalCoiFormDataRaw : JSON.stringify(globalCoiFormDataRaw))
+
     const result = db.prepare(`
       INSERT INTO coi_requests (
         request_id, client_id, requester_id, department,
@@ -265,9 +282,9 @@ export async function createRequest(req, res) {
         full_ownership_structure, pie_status, related_affiliated_entities,
         international_operations, foreign_subsidiaries, global_clearance_status,
         custom_fields, form_version, group_structure, backup_approver_id,
-        service_type_cma_code,
+        service_type_cma_code, global_coi_form_data,
         status, stage
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       requestId, 
       standardData.client_id || data.client_id || null, 
@@ -309,6 +326,7 @@ export async function createRequest(req, res) {
       standardData.group_structure || data.group_structure || null,
       standardData.backup_approver_id || data.backup_approver_id || null,
       serviceTypeCmaCode,
+      globalCoiFormDataStr,
       'Draft',
       'Proposal'
     )
@@ -351,7 +369,7 @@ export async function updateRequest(req, res) {
   try {
     const user = getUserById(req.userId)
     const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
-    
+
     if (!request) {
       return res.status(404).json({ error: 'Request not found' })
     }
@@ -365,9 +383,79 @@ export async function updateRequest(req, res) {
     }
 
     const data = req.body
-    // Update logic here (simplified)
+    const fieldMappings = getFieldMappings()
+    const standardData = {}
+
+    Object.keys(data).forEach(key => {
+      const mapping = fieldMappings.get(key)
+      if (mapping && !mapping.is_custom && mapping.db_column) {
+        standardData[mapping.db_column] = data[key]
+      } else if (STANDARD_FIELD_MAPPINGS[key]) {
+        standardData[STANDARD_FIELD_MAPPINGS[key]] = data[key]
+      }
+    })
+
+    const customFields = {}
+    Object.keys(data).forEach(key => {
+      if (STANDARD_FIELD_MAPPINGS[key] || fieldMappings.has(key)) return
+      if (data[key] !== null && data[key] !== undefined && data[key] !== '') {
+        customFields[key] = data[key]
+      }
+    })
+
+    const globalCoiFormDataRaw = data.global_coi_form_data
+    const globalCoiFormDataStr = globalCoiFormDataRaw == null ? null
+      : (typeof globalCoiFormDataRaw === 'string' ? globalCoiFormDataRaw : JSON.stringify(globalCoiFormDataRaw))
+    if (globalCoiFormDataStr !== undefined) {
+      standardData.global_coi_form_data = globalCoiFormDataStr
+    }
+
+    const allowedColumns = [
+      'client_id', 'requestor_name', 'designation', 'entity', 'line_of_service',
+      'requested_document', 'language', 'parent_company', 'parent_company_id', 'company_type',
+      'ownership_percentage', 'control_type', 'client_location', 'relationship_with_client',
+      'client_type', 'client_status', 'service_type', 'service_category', 'global_service_category',
+      'global_service_type', 'service_description', 'requested_service_period_start', 'requested_service_period_end',
+      'external_deadline', 'deadline_reason',
+      'full_ownership_structure', 'pie_status', 'related_affiliated_entities', 'international_operations',
+      'foreign_subsidiaries', 'global_clearance_status', 'group_structure', 'backup_approver_id',
+      'service_type_cma_code', 'global_coi_form_data'
+    ]
+
+    const setParts = []
+    const values = []
+
+    for (const col of allowedColumns) {
+      let value = standardData[col] !== undefined ? standardData[col] : data[col]
+      if (value === undefined) continue
+      if (col === 'international_operations') {
+        value = value === true || value === 1 ? 1 : 0
+      }
+      if (col === 'ownership_percentage' && (value === '' || value === null)) {
+        value = null
+      }
+      if (col === 'global_coi_form_data' && value != null && typeof value === 'object') {
+        value = JSON.stringify(value)
+      }
+      setParts.push(`${col} = ?`)
+      values.push(value)
+    }
+
+    if (Object.keys(customFields).length > 0) {
+      setParts.push('custom_fields = ?')
+      values.push(JSON.stringify(customFields))
+    }
+
+    if (setParts.length === 0) {
+      return res.json({ success: true })
+    }
+
+    values.push(req.params.id)
+    db.prepare(`UPDATE coi_requests SET ${setParts.join(', ')} WHERE id = ?`).run(...values)
+
     res.json({ success: true })
   } catch (error) {
+    console.error('updateRequest error:', error)
     res.status(500).json({ error: error.message })
   }
 }

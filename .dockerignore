@@ -1,0 +1,68 @@
+# COI System (has special characters)
+COI System/# Version control
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+dist/
+.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+.cursor/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+
+# Database
+*.db
+*.db-journal
+
+# Backups
+backups/
+Envision PRMS Backups/
+*.tar.gz
+
+# Documentation (not needed in containers)
+docs/
+
+# Test files
+test-file.txt
+
+# Samples
+Sample-*.pdf
+prms-sample-dashboard/

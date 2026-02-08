@@ -1,0 +1,36 @@
+# COI Prototype - Backend (Node/Express + SQLite)
+# syntax=docker/dockerfile:1
+FROM node:22-alpine
+
+# better-sqlite3 needs build tools on Alpine
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+
+# Copy backend package files
+COPY backend/package*.json ./
+
+# Install dependencies (including native better-sqlite3)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev --ignore-scripts && \
+    npm rebuild better-sqlite3
+
+# Copy backend source and database schema (for first-run init)
+COPY backend/ .
+COPY database/ /app/database-seed/
+
+# Default: run from /app so paths in init.js resolve (src/database -> ../../../database = /app/database)
+# On first run with a mounted volume at /app/database, entrypoint copies database-seed into it
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 3000
+
+ENV NODE_ENV=development
+ENV PORT=3000
+
+# If /app/database is mounted empty, copy schema and seeds from image so init can run
+ENTRYPOINT ["/bin/sh", "-c", "if [ ! -f /app/database/schema.sql ]; then cp -r /app/database-seed/. /app/database/ 2>/dev/null || true; fi; exec node src/index.js"]

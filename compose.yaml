@@ -1,0 +1,80 @@
+name: envision-prms
+
+services:
+  # Python backend service
+  python-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    image: envision-prms/python-backend:latest
+    container_name: prms-python
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - ./coi-prototype:/app/coi-prototype:ro
+      - python-data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - prms-network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # Vue.js frontend (production build)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: envision-prms/frontend:latest
+    container_name: prms-frontend
+    ports:
+      - "5177:5177"
+    networks:
+      - prms-network
+    restart: unless-stopped
+    depends_on:
+      python-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5177/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Development frontend with hot reload (optional)
+  frontend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: envision-prms/frontend-dev:latest
+    container_name: prms-frontend-dev
+    ports:
+      - "5178:5177"
+    volumes:
+      - ./prms-dashboard-v2/src:/app/src:ro
+      - ./prms-dashboard-v2/public:/app/public:ro
+      - ./prms-dashboard-v2/index.html:/app/index.html:ro
+      - ./prms-dashboard-v2/vite.config.ts:/app/vite.config.ts:ro
+      - ./prms-dashboard-v2/tsconfig.json:/app/tsconfig.json:ro
+    networks:
+      - prms-network
+    restart: unless-stopped
+    depends_on:
+      - python-backend
+    profiles:
+      - dev
+
+networks:
+  prms-network:
+    driver: bridge
+
+volumes:
+  python-data:
+    driver: local

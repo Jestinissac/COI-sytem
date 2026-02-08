@@ -1,0 +1,16 @@
+# COI Prototype - Frontend dev server (Vite with hot reload, proxy to backend)
+# syntax=docker/dockerfile:1
+FROM node:22-alpine
+
+WORKDIR /app
+
+COPY frontend/package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --no-audit
+
+COPY frontend/ .
+
+# VITE_PROXY_TARGET set in compose so /api is proxied to coi-backend
+EXPOSE 5173
+
+CMD ["npm", "run", "dev"]

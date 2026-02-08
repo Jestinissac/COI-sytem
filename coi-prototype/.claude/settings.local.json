@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(sqlite3:*)",
+      "Bash(then echo '✅ RUNNING' curl -s http://localhost:3000/api/health)",
+      "Bash(then echo '✅ RUNNING' curl -s http://localhost:5173)",
+      "Bash(lsof:*)",
+      "Bash(bash:*)",
+      "Bash(grep:*)",
+      "Bash(tree:*)"
+    ]
+  }
+}

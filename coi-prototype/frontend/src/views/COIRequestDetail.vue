@@ -145,6 +145,10 @@
                     <td class="py-2 text-gray-900">{{ request.department || 'N/A' }}</td>
                   </tr>
                   <tr class="border-b">
+                    <td class="py-2 text-gray-500">Line of service</td>
+                    <td class="py-2 text-gray-900">{{ request.line_of_service || 'N/A' }}</td>
+                  </tr>
+                  <tr class="border-b">
                     <td class="py-2 text-gray-500">Entity</td>
                     <td class="py-2 text-gray-900">{{ request.entity || 'BDO Al Nisf & Partners' }}</td>
                   </tr>
@@ -155,6 +159,22 @@
                   <tr class="border-b">
                     <td class="py-2 text-gray-500">Stage</td>
                     <td class="py-2 text-gray-900">{{ request.stage || 'Proposal' }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Designation</td>
+                    <td class="py-2 text-gray-900">{{ request.designation || 'N/A' }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Language</td>
+                    <td class="py-2 text-gray-900">{{ request.language || 'N/A' }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Lead source</td>
+                    <td class="py-2 text-gray-900">{{ request.lead_source_name || (request.lead_source_id ? 'N/A' : 'None') }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Backup approver</td>
+                    <td class="py-2 text-gray-900">{{ request.backup_approver_name || 'None' }}</td>
                   </tr>
                   <tr>
                     <td class="py-2 text-gray-500">Created</td>
@@ -193,11 +213,39 @@
                     <td class="py-2 text-gray-500">Relationship</td>
                     <td class="py-2 text-gray-900">{{ request.relationship_with_client || 'New Client' }}</td>
                   </tr>
-                  <tr>
+                  <tr class="border-b">
                     <td class="py-2 text-gray-500">PIE Status</td>
                     <td class="py-2" :class="request.pie_status === 'Yes' ? 'text-red-600 font-medium' : 'text-gray-900'">
                       {{ request.pie_status || 'No' }}
                     </td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Client status</td>
+                    <td class="py-2 text-gray-900">{{ request.client_status || 'N/A' }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Regulated body</td>
+                    <td class="py-2 text-gray-900">{{ request.regulated_body || 'N/A' }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Group structure</td>
+                    <td class="py-2 text-gray-900">{{ request.group_structure || 'N/A' }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Parent company</td>
+                    <td class="py-2 text-gray-900">{{ request.parent_company || 'N/A' }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Company type</td>
+                    <td class="py-2 text-gray-900">{{ request.company_type || 'N/A' }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Ownership %</td>
+                    <td class="py-2 text-gray-900">{{ request.ownership_percentage != null ? request.ownership_percentage : 'N/A' }}</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 text-gray-500">Control type</td>
+                    <td class="py-2 text-gray-900">{{ request.control_type || 'N/A' }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -209,8 +257,96 @@
             <div class="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
               <h2 class="font-medium text-gray-900">Service Description</h2>
             </div>
-            <div class="p-4">
+            <div class="p-4 space-y-4">
+              <table class="w-full text-sm">
+                <tbody>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500 w-1/3">Service category</td>
+                    <td class="py-2 text-gray-900">{{ request.service_category || 'N/A' }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Service sub-category</td>
+                    <td class="py-2 text-gray-900">{{ request.service_sub_category || 'N/A' }}</td>
+                  </tr>
+                  <template v-if="request.international_operations">
+                    <tr class="border-b">
+                      <td class="py-2 text-gray-500">Global service category</td>
+                      <td class="py-2 text-gray-900">{{ request.global_service_category || 'N/A' }}</td>
+                    </tr>
+                    <tr class="border-b">
+                      <td class="py-2 text-gray-500">Global service type</td>
+                      <td class="py-2 text-gray-900">{{ request.global_service_type || 'N/A' }}</td>
+                    </tr>
+                  </template>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Requested service period</td>
+                    <td class="py-2 text-gray-900">
+                      <span v-if="request.requested_service_period_start || request.requested_service_period_end">
+                        {{ request.requested_service_period_start || '—' }} to {{ request.requested_service_period_end || '—' }}
+                      </span>
+                      <span v-else>N/A</span>
+                    </td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">External deadline</td>
+                    <td class="py-2 text-gray-900">{{ request.external_deadline ? formatDate(request.external_deadline) : 'N/A' }}</td>
+                  </tr>
+                  <tr class="border-b">
+                    <td class="py-2 text-gray-500">Deadline reason</td>
+                    <td class="py-2 text-gray-900">{{ request.deadline_reason || 'N/A' }}</td>
+                  </tr>
+                </tbody>
+              </table>
               <p class="text-sm text-gray-700">{{ request.service_description || 'No description provided.' }}</p>
+            </div>
+          </div>
+
+          <!-- Ownership & related entities -->
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div class="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
+              <h2 class="font-medium text-gray-900">Ownership & related entities</h2>
+            </div>
+            <div class="p-4 space-y-4">
+              <div>
+                <span class="text-sm text-gray-500">International operations</span>
+                <p class="text-sm text-gray-900 mt-0.5">{{ request.international_operations ? 'Yes' : 'No' }}</p>
+              </div>
+              <div v-if="request.full_ownership_structure">
+                <span class="text-sm text-gray-500">Full ownership structure</span>
+                <pre class="mt-1 p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-900 whitespace-pre-wrap">{{ request.full_ownership_structure }}</pre>
+              </div>
+              <div v-if="request.related_affiliated_entities">
+                <span class="text-sm text-gray-500">Related affiliated entities</span>
+                <p class="mt-1 text-sm text-gray-900">{{ request.related_affiliated_entities }}</p>
+              </div>
+              <!-- Global COI Form summary (when international and data present) -->
+              <div v-if="request.international_operations && request.global_coi_form_data" class="border-t border-gray-200 pt-4">
+                <button
+                  type="button"
+                  @click="showGlobalCOISummary = !showGlobalCOISummary"
+                  class="flex items-center justify-between w-full text-left text-sm font-medium text-gray-900 hover:text-gray-700"
+                >
+                  <span>Global COI Form ({{ globalCOISummary.count }} countries, {{ globalCOISummary.entityCount }} entities)</span>
+                  <svg :class="['w-4 h-4 text-gray-500 transition-transform', showGlobalCOISummary ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+                <div v-show="showGlobalCOISummary" class="mt-3 space-y-2">
+                  <div
+                    v-for="(country, idx) in globalCOISummary.countries"
+                    :key="idx"
+                    class="p-3 bg-gray-50 border border-gray-200 rounded text-sm"
+                  >
+                    <span class="font-medium text-gray-900">{{ country.country_code || 'Unknown' }}</span>
+                    <ul v-if="country.entities && country.entities.length" class="mt-2 ml-4 list-disc text-gray-700">
+                      <li v-for="(ent, ei) in country.entities" :key="ei">
+                        {{ ent.relationship_type ? `${ent.relationship_type}: ` : '' }}{{ ent.name || 'Unnamed' }}
+                      </li>
+                    </ul>
+                    <p v-else class="mt-1 text-gray-500 text-xs">No entities</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -978,6 +1114,7 @@ const attachments = ref<any[]>([])
 const showUploadModal = ref(false)
 const showPreviousCOI = ref(false)
 const showServiceConflict = ref(false)
+const showGlobalCOISummary = ref(false)
 const resubmitting = ref(false)
 const showConvertModal = ref(false)
 const prospectData = ref<any>(null)
@@ -988,6 +1125,20 @@ const validationChecks = ref({
   hasPreviousCOI: false,
   previousCOICount: 0,
   hasServiceConflict: false
+})
+
+const globalCOISummary = computed(() => {
+  const raw = request.value?.global_coi_form_data
+  if (!raw) return { count: 0, entityCount: 0, countries: [] }
+  let data: { countries?: Array<{ country_code?: string; entities?: Array<{ relationship_type?: string; name?: string }> }> }
+  try {
+    data = typeof raw === 'string' ? JSON.parse(raw) : raw
+  } catch {
+    return { count: 0, entityCount: 0, countries: [] }
+  }
+  const countries = Array.isArray(data?.countries) ? data.countries : []
+  const entityCount = countries.reduce((sum, c) => sum + (Array.isArray(c?.entities) ? c.entities.length : 0), 0)
+  return { count: countries.length, entityCount, countries }
 })
 
 const workflowSteps = computed(() => {

@@ -1,0 +1,14 @@
+{
+  "source": {
+    "include": ["backend/src", "frontend/src"],
+    "exclude": []
+  },
+  "plugins": [],
+  "recurseDepth": 10,
+  "opts": {
+    "encoding": "utf8",
+    "template": "node_modules/jsdoc/templates/default",
+    "destination": "./docs",
+    "readme": "./README.md"
+  }
+}

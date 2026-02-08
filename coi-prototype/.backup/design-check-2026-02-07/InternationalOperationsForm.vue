@@ -239,14 +239,14 @@
                 </div>
 
                 <!-- Context Banner -->
-                <div class="p-3 bg-gray-50 border-l-4 border-gray-300 rounded">
+                <div class="p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-400 rounded">
                   <div class="flex items-start">
-                    <svg class="w-5 h-5 text-gray-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <div class="text-sm">
-                      <p class="font-medium text-gray-900">Corporate Group Relationships</p>
-                      <p class="text-xs text-gray-700 mt-1">
+                      <p class="font-medium text-blue-900">Corporate Group Relationships</p>
+                      <p class="text-xs text-blue-700 mt-1">
                         Add related entities: parent companies, subsidiaries, or sister companies (entities sharing the same parent).
                       </p>
                     </div>
@@ -274,7 +274,14 @@
                     <div
                       v-for="(entity, entityIndex) in country.entities"
                       :key="entityIndex"
-                      class="relative p-4 bg-gray-50 border-l-4 border-gray-300 rounded-lg shadow-sm"
+                      class="relative p-4 bg-white border-l-4 rounded-lg shadow-sm transition-all hover:shadow-md"
+                      :class="{
+                        'border-purple-500 bg-purple-50': entity.relationship_type === 'parent',
+                        'border-blue-500 bg-blue-50': entity.relationship_type === 'subsidiary',
+                        'border-amber-500 bg-amber-50': entity.relationship_type === 'affiliate',
+                        'border-green-500 bg-green-50': entity.relationship_type === 'sister',
+                        'border-gray-300 bg-gray-50': !entity.relationship_type
+                      }"
                     >
                       <div class="space-y-3">
                         <!-- Relationship Type Badge & Selector -->
@@ -295,12 +302,18 @@
                               <!-- Relationship Badge -->
                               <span 
                                 v-if="entity.relationship_type"
-                                class="px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-gray-200 text-gray-800"
+                                class="px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap"
+                                :class="{
+                                  'bg-purple-100 text-purple-700': entity.relationship_type === 'parent',
+                                  'bg-blue-100 text-blue-700': entity.relationship_type === 'subsidiary',
+                                  'bg-amber-100 text-amber-700': entity.relationship_type === 'affiliate',
+                                  'bg-green-100 text-green-700': entity.relationship_type === 'sister'
+                                }"
                               >
-                                <span v-if="entity.relationship_type === 'parent'">Parent</span>
-                                <span v-else-if="entity.relationship_type === 'subsidiary'">Subsidiary</span>
-                                <span v-else-if="entity.relationship_type === 'affiliate'">Affiliate</span>
-                                <span v-else-if="entity.relationship_type === 'sister'">Sister</span>
+                                <span v-if="entity.relationship_type === 'parent'">🏢 Parent</span>
+                                <span v-else-if="entity.relationship_type === 'subsidiary'">📦 Subsidiary</span>
+                                <span v-else-if="entity.relationship_type === 'affiliate'">🤝 Affiliate</span>
+                                <span v-else-if="entity.relationship_type === 'sister'">🔗 Sister</span>
                               </span>
                             </div>
                             <p class="mt-1.5 text-xs text-gray-600">

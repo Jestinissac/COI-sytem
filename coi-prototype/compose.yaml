@@ -1,0 +1,62 @@
+# COI Prototype - Docker Compose
+# Run from this directory: docker compose up --build
+# Frontend (dev): http://localhost:5173  |  Backend API: http://localhost:3000
+
+name: coi-prototype
+
+services:
+  coi-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: coi-prototype/backend:latest
+    container_name: coi-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      # Optional: set for production; leave unset for dev/prototype
+      # - JWT_SECRET=your-secret
+      # - REFRESH_TOKEN_SECRET=your-refresh-secret
+    volumes:
+      # Persist SQLite database and schema
+      - coi-database:/app/database
+    networks:
+      - coi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health", "||", "exit", "1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  coi-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.dev
+    image: coi-prototype/frontend-dev:latest
+    container_name: coi-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      # Proxy /api to backend (use service name when using Docker network)
+      - VITE_PROXY_TARGET=http://coi-backend:3000
+    volumes:
+      # Optional: mount source for live edits (hot reload)
+      - ./frontend/src:/app/src
+    depends_on:
+      coi-backend:
+        condition: service_healthy
+    networks:
+      - coi-network
+    restart: unless-stopped
+
+networks:
+  coi-network:
+    driver: bridge
+
+volumes:
+  coi-database:
+    driver: local

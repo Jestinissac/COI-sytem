@@ -1069,6 +1069,16 @@ export async function initDatabase() {
     }
   }
 
+  // Global COI Form data (international operations: countries + entities) – JSON string
+  try {
+    db.exec('ALTER TABLE coi_requests ADD COLUMN global_coi_form_data TEXT')
+    console.log('✅ Added column global_coi_form_data to coi_requests')
+  } catch (error) {
+    if (!error.message.includes('duplicate column')) {
+      console.log('Note: coi_requests.global_coi_form_data:', error.message)
+    }
+  }
+
   // Create dismissed_resolved_conflicts table for tracking dismissed conflict resolution items
   try {
     db.exec(`

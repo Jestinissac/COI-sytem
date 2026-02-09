@@ -1,9 +1,9 @@
 import { getDatabase } from '../database/init.js'
 import { getFilteredRequests } from '../middleware/dataSegregation.js'
 import { checkDuplication, checkGroupConflicts, checkInternationalOperationsConflicts } from '../services/duplicationCheckService.js'
-import { sendApprovalNotification, sendRejectionNotification, sendEngagementCodeNotification, sendProposalExecutedNotification, sendNeedMoreInfoNotification, sendEmail } from '../services/notificationService.js'
+import { sendApprovalNotification, sendRejectionNotification, sendEngagementCodeNotification, sendProposalExecutedNotification, sendNeedMoreInfoNotification, sendCommentToPreviousApproverNotification, sendReplyToCurrentApproverNotification, sendEmail } from '../services/notificationService.js'
 import { notifyRequestSubmitted, notifyDirectorApprovalRequired, notifyComplianceReviewRequired, notifyGroupConflictFlagged } from '../services/emailService.js'
-import { generateEngagementCode as generateCode } from '../services/engagementCodeService.js'
+import { generateEngagementCodeSync } from '../services/engagementCodeService.js'
 import { updateMonitoringDays, getApproachingLimitRequests, getExceededLimitRequests } from '../services/monitoringService.js'
 import { evaluateRules } from '../services/businessRulesEngine.js'
 import FieldMappingService from '../services/fieldMappingService.js'
@@ -16,8 +16,23 @@ import { isClientParentTBDOrEmpty } from './parentCompanyUpdateController.js'
 import { mapServiceTypeToCMA } from '../services/cmaConflictMatrix.js'
 import { eventBus, EVENT_TYPES } from '../services/eventBus.js'
 import { logFunnelEvent, logStatusChange, FUNNEL_STAGES } from '../services/funnelTrackingService.js'
-
 const db = getDatabase()
+
+// Allowed enum values for DB CHECK constraints (coi_requests)
+const ALLOWED_CONTROL_TYPES = new Set(['Majority', 'Minority', 'Joint', 'Significant Influence', 'None'])
+const ALLOWED_COMPANY_TYPES = new Set(['Standalone', 'Subsidiary', 'Parent', 'Sister', 'Affiliate'])
+
+function normalizeControlType(value) {
+  if (value === '' || value == null) return null
+  const s = String(value).trim()
+  return ALLOWED_CONTROL_TYPES.has(s) ? s : null
+}
+
+function normalizeCompanyType(value) {
+  if (value === '' || value == null) return null
+  const s = String(value).trim()
+  return ALLOWED_COMPANY_TYPES.has(s) ? s : null
+}
 
 // Standard field mappings (field_id -> db_column)
 const STANDARD_FIELD_MAPPINGS = {
@@ -182,7 +197,26 @@ export async function getRequestById(req, res) {
 export async function createRequest(req, res) {
   try {
     const user = getUserById(req.userId)
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' })
+    }
     const data = req.body
+
+    // DB requires client_id NOT NULL. Use placeholder draft client when none selected (e.g. prospect or new draft).
+    let effectiveClientId = data.client_id
+    if (effectiveClientId == null || effectiveClientId === '') {
+      const draftClient = db.prepare(
+        "SELECT id FROM clients WHERE client_code = ?"
+      ).get('DRAFT-NO-CLIENT')
+      if (draftClient) {
+        effectiveClientId = draftClient.id
+      } else {
+        const insert = db.prepare(
+          "INSERT INTO clients (client_code, client_name, status) VALUES (?, ?, ?)"
+        ).run('DRAFT-NO-CLIENT', 'Draft (no client selected)', 'Inactive')
+        effectiveClientId = insert.lastInsertRowid
+      }
+    }
 
     // Generate request ID - use MAX to avoid duplicates
     const year = new Date().getFullYear()
@@ -271,6 +305,9 @@ export async function createRequest(req, res) {
     const globalCoiFormDataStr = globalCoiFormDataRaw == null ? null
       : (typeof globalCoiFormDataRaw === 'string' ? globalCoiFormDataRaw : JSON.stringify(globalCoiFormDataRaw))
 
+    const safeCompanyType = normalizeCompanyType(standardData.company_type || data.company_type)
+    const safeControlType = normalizeControlType(standardData.control_type || data.control_type)
+
     const result = db.prepare(`
       INSERT INTO coi_requests (
         request_id, client_id, requester_id, department,
@@ -283,26 +320,27 @@ export async function createRequest(req, res) {
         international_operations, foreign_subsidiaries, global_clearance_status,
         custom_fields, form_version, group_structure, backup_approver_id,
         service_type_cma_code, global_coi_form_data,
+        external_deadline, deadline_reason,
         status, stage
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      requestId, 
-      standardData.client_id || data.client_id || null, 
-      user.id, 
+      requestId,
+      effectiveClientId,
+      user.id,
       user.department || null,
-      standardData.requestor_name || user.name || '', 
-      standardData.designation || data.designation || '', 
-      standardData.entity || data.entity || '', 
+      standardData.requestor_name || user.name || '',
+      standardData.designation || data.designation || '',
+      standardData.entity || data.entity || '',
       standardData.line_of_service || data.line_of_service || '',
-      standardData.requested_document || data.requested_document || '', 
+      standardData.requested_document || data.requested_document || '',
       standardData.language || data.language || '',
-      standardData.parent_company || data.parent_company || '', 
+      standardData.parent_company || data.parent_company || '',
       resolvedParentCompanyId,
-      standardData.company_type || data.company_type || null,
+      safeCompanyType,
       standardData.ownership_percentage !== undefined ? standardData.ownership_percentage : (data.ownership_percentage !== undefined ? data.ownership_percentage : null),
-      standardData.control_type || data.control_type || null,
-      standardData.client_location || data.client_location || '', 
-      standardData.relationship_with_client || data.relationship_with_client || '', 
+      safeControlType,
+      standardData.client_location || data.client_location || '',
+      standardData.relationship_with_client || data.relationship_with_client || '',
       standardData.client_type || data.client_type || '',
       standardData.client_status || data.client_status || '',
       standardData.service_type || data.service_type || '',
@@ -313,13 +351,12 @@ export async function createRequest(req, res) {
       standardData.requested_service_period_start || data.requested_service_period_start || null,
       standardData.requested_service_period_end || data.requested_service_period_end || null,
       standardData.full_ownership_structure || data.full_ownership_structure || '',
-      standardData.pie_status || data.pie_status || 'No', 
+      standardData.pie_status || data.pie_status || 'No',
       standardData.related_affiliated_entities || data.related_affiliated_entities || '',
-      // Convert boolean to integer for SQLite
-      (standardData.international_operations !== undefined 
+      (standardData.international_operations !== undefined
         ? (standardData.international_operations === true || standardData.international_operations === 1 ? 1 : 0)
-        : (data.international_operations === true || data.international_operations === 1 ? 1 : 0)), 
-      standardData.foreign_subsidiaries || data.foreign_subsidiaries || '', 
+        : (data.international_operations === true || data.international_operations === 1 ? 1 : 0)),
+      standardData.foreign_subsidiaries || data.foreign_subsidiaries || '',
       standardData.global_clearance_status || data.global_clearance_status || 'Not Required',
       Object.keys(customFields).length > 0 ? JSON.stringify(customFields) : null,
       formVersion || 1,
@@ -327,6 +364,8 @@ export async function createRequest(req, res) {
       standardData.backup_approver_id || data.backup_approver_id || null,
       serviceTypeCmaCode,
       globalCoiFormDataStr,
+      standardData.external_deadline || data.external_deadline || null,
+      standardData.deadline_reason || data.deadline_reason || null,
       'Draft',
       'Proposal'
     )
@@ -361,13 +400,34 @@ export async function createRequest(req, res) {
 
     res.status(201).json({ id: result.lastInsertRowid, request_id: requestId })
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    const msg = error?.message || ''
+    console.error('createRequest error:', msg, error)
+    const isConstraint = msg.includes('NOT NULL') || msg.includes('SQLITE_CONSTRAINT') || msg.includes('FOREIGN KEY')
+    if (isConstraint && msg.includes('client_id')) {
+      return res.status(400).json({
+        error: 'Client is required to create or save a request. Please select a client from the Client / Entity section.'
+      })
+    }
+    if (isConstraint) {
+      return res.status(400).json({ error: 'Validation failed. Check required fields (e.g. client, service description).' })
+    }
+    if (msg.includes('values for') && msg.includes('column')) {
+      return res.status(500).json({
+        error: 'Server database error (column count mismatch). Restart the backend so the latest code is loaded, then try again.'
+      })
+    }
+    return res.status(500).json({
+      error: 'Server database error. Restart the backend and try again.'
+    })
   }
 }
 
 export async function updateRequest(req, res) {
   try {
     const user = getUserById(req.userId)
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required' })
+    }
     const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
 
     if (!request) {
@@ -434,6 +494,12 @@ export async function updateRequest(req, res) {
       if (col === 'ownership_percentage' && (value === '' || value === null)) {
         value = null
       }
+      if (col === 'control_type') {
+        value = normalizeControlType(value)
+      }
+      if (col === 'company_type') {
+        value = normalizeCompanyType(value)
+      }
       if (col === 'global_coi_form_data' && value != null && typeof value === 'object') {
         value = JSON.stringify(value)
       }
@@ -466,25 +532,43 @@ export async function updateRequest(req, res) {
  */
 export async function getApproversForBackup(req, res) {
   try {
-    const approvers = db.prepare(`
-      SELECT id, name, email, role, department
-      FROM users
-      WHERE role IN ('Director', 'Compliance', 'Partner', 'Finance')
-      AND COALESCE(active, 1) = 1
-      ORDER BY role, name
-    `).all()
+    let approvers
+    try {
+      approvers = db.prepare(`
+        SELECT id, name, email, role, department
+        FROM users
+        WHERE role IN ('Director', 'Compliance', 'Partner', 'Finance')
+        AND COALESCE(active, 1) = 1
+        ORDER BY role, name
+      `).all()
+    } catch (colError) {
+      if (colError.message && colError.message.includes('active')) {
+        approvers = db.prepare(`
+          SELECT id, name, email, role, department
+          FROM users
+          WHERE role IN ('Director', 'Compliance', 'Partner', 'Finance')
+          AND COALESCE(is_active, 1) = 1
+          ORDER BY role, name
+        `).all()
+      } else {
+        throw colError
+      }
+    }
     res.json(approvers)
   } catch (error) {
     console.error('Error fetching approvers for backup:', error)
-    res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: 'Failed to load approvers.' })
   }
 }
 
 export async function submitRequest(req, res) {
   try {
     const user = getUserById(req.userId)
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required' })
+    }
     const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
-    
+
     if (!request) {
       return res.status(404).json({ error: 'Request not found' })
     }
@@ -493,12 +577,10 @@ export async function submitRequest(req, res) {
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    // ========================================
-    // FLOOD PREVENTION: Check if user already has pending request for this client
-    // ========================================
+    // Flood prevention: block if user already has a pending request for this client
     const existingPending = db.prepare(`
-      SELECT id, request_id FROM coi_requests 
-      WHERE requester_id = ? 
+      SELECT id, request_id FROM coi_requests
+      WHERE requester_id = ?
       AND client_id = ?
       AND status IN ('Draft', 'Pending Director Approval', 'Pending Compliance', 'Pending Partner', 'Pending Finance')
       AND id != ?
@@ -512,16 +594,11 @@ export async function submitRequest(req, res) {
       })
     }
 
-    // ========================================
-    // GROUP STRUCTURE VALIDATION (IESBA 290.13)
-    // ========================================
+    // Group structure validation (IESBA 290.13) — validation errors are user-facing
     try {
       const validatedData = validateGroupStructure(request)
-      // Update request with any modifications (e.g., requires_compliance_verification flag)
-      if (validatedData.requires_compliance_verification) {
-        db.prepare(`
-          UPDATE coi_requests SET requires_compliance_verification = 1 WHERE id = ?
-        `).run(req.params.id)
+      if (validatedData && validatedData.requires_compliance_verification) {
+        db.prepare('UPDATE coi_requests SET requires_compliance_verification = 1 WHERE id = ?').run(req.params.id)
       }
     } catch (validationError) {
       if (validationError instanceof GroupStructureValidationError) {
@@ -532,29 +609,41 @@ export async function submitRequest(req, res) {
           requiresGroupStructure: true
         })
       }
-      throw validationError
+      // Non-validation errors: log and continue (don't block submission)
+      console.error('[Submit] Group structure validation error (continuing):', validationError?.message)
     }
 
-    // Check duplication with service type conflict detection
+    // Resolve client — required for duplication check and notifications
     const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(request.client_id)
     if (!client) {
       return res.status(404).json({ error: 'Client not found' })
     }
-    const duplicates = await checkDuplication(
-      client.client_name, 
-      request.id,
-      request.service_type,  // Pass service type for conflict checking
-      request.pie_status === 'Yes',  // Pass PIE status for stricter rules
-      request  // Pro: Pass full request data for Red Lines and IESBA Matrix
-    )
-    
-    // ========================================
-    // DUPLICATE BLOCKING WITH JUSTIFICATION
-    // ========================================
-    // If critical duplicates found and no justification provided, block submission
+
+    // --- Duplication check (non-blocking: defaults to empty array on failure) ---
+    let duplicates = []
+    try {
+      const duplicateResult = await checkDuplication(
+        client.client_name,
+        request.id,
+        request.service_type,
+        request.pie_status === 'Yes',
+        request
+      )
+      // checkDuplication returns { matches: [], recommendations: [], ... }
+      const raw = Array.isArray(duplicateResult) ? duplicateResult : (duplicateResult?.matches ?? [])
+      duplicates = Array.isArray(raw) ? raw : []
+    } catch (dupErr) {
+      console.error('[Submit] Duplication check failed (continuing):', dupErr?.message)
+      duplicates = []
+    }
+
+    // Helper: safe array operations on duplicates
+    const safeArray = (arr) => (Array.isArray(arr) ? arr : [])
+
+    // --- Duplicate blocking with justification ---
     const { duplicate_justification } = req.body || {}
-    const criticalDuplicates = duplicates?.filter(d => d.action === 'block') || []
-    
+    const criticalDuplicates = safeArray(duplicates).filter(d => d.action === 'block')
+
     if (criticalDuplicates.length > 0 && !duplicate_justification) {
       return res.status(400).json({
         error: 'Critical duplicate detected. Justification required to proceed.',
@@ -563,55 +652,49 @@ export async function submitRequest(req, res) {
         message: 'A proposal or engagement already exists for this client/service. Please provide a business justification explaining why this submission should proceed.'
       })
     }
-    
-    // If justification provided, save it to the request
+
+    // Save justification if provided (optional columns — skip on schema mismatch)
     if (duplicate_justification) {
-      db.prepare(`
-        UPDATE coi_requests 
-        SET duplicate_justification = ?,
-            duplicate_override_by = ?,
-            duplicate_override_date = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(duplicate_justification, user.id, req.params.id)
-      
-      console.log(`[Duplicate Override] Request ${request.request_id} - User ${user.name} provided justification: "${duplicate_justification.substring(0, 100)}..."`)
+      try {
+        db.prepare(`
+          UPDATE coi_requests
+          SET duplicate_justification = ?,
+              duplicate_override_by = ?,
+              duplicate_override_date = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(duplicate_justification, user.id, req.params.id)
+      } catch (err) {
+        console.warn('[Duplicate Override] Could not save justification:', err?.message)
+      }
     }
-    
-    // ========================================
-    // GROUP CONFLICT DETECTION (IESBA 290.13)
-    // ========================================
-    // Check for multi-level group conflicts (parent, subsidiary, sister companies)
+
+    // --- Group conflict detection (non-blocking) ---
     let groupConflicts = { conflicts: [], warnings: [] }
     let hasGroupConflicts = false
-    
+
     if (request.parent_company) {
       try {
-        groupConflicts = await checkGroupConflicts(req.params.id)
-        hasGroupConflicts = groupConflicts.conflicts && groupConflicts.conflicts.length > 0
-        
+        const result = await checkGroupConflicts(req.params.id)
+        groupConflicts = result || { conflicts: [], warnings: [] }
+        groupConflicts.conflicts = safeArray(groupConflicts.conflicts)
+        groupConflicts.warnings = safeArray(groupConflicts.warnings)
+        hasGroupConflicts = groupConflicts.conflicts.length > 0
+
         if (hasGroupConflicts) {
           const criticalConflicts = groupConflicts.conflicts.filter(c => c.severity === 'CRITICAL')
-          
           if (criticalConflicts.length > 0) {
-            // Store conflicts in database for Compliance review
-            db.prepare(`
-              UPDATE coi_requests 
-              SET group_conflicts_detected = ?,
-                  requires_compliance_verification = 1
-              WHERE id = ?
-            `).run(
-              JSON.stringify(criticalConflicts),
-              req.params.id
-            )
-            
-            console.log(`[Group Conflict] Request ${request.request_id} - ${criticalConflicts.length} critical group conflict(s) detected`)
-            
-            // Notify ALL Compliance officers about the flagged conflicts
+            try {
+              db.prepare(`
+                UPDATE coi_requests
+                SET group_conflicts_detected = ?, requires_compliance_verification = 1
+                WHERE id = ?
+              `).run(JSON.stringify(criticalConflicts), req.params.id)
+            } catch (_) { /* column may not exist */ }
+
             const complianceOfficers = db.prepare(`
-              SELECT id, name, email FROM users 
-              WHERE role = 'Compliance' AND is_active = 1
+              SELECT id, name, email FROM users
+              WHERE role = 'Compliance' AND (COALESCE(active, 1) = 1)
             `).all()
-            
             if (complianceOfficers.length > 0) {
               await notifyGroupConflictFlagged(
                 { ...request, client_name: client.client_name },
@@ -621,56 +704,38 @@ export async function submitRequest(req, res) {
             }
           }
         }
-      } catch (groupConflictError) {
-        // Log but don't block submission if conflict detection fails
-        console.error(`[Group Conflict] Error checking group conflicts for request ${request.request_id}:`, groupConflictError)
+      } catch (groupErr) {
+        console.error('[Submit] Group conflict check failed (continuing):', groupErr?.message)
       }
     }
-    
-    // ========================================
-    // INTERNATIONAL OPERATIONS CONFLICT DETECTION (IESBA 290.13)
-    // ========================================
-    // Check for conflicts in International Operations entities
-    let internationalOpsConflicts = { conflicts: [], warnings: [] }
-    let hasInternationalOpsConflicts = false
-    
+
+    // --- International operations conflict detection (non-blocking) ---
     if (request.international_operations && request.global_coi_form_data) {
       try {
-        internationalOpsConflicts = await checkInternationalOperationsConflicts(req.params.id)
-        hasInternationalOpsConflicts = internationalOpsConflicts.conflicts && internationalOpsConflicts.conflicts.length > 0
-        
-        if (hasInternationalOpsConflicts) {
-          // Merge with main group conflicts
-          groupConflicts.conflicts = [...(groupConflicts.conflicts || []), ...(internationalOpsConflicts.conflicts || [])]
-          groupConflicts.warnings = [...(groupConflicts.warnings || []), ...(internationalOpsConflicts.warnings || [])]
-          
-          const criticalConflicts = internationalOpsConflicts.conflicts.filter(c => c.severity === 'CRITICAL')
-          
+        const intlResult = await checkInternationalOperationsConflicts(req.params.id)
+        const intlConflicts = safeArray(intlResult?.conflicts)
+        const intlWarnings = safeArray(intlResult?.warnings)
+
+        if (intlConflicts.length > 0) {
+          groupConflicts.conflicts = [...groupConflicts.conflicts, ...intlConflicts]
+          groupConflicts.warnings = [...groupConflicts.warnings, ...intlWarnings]
+          hasGroupConflicts = true
+
+          const criticalConflicts = intlConflicts.filter(c => c.severity === 'CRITICAL')
           if (criticalConflicts.length > 0) {
-            // Update stored conflicts to include International Operations conflicts
-            const allCriticalConflicts = [
-              ...(groupConflicts.conflicts.filter(c => c.severity === 'CRITICAL') || []),
-              ...criticalConflicts
-            ]
-            
-            db.prepare(`
-              UPDATE coi_requests 
-              SET group_conflicts_detected = ?,
-                  requires_compliance_verification = 1
-              WHERE id = ?
-            `).run(
-              JSON.stringify(allCriticalConflicts),
-              req.params.id
-            )
-            
-            console.log(`[International Operations Conflict] Request ${request.request_id} - ${criticalConflicts.length} critical International Operations conflict(s) detected`)
-            
-            // Notify Compliance officers about International Operations conflicts
+            const allCritical = groupConflicts.conflicts.filter(c => c.severity === 'CRITICAL')
+            try {
+              db.prepare(`
+                UPDATE coi_requests
+                SET group_conflicts_detected = ?, requires_compliance_verification = 1
+                WHERE id = ?
+              `).run(JSON.stringify(allCritical), req.params.id)
+            } catch (_) { /* column may not exist */ }
+
             const complianceOfficers = db.prepare(`
-              SELECT id, name, email FROM users 
-              WHERE role = 'Compliance' AND is_active = 1
+              SELECT id, name, email FROM users
+              WHERE role = 'Compliance' AND (COALESCE(active, 1) = 1)
             `).all()
-            
             if (complianceOfficers.length > 0) {
               await notifyGroupConflictFlagged(
                 { ...request, client_name: client.client_name },
@@ -680,141 +745,133 @@ export async function submitRequest(req, res) {
             }
           }
         }
-      } catch (internationalOpsConflictError) {
-        // Log but don't block submission if conflict detection fails
-        console.error(`[International Operations Conflict] Error checking International Operations conflicts for request ${request.request_id}:`, internationalOpsConflictError)
+      } catch (intlErr) {
+        console.error('[Submit] International operations conflict check failed (continuing):', intlErr?.message)
       }
     }
-    
-    // Evaluate business rules
-    // Use FieldMappingService to prepare request data with all computed fields
-    const requestDataForRules = {
-      ...request,
-      client: client, // Include client object for field mapping
-      client_name: client.client_name,
-      client_type: client.client_type,
-      client_country: client.country || null,
-      client_industry: client.industry || null
-    }
-    const ruleEvaluation = evaluateRules(FieldMappingService.prepareForRuleEvaluation(requestDataForRules))
 
-    // Combine duplicates, group conflicts, and rule recommendations
+    // --- Business rules evaluation (non-blocking) ---
+    let ruleEvaluation = { recommendations: [], totalRulesEvaluated: 0, matchedRules: 0 }
+    try {
+      const requestDataForRules = {
+        ...request,
+        client: client,
+        client_name: client.client_name,
+        client_type: client.client_type,
+        client_country: client.country || null,
+        client_industry: client.industry ?? null
+      }
+      ruleEvaluation = evaluateRules(FieldMappingService.prepareForRuleEvaluation(requestDataForRules)) || ruleEvaluation
+    } catch (rulesError) {
+      console.error('[Submit] Rule evaluation failed (continuing):', rulesError?.message)
+    }
+
+    // Combine all recommendations for storage
     const allRecommendations = {
-      duplicates: duplicates || [],
-      groupConflicts: groupConflicts.conflicts || [],
-      ruleRecommendations: ruleEvaluation.recommendations || [],
+      duplicates: safeArray(duplicates),
+      groupConflicts: safeArray(groupConflicts.conflicts),
+      ruleRecommendations: safeArray(ruleEvaluation.recommendations),
       totalRulesEvaluated: ruleEvaluation.totalRulesEvaluated || 0,
       matchedRules: ruleEvaluation.matchedRules || 0
     }
 
-    // Determine status based on recommendations
-    // If rule recommends "block", route to Compliance (not auto-reject)
-    // If rule recommends "flag", add to conflicts
-    // If rule recommends "require_approval", ensure Compliance review
-    // If group conflicts detected, ensure Compliance review
+    // --- Determine next workflow status ---
     let newStatus = 'Pending Compliance'
-    const hasBlockRecommendation = ruleEvaluation.recommendations?.some(r => r.recommendedAction === 'block')
-    const hasRequireApproval = ruleEvaluation.recommendations?.some(r => r.recommendedAction === 'require_approval')
-    const hasCriticalGroupConflicts = hasGroupConflicts && groupConflicts.conflicts.some(c => c.severity === 'CRITICAL')
-    
+    const recommendations = safeArray(ruleEvaluation.recommendations)
+    const hasBlockRecommendation = recommendations.some(r => r.recommendedAction === 'block')
+    const hasRequireApproval = recommendations.some(r => r.recommendedAction === 'require_approval')
+    const hasCriticalGroupConflicts = hasGroupConflicts && safeArray(groupConflicts.conflicts).some(c => c.severity === 'CRITICAL')
+
     // Directors skip their own approval, go directly to Compliance
     if (user.role === 'Director') {
       newStatus = 'Pending Compliance'
     } else if (user.role === 'Requester' && user.director_id && !hasBlockRecommendation && !hasCriticalGroupConflicts) {
-      // Team members require director approval first (unless blocked by rules or group conflicts)
       newStatus = 'Pending Director Approval'
     }
-    // If hasBlockRecommendation, hasRequireApproval, or hasCriticalGroupConflicts, status is already 'Pending Compliance' (set above)
 
-    // CMA conditional (e.g. independent teams): flag for Compliance verification
-    const hasCmaConditionalAllowed = (duplicates?.matches || []).some(m =>
-      (m.conflicts || []).some(c => c.type === 'CMA_CONDITIONAL_ALLOWED')
+    // CMA conditional: flag for Compliance verification (non-blocking)
+    const hasCmaConditional = safeArray(duplicates).some(m =>
+      safeArray(m.conflicts).some(c => c.type === 'CMA_CONDITIONAL_ALLOWED')
     )
-    if (hasCmaConditionalAllowed) {
-      db.prepare('UPDATE coi_requests SET requires_compliance_verification = 1 WHERE id = ?').run(req.params.id)
+    if (hasCmaConditional) {
+      try {
+        db.prepare('UPDATE coi_requests SET requires_compliance_verification = 1 WHERE id = ?').run(req.params.id)
+      } catch (_) { /* column may not exist */ }
     }
 
-    // ========================================
-    // PROSPECT TAGGING (Requirement 3)
-    // ========================================
-    // Business Rule: ALL proposals are prospects (regardless of client existence in PRMS)
-    // If engagement_type is 'Proposal', tag as prospect and check PRMS for client linkage
+    // --- Prospect tagging ---
     let isProspect = false
     let prmsClientId = null
-    
+
     if (request.requested_document === 'Proposal' || request.engagement_type === 'Proposal') {
       isProspect = true
-      
-      // Check if client exists in PRMS (for group-level services linkage)
-      // Use client_code to check against PRMS
       if (client.client_code) {
         try {
-          // Mock PRMS check: Check if client exists in our clients table with a code
           const prmsClient = db.prepare('SELECT id, client_code FROM clients WHERE client_code = ?').get(client.client_code)
-          if (prmsClient) {
-            prmsClientId = prmsClient.client_code
-            console.log(`[Prospect] Request ${request.request_id} - Prospect linked to existing PRMS client: ${prmsClientId}`)
-          } else {
-            console.log(`[Prospect] Request ${request.request_id} - Prospect is standalone (no PRMS match)`)
-          }
-        } catch (error) {
-          console.error('Error checking PRMS client:', error)
-          // If PRMS check fails, continue without linking (standalone prospect)
-        }
+          if (prmsClient) prmsClientId = prmsClient.client_code
+        } catch (_) { /* PRMS check failed, continue */ }
       }
     }
 
-    // ========================================
-    // LEAD SOURCE ATTRIBUTION (CRM Feature)
-    // ========================================
-    // For proposals, capture lead source (first-touch, immutable)
-    // Only set if not already set (immutable first-touch principle)
-    let leadSourceId = request.lead_source_id // Keep existing if set
-    
+    // --- Lead source attribution (non-blocking) ---
+    let leadSourceId = request.lead_source_id
     if (isProspect && !leadSourceId) {
-      const { lead_source_id: providedLeadSource } = req.body || {}
-      
-      if (providedLeadSource) {
-        // Use provided lead source
-        leadSourceId = providedLeadSource
-      } else {
-        // Auto-detect based on user role
-        if (['Partner', 'Director'].includes(user.role)) {
-          // Internal referral from Partner/Director
-          const internalSource = db.prepare('SELECT id FROM lead_sources WHERE source_code = ?').get('internal_referral')
-          leadSourceId = internalSource?.id
+      try {
+        const { lead_source_id: providedLeadSource } = req.body || {}
+        if (providedLeadSource) {
+          leadSourceId = providedLeadSource
+        } else if (['Partner', 'Director'].includes(user.role)) {
+          const src = db.prepare('SELECT id FROM lead_sources WHERE source_code = ?').get('internal_referral')
+          leadSourceId = src?.id || null
         } else {
-          // Default to unknown
-          const unknownSource = db.prepare('SELECT id FROM lead_sources WHERE source_code = ?').get('unknown')
-          leadSourceId = unknownSource?.id
+          const src = db.prepare('SELECT id FROM lead_sources WHERE source_code = ?').get('unknown')
+          leadSourceId = src?.id || null
         }
+      } catch (_) {
+        // lead_sources table may not exist yet; continue without
       }
-      
-      console.log(`[Lead Source] Request ${request.request_id} - Lead source set to ID: ${leadSourceId}`)
     }
 
-    // Update status with all recommendations, prospect information, and lead source
-    db.prepare(`
-      UPDATE coi_requests 
-      SET status = ?, 
-          duplication_matches = ?,
-          is_prospect = ?,
-          prms_client_id = ?,
-          lead_source_id = COALESCE(?, lead_source_id)
-      WHERE id = ?
-    `).run(
-      newStatus,
-      JSON.stringify(allRecommendations),
-      isProspect ? 1 : 0,
-      prmsClientId,
-      leadSourceId,
-      req.params.id
-    )
+    // ========================================
+    // CORE STATUS UPDATE — this is the critical DB write
+    // ========================================
+    try {
+      db.prepare(`
+        UPDATE coi_requests
+        SET status = ?,
+            duplication_matches = ?,
+            is_prospect = ?,
+            prms_client_id = ?,
+            lead_source_id = COALESCE(?, lead_source_id)
+        WHERE id = ?
+      `).run(
+        newStatus,
+        JSON.stringify(allRecommendations),
+        isProspect ? 1 : 0,
+        prmsClientId,
+        leadSourceId,
+        req.params.id
+      )
+    } catch (updateErr) {
+      // Fallback: update only the columns guaranteed to exist
+      const msg = updateErr?.message || ''
+      if (msg.includes('no such column') || msg.includes('SQLITE_ERROR')) {
+        try {
+          db.prepare('UPDATE coi_requests SET status = ?, duplication_matches = ? WHERE id = ?')
+            .run(newStatus, JSON.stringify(allRecommendations), req.params.id)
+        } catch (fallbackErr) {
+          // Last resort: just update status
+          db.prepare('UPDATE coi_requests SET status = ? WHERE id = ?').run(newStatus, req.params.id)
+        }
+      } else {
+        throw updateErr
+      }
+    }
 
-    // Parent company bidirectional sync: if existing BDO client and parent set and PRMS has TBD/empty, create update request for PRMS admin
-    const parentCompanyTrimmed = (request.parent_company || '').trim()
-    if (request.client_id && parentCompanyTrimmed && isClientParentTBDOrEmpty(request.client_id)) {
-      try {
+    // --- Parent company sync (non-blocking) ---
+    try {
+      const parentCompanyTrimmed = (request.parent_company || '').trim()
+      if (request.client_id && parentCompanyTrimmed && isClientParentTBDOrEmpty(request.client_id)) {
         const existing = db.prepare(`
           SELECT id FROM parent_company_update_requests
           WHERE client_id = ? AND coi_request_id = ? AND status = 'Pending'
@@ -826,122 +883,117 @@ export async function submitRequest(req, res) {
             ) VALUES (?, ?, ?, 'COI', 'Pending', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           `).run(request.client_id, client.client_code, parentCompanyTrimmed, req.params.id, user.id)
         }
-      } catch (err) {
-        console.warn('[Parent company update request] Could not create on submit:', err.message)
       }
+    } catch (parentErr) {
+      console.warn('[Parent company update request] Could not create on submit:', parentErr?.message)
     }
 
-    // ========================================
-    // FUNNEL TRACKING: Log proposal submission
-    // ========================================
+    // --- Funnel tracking (non-blocking) ---
     if (isProspect) {
-      logFunnelEvent({
-        prospectId: request.prospect_id,
-        coiRequestId: req.params.id,
-        fromStage: null,
-        toStage: FUNNEL_STAGES.PROPOSAL_SUBMITTED,
-        userId: user.id,
-        userRole: user.role,
-        notes: `Proposal submitted for ${client.client_name}`,
-        metadata: { 
-          serviceType: request.service_type, 
-          prmsClientId,
-          newStatus 
-        }
-      })
+      try {
+        logFunnelEvent({
+          prospectId: request.prospect_id,
+          coiRequestId: req.params.id,
+          fromStage: null,
+          toStage: FUNNEL_STAGES.PROPOSAL_SUBMITTED,
+          userId: user.id,
+          userRole: user.role,
+          notes: `Proposal submitted for ${client.client_name}`,
+          metadata: { serviceType: request.service_type, prmsClientId, newStatus }
+        })
+      } catch (funnelErr) {
+        console.warn('[Submit] Funnel tracking failed (continuing):', funnelErr?.message)
+      }
     }
 
-    // Send notifications based on next status
+    // --- Notifications (non-blocking) ---
     try {
-      const requestWithClient = {
-        ...request,
-        client_name: client.client_name
-      }
-      
-      // Determine next approver for requester confirmation
+      const requestWithClient = { ...request, client_name: client.client_name }
+
       let nextApprover = null
       if (newStatus === 'Pending Director Approval' && user.director_id) {
         nextApprover = db.prepare('SELECT * FROM users WHERE id = ?').get(user.director_id)
       } else if (newStatus === 'Pending Compliance') {
-        const complianceOfficers = db.prepare(`
-          SELECT id, name, email FROM users 
-          WHERE role = 'Compliance' AND is_active = 1
+        const complianceStmt = db.prepare(`
+          SELECT id, name, email FROM users
+          WHERE role = 'Compliance' AND (COALESCE(active, 1) = 1)
           ${request.department ? 'AND department = ?' : ''}
           LIMIT 1
-        `).get(request.department || [])
-        nextApprover = complianceOfficers
+        `)
+        nextApprover = request.department ? complianceStmt.get(request.department) : complianceStmt.get()
       }
-      
-      // Always send confirmation to requester
+
+      // Confirmation to requester
       const requester = getUserById(request.requester_id)
-      if (requester && requester.email && nextApprover) {
+      if (requester?.email && nextApprover) {
         await notifyRequestSubmitted(requestWithClient, requester, nextApprover)
       }
-      
-      // Notify Director if status is 'Pending Director Approval'
+
+      // Notify Director
       if (newStatus === 'Pending Director Approval' && user.director_id) {
         const director = db.prepare('SELECT * FROM users WHERE id = ?').get(user.director_id)
-        if (director && director.email) {
+        if (director?.email) {
           await notifyDirectorApprovalRequired(requestWithClient, director)
         }
-        // Emit event for My Day/Week
-        eventBus.emitEvent(EVENT_TYPES.DIRECTOR_APPROVAL_REQUIRED, {
-          requestId: req.params.id,
-          userId: user.id,
-          targetUserId: user.director_id,
-          data: { request_id: request.request_id, client_name: client.client_name }
-        })
+        try {
+          eventBus.emitEvent(EVENT_TYPES.DIRECTOR_APPROVAL_REQUIRED, {
+            requestId: req.params.id,
+            userId: user.id,
+            targetUserId: user.director_id,
+            data: { request_id: request.request_id, client_name: client.client_name }
+          })
+        } catch (_) { /* event bus failure is non-critical */ }
       }
-      
-      // Notify Compliance if status is 'Pending Compliance'
+
+      // Notify Compliance
       if (newStatus === 'Pending Compliance') {
-        const complianceOfficers = db.prepare(`
-          SELECT id, name, email FROM users 
-          WHERE role = 'Compliance' AND is_active = 1
+        const complianceStmt = db.prepare(`
+          SELECT id, name, email FROM users
+          WHERE role = 'Compliance' AND (COALESCE(active, 1) = 1)
           ${request.department ? 'AND department = ?' : ''}
-        `).all(request.department || [])
-        
+        `)
+        const complianceOfficers = request.department ? complianceStmt.all(request.department) : complianceStmt.all()
+
         if (complianceOfficers.length > 0) {
-          const conflicts = ruleEvaluation.recommendations?.filter(r => 
+          const conflicts = safeArray(ruleEvaluation.recommendations).filter(r =>
             r.recommendedAction === 'block' || r.recommendedAction === 'require_approval'
-          ) || []
-          
-          await notifyComplianceReviewRequired(
-            requestWithClient,
-            complianceOfficers,
-            conflicts,
-            duplicates || []
           )
-          
-          // Emit event for My Day/Week (notify first compliance officer)
-          if (complianceOfficers[0]) {
-            eventBus.emitEvent(EVENT_TYPES.COMPLIANCE_REVIEW_REQUIRED, {
-              requestId: req.params.id,
-              userId: user.id,
-              targetUserId: complianceOfficers[0].id,
-              data: { request_id: request.request_id, client_name: client.client_name }
-            })
-          }
+          await notifyComplianceReviewRequired(requestWithClient, complianceOfficers, conflicts, safeArray(duplicates))
+
+          try {
+            if (complianceOfficers[0]) {
+              eventBus.emitEvent(EVENT_TYPES.COMPLIANCE_REVIEW_REQUIRED, {
+                requestId: req.params.id,
+                userId: user.id,
+                targetUserId: complianceOfficers[0].id,
+                data: { request_id: request.request_id, client_name: client.client_name }
+              })
+            }
+          } catch (_) { /* event bus failure is non-critical */ }
         }
       }
     } catch (notificationError) {
-      // Log but don't fail the request submission
-      console.error('Error sending submission notifications:', notificationError)
+      // Notifications must never block submission
+      console.error('[Submit] Notification error (non-blocking):', notificationError?.message)
     }
 
-    res.json({ 
-      success: true, 
-      duplicates: duplicates || [],
-      groupConflicts: groupConflicts.conflicts || [],
-      ruleRecommendations: ruleEvaluation.recommendations || [],
-      requiresComplianceReview: hasBlockRecommendation || hasRequireApproval || hasCriticalGroupConflicts || duplicates?.some(d => d.action === 'block'),
+    // --- Success response ---
+    return res.json({
+      success: true,
+      duplicates: safeArray(duplicates),
+      groupConflicts: safeArray(groupConflicts.conflicts),
+      ruleRecommendations: safeArray(ruleEvaluation.recommendations),
+      requiresComplianceReview: hasBlockRecommendation || hasRequireApproval || hasCriticalGroupConflicts || safeArray(duplicates).some(d => d.action === 'block'),
       flagged: hasCriticalGroupConflicts,
-      message: hasCriticalGroupConflicts 
+      message: hasCriticalGroupConflicts
         ? 'Request submitted but flagged for Compliance review due to potential group conflicts'
         : 'Request submitted successfully'
     })
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    console.error('submitRequest error:', error?.message, error?.stack)
+    return res.status(500).json({
+      error: 'Request submission failed. Please try again or contact support.'
+    })
   }
 }
 
@@ -1001,7 +1053,7 @@ export async function approveRequest(req, res) {
       })
       
       // Emit event for next approver (Partner)
-      const partner = db.prepare('SELECT id FROM users WHERE role = ? AND is_active = 1 LIMIT 1').get('Partner')
+      const partner = db.prepare('SELECT id FROM users WHERE role = ? AND (COALESCE(active, 1) = 1) LIMIT 1').get('Partner')
       if (partner) {
         eventBus.emitEvent(EVENT_TYPES.PARTNER_APPROVAL_REQUIRED, {
           requestId: req.params.id,
@@ -1261,6 +1313,130 @@ export async function requestMoreInfo(req, res) {
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ error: error.message })
+  }
+}
+
+// Map: current status + current role -> previous step status (where request is sent for reply)
+const COMMENT_PREVIOUS_MAP = {
+  'Pending Compliance': { previousStatus: 'Pending Director Approval', previousRole: 'Director', fromRole: 'Compliance' },
+  'Pending Partner': { previousStatus: 'Pending Compliance', previousRole: 'Compliance', fromRole: 'Partner' },
+  'Pending Finance': { previousStatus: 'Pending Partner', previousRole: 'Partner', fromRole: 'Finance' }
+}
+
+// Map: when in "previous" status with comment_from_role -> back to this status on reply
+const REPLY_RETURN_STATUS = {
+  'Compliance': 'Pending Compliance',
+  'Partner': 'Pending Partner',
+  'Finance': 'Pending Finance'
+}
+
+/**
+ * Comment to previous approver: current approver sends a comment; request moves to previous step for reply.
+ * Director has no previous in-chain approver, so this action is not available to Director.
+ */
+export async function commentToPreviousApprover(req, res) {
+  try {
+    const user = getUserById(req.userId)
+    if (!user) return res.status(401).json({ error: 'Authentication required' })
+    const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
+    if (!request) return res.status(404).json({ error: 'Request not found' })
+
+    const { comments } = req.body
+    if (!comments || !String(comments).trim()) {
+      return res.status(400).json({ error: 'Comment text is required' })
+    }
+
+    const mapping = COMMENT_PREVIOUS_MAP[request.status]
+    if (!mapping || user.role !== mapping.fromRole) {
+      return res.status(400).json({
+        error: 'Comment to previous approver is not available for your role or the current request status.'
+      })
+    }
+
+    db.prepare(`
+      UPDATE coi_requests
+      SET status = ?,
+          awaiting_previous_approver_reply = 1,
+          approval_comment_from_role = ?,
+          approval_comment_from_user_id = ?,
+          approval_comment_text = ?,
+          approval_comment_requested_at = datetime('now'),
+          approval_comment_reply_text = NULL,
+          approval_comment_replied_by = NULL,
+          approval_comment_replied_at = NULL,
+          updated_at = datetime('now')
+      WHERE id = ?
+    `).run(
+      mapping.previousStatus,
+      mapping.fromRole,
+      user.id,
+      String(comments).trim(),
+      req.params.id
+    )
+
+    sendCommentToPreviousApproverNotification(req.params.id, mapping.fromRole, user.name, String(comments).trim())
+
+    res.json({
+      success: true,
+      message: `Comment sent to ${mapping.previousRole}. Request is now in their queue for reply.`
+    })
+  } catch (error) {
+    console.error('commentToPreviousApprover error:', error?.message)
+    res.status(500).json({ error: error?.message || 'Failed to send comment' })
+  }
+}
+
+/**
+ * Send back to current approver: previous approver submits a reply; request returns to current approver's step.
+ */
+export async function sendBackToCurrentApprover(req, res) {
+  try {
+    const user = getUserById(req.userId)
+    if (!user) return res.status(401).json({ error: 'Authentication required' })
+    const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
+    if (!request) return res.status(404).json({ error: 'Request not found' })
+
+    if (!request.awaiting_previous_approver_reply || !request.approval_comment_from_role) {
+      return res.status(400).json({ error: 'No comment is awaiting your reply' })
+    }
+
+    const returnStatus = REPLY_RETURN_STATUS[request.approval_comment_from_role]
+    if (!returnStatus) return res.status(400).json({ error: 'Invalid comment state' })
+
+    // Previous approver is the one whose "step" the request is in (current status)
+    const expectedRoleByStatus = {
+      'Pending Director Approval': 'Director',
+      'Pending Compliance': 'Compliance',
+      'Pending Partner': 'Partner',
+      'Pending Finance': 'Finance'
+    }
+    if (expectedRoleByStatus[request.status] !== user.role) {
+      return res.status(403).json({ error: 'Only the approver who is being asked can reply' })
+    }
+
+    const { reply_text } = req.body
+    const replyText = reply_text != null ? String(reply_text).trim() : ''
+
+    db.prepare(`
+      UPDATE coi_requests
+      SET status = ?,
+          awaiting_previous_approver_reply = 0,
+          approval_comment_reply_text = ?,
+          approval_comment_replied_by = ?,
+          approval_comment_replied_at = datetime('now'),
+          updated_at = datetime('now')
+      WHERE id = ?
+    `).run(returnStatus, replyText || null, user.id, req.params.id)
+
+    sendReplyToCurrentApproverNotification(req.params.id, user.name, replyText, request.approval_comment_from_role)
+
+    res.json({
+      success: true,
+      message: 'Reply sent. Request is back in the current approver\'s queue.'
+    })
+  } catch (error) {
+    console.error('sendBackToCurrentApprover error:', error?.message)
+    res.status(500).json({ error: error?.message || 'Failed to send reply' })
   }
 }
 
@@ -1562,6 +1738,7 @@ export async function requestInfo(req, res) {
 }
 
 export async function generateEngagementCode(req, res) {
+  let lastAttemptedCode = null
   try {
     const user = getUserById(req.userId)
     const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
@@ -1572,8 +1749,9 @@ export async function generateEngagementCode(req, res) {
 
     // Validation: Check if engagement code already exists
     if (request.engagement_code) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Engagement code already generated for this request',
+        error_code: 'request_already_has_code',
         existing_code: request.engagement_code
       })
     }
@@ -1615,19 +1793,57 @@ export async function generateEngagementCode(req, res) {
       })
     }
 
-    // Generate engagement code
-    const code = await generateCode(request.service_type, request.id, user.id, financial_parameters)
-
-    // Update request with engagement code and financial parameters
     const previousStatus = request.status
-    db.prepare(`
-      UPDATE coi_requests 
-      SET engagement_code = ?,
-          finance_code_status = 'Generated',
-          financial_parameters = ?,
-          status = 'Approved'
-      WHERE id = ?
-    `).run(code, JSON.stringify(financial_parameters), req.params.id)
+    const requestId = req.params.id
+    const financialParamsJson = JSON.stringify(financial_parameters)
+
+    const runTransaction = () => {
+      return db.transaction(() => {
+        let code
+        try {
+          code = generateEngagementCodeSync(request.service_type, request.id, user.id)
+        } catch (err) {
+          if (err.attemptedCode) lastAttemptedCode = err.attemptedCode
+          throw err
+        }
+        db.prepare(`
+          UPDATE coi_requests 
+          SET engagement_code = ?,
+              finance_code_status = 'Generated',
+              financial_parameters = ?,
+              status = 'Approved'
+          WHERE id = ?
+        `).run(code, financialParamsJson, requestId)
+        return code
+      })()
+    }
+
+    let code
+    let retried = false
+    try {
+      code = runTransaction()
+    } catch (error) {
+      if (error.message.includes('UNIQUE constraint') && !retried) {
+        retried = true
+        lastAttemptedCode = null
+        try {
+          code = runTransaction()
+        } catch (retryError) {
+          const retryAttemptedCode = lastAttemptedCode || retryError.attemptedCode
+          if (retryError.message.includes('UNIQUE constraint')) {
+            return res.status(409).json({
+              error: 'Engagement code already exists. Please try again or contact support.',
+              error_code: 'generated_code_collision',
+              hint: 'A different request already has this code. Try again to generate a new code.',
+              ...(retryAttemptedCode && { collided_code: retryAttemptedCode })
+            })
+          }
+          throw retryError
+        }
+      } else {
+        throw error
+      }
+    }
 
     // ========================================
     // FUNNEL TRACKING: Log approval
@@ -1635,7 +1851,7 @@ export async function generateEngagementCode(req, res) {
     if (request.is_prospect) {
       logFunnelEvent({
         prospectId: request.prospect_id,
-        coiRequestId: req.params.id,
+        coiRequestId: requestId,
         fromStage: previousStatus?.toLowerCase().replace(/ /g, '_'),
         toStage: FUNNEL_STAGES.APPROVED,
         userId: user.id,
@@ -1648,8 +1864,7 @@ export async function generateEngagementCode(req, res) {
       })
     }
 
-    // Send notification about engagement code
-    sendEngagementCodeNotification(req.params.id, code)
+    sendEngagementCodeNotification(requestId, code)
 
     res.json({ 
       success: true,
@@ -1658,14 +1873,17 @@ export async function generateEngagementCode(req, res) {
     })
   } catch (error) {
     console.error('[generateEngagementCode] Error:', error)
-    
-    // Provide more specific error messages
+    const attemptedCode = lastAttemptedCode || error.attemptedCode
+
     if (error.message.includes('UNIQUE constraint')) {
-      return res.status(409).json({ 
-        error: 'Engagement code already exists. Please try again or contact support.'
+      return res.status(409).json({
+        error: 'Engagement code already exists. Please try again or contact support.',
+        error_code: 'generated_code_collision',
+        hint: 'A different request already has this code. Try again to generate a new code.',
+        ...(attemptedCode && { collided_code: attemptedCode })
       })
     }
-    
+
     if (error.message.includes('no such table')) {
       return res.status(500).json({ 
         error: 'Database error: Engagement codes table not found. Please contact support.'
@@ -1870,13 +2088,14 @@ export async function refreshDuplicates(req, res) {
     }
     
     // Re-run duplicate detection with the improved algorithm
-    const duplicates = await checkDuplication(
+    const duplicateResult = await checkDuplication(
       request.client_name,
       request.id,
       request.service_type,
       request.pie_status === 'Yes',
       request
     )
+    const duplicates = Array.isArray(duplicateResult) ? duplicateResult : (duplicateResult?.matches || [])
     
     // Re-run rule evaluation
     const requestDataForRules = {
@@ -1887,7 +2106,7 @@ export async function refreshDuplicates(req, res) {
     
     // Combine results
     const allRecommendations = {
-      duplicates: duplicates || [],
+      duplicates,
       ruleRecommendations: ruleEvaluation.recommendations || [],
       totalRulesEvaluated: ruleEvaluation.totalRulesEvaluated || 0,
       matchedRules: ruleEvaluation.matchedRules || 0,
@@ -1902,12 +2121,12 @@ export async function refreshDuplicates(req, res) {
       WHERE id = ?
     `).run(JSON.stringify(allRecommendations), id)
     
-    console.log(`[Refresh Duplicates] Request ${request.request_id}: ${duplicates?.length || 0} matches found (was refreshed)`)
+    console.log(`[Refresh Duplicates] Request ${request.request_id}: ${duplicates.length} matches found (was refreshed)`)
     
     res.json({
       success: true,
       message: 'Duplicate detection refreshed',
-      duplicatesFound: duplicates?.length || 0,
+      duplicatesFound: duplicates.length,
       recommendations: allRecommendations
     })
   } catch (error) {

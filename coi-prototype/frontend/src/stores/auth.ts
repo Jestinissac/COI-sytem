@@ -36,9 +36,9 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = response.data.user
       systemAccess.value = response.data.systemAccess || []
       
-      localStorage.setItem('token', token.value)
-      localStorage.setItem('refreshToken', refreshToken.value)
-      api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
+      if (token.value) localStorage.setItem('token', token.value)
+      if (refreshToken.value) localStorage.setItem('refreshToken', refreshToken.value)
+      if (token.value) api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
       
       // Load edition and features after successful login
       try {
@@ -93,11 +93,11 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = response.data.user
       systemAccess.value = response.data.systemAccess || []
       
-      localStorage.setItem('token', token.value)
-      localStorage.setItem('refreshToken', refreshToken.value)
-      api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
+      if (token.value) localStorage.setItem('token', token.value)
+      if (refreshToken.value) localStorage.setItem('refreshToken', refreshToken.value)
+      if (token.value) api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
       
-      if (import.meta.env.DEV) console.log('Token refreshed successfully')
+      if (import.meta.env?.DEV) console.log('Token refreshed successfully')
       return { success: true }
     } catch (error: any) {
       console.error('Token refresh failed:', error.response?.data || error)

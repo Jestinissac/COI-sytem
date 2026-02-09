@@ -15,8 +15,8 @@
           class="w-full rounded-xl px-5 py-4 bg-white text-gray-800 text-base font-medium appearance-none cursor-pointer"
           style="border: 2px solid #E5E7EB; background-image: url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3E%3Cpath stroke=%27%236B7280%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27M6 8l4 4 4-4%27/%3E%3C/svg%3E'); background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 3rem;"
           required
-          @focus="$event.target.style.borderColor='#10B981'; $event.target.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'"
-          @blur="$event.target.style.borderColor='#E5E7EB'; $event.target.style.boxShadow='none'"
+          @focus="onInputFocus"
+          @blur="onInputBlur"
         >
           <option value="">Select client...</option>
           <option v-for="client in clients" :key="client.id" :value="client.id">
@@ -53,8 +53,8 @@
             class="w-full rounded-xl px-5 py-4 bg-white text-gray-800 text-base font-medium appearance-none cursor-pointer"
             style="border: 2px solid #E5E7EB; background-image: url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3E%3Cpath stroke=%27%236B7280%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27M6 8l4 4 4-4%27/%3E%3C/svg%3E'); background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 3rem;"
             required
-            @focus="$event.target.style.borderColor='#10B981'; $event.target.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'"
-            @blur="$event.target.style.borderColor='#E5E7EB'; $event.target.style.boxShadow='none'"
+            @focus="onInputFocus"
+            @blur="onInputBlur"
           >
             <option value="">Select relationship...</option>
             <option>New Client</option>
@@ -70,8 +70,8 @@
             class="w-full rounded-xl px-5 py-4 bg-white text-gray-800 text-base font-medium appearance-none cursor-pointer"
             style="border: 2px solid #E5E7EB; background-image: url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3E%3Cpath stroke=%27%236B7280%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27M6 8l4 4 4-4%27/%3E%3C/svg%3E'); background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 3rem;"
             required
-            @focus="$event.target.style.borderColor='#10B981'; $event.target.style.boxShadow='0 0 0 3px rgba(16, 185, 129, 0.1)'"
-            @blur="$event.target.style.borderColor='#E5E7EB'; $event.target.style.boxShadow='none'"
+            @focus="onInputFocus"
+            @blur="onInputBlur"
           >
             <option value="">Select client type...</option>
             <option>W.L.L. (With Limited Liability)</option>
@@ -123,6 +123,22 @@ function handleUpdate(field: keyof WizardFormData, value: any) {
 
 function requestNewClient() {
   info('Client request feature - coming soon')
+}
+
+function onInputFocus(e: Event) {
+  const el = e.target as HTMLElement
+  if (el) {
+    el.style.borderColor = '#10B981'
+    el.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)'
+  }
+}
+
+function onInputBlur(e: Event) {
+  const el = e.target as HTMLElement
+  if (el) {
+    el.style.borderColor = '#E5E7EB'
+    el.style.boxShadow = 'none'
+  }
 }
 
 // Import useToast

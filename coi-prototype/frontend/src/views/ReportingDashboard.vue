@@ -362,7 +362,8 @@ function getBarHeight(count: number): number {
   return (count / max) * 100
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string | undefined): string {
+  if (!dateStr) return 'N/A'
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

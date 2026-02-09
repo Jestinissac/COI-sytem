@@ -41,6 +41,32 @@
             </div>
           </div>
 
+          <!-- Proactive "already has code" view when modal opens with request that has a code -->
+          <div v-if="showAlreadyHasCodeView" class="space-y-4">
+            <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p class="text-sm font-medium text-amber-900 mb-2">This request already has an engagement code.</p>
+              <p class="text-sm font-mono font-bold text-amber-900">{{ request?.engagement_code }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                @click="goToRequestDetail"
+                class="px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+              >
+                View request
+              </button>
+              <button
+                type="button"
+                @click="closeModal"
+                class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-200"
+              >
+                Close and refresh list
+              </button>
+            </div>
+          </div>
+
+          <!-- Generate form (only when request does not already have a code) -->
+          <template v-else>
           <!-- Code Preview / Generated Code -->
           <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <h4 class="text-sm font-medium text-blue-900 mb-2">
@@ -180,14 +206,53 @@
               </p>
             </div>
 
-            <!-- Error Message -->
-            <div v-if="error" class="p-3 bg-red-50 border-2 border-red-300 rounded-md">
+            <!-- Error Message with next steps -->
+            <div v-if="error" class="p-4 bg-red-50 border-2 border-red-300 rounded-md space-y-3">
               <p class="text-sm font-medium text-red-800 flex items-center gap-2">
                 <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
                 </svg>
                 <span>{{ error }}</span>
               </p>
+              <!-- Next step: already generated → View request -->
+              <div v-if="errorType === 'already_generated'" class="pt-2 border-t border-red-200">
+                <p class="text-xs text-red-700 mb-2">Next step:</p>
+                <p class="text-sm text-red-800 mb-2">This request already has an engagement code. View the request to see the code and financial details, or close and refresh the list.</p>
+                <p v-if="existingCodeFromApi" class="text-sm font-mono font-medium text-red-900 mb-2">Existing code: {{ existingCodeFromApi }}</p>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    @click="goToRequestDetail"
+                    class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700"
+                  >
+                    View request
+                  </button>
+                  <button
+                    type="button"
+                    @click="closeModal"
+                    class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                  >
+                    Close and refresh list
+                  </button>
+                </div>
+              </div>
+              <!-- Next step: code collision (409) → Try again -->
+              <div v-else-if="errorType === 'code_collision'" class="pt-2 border-t border-red-200">
+                <p class="text-xs text-red-700 mb-2">Next step:</p>
+                <p v-if="collidedCodeFromApi" class="text-sm font-mono font-medium text-red-900 mb-2">Code already in use: {{ collidedCodeFromApi }}</p>
+                <p class="text-sm text-red-800 mb-2">
+                  <template v-if="collidedCodeFromApi">The code above is already in use by another request.</template>
+                  <template v-else>The code we generated was already in use by another request.</template>
+                  Click Try again to generate a new code.
+                </p>
+                <button
+                  type="button"
+                  @click="clearErrorAndRetry"
+                  class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700"
+                >
+                  Try again
+                </button>
+              </div>
             </div>
 
             <!-- Action Buttons -->
@@ -225,6 +290,7 @@
               </button>
             </div>
           </form>
+          </template>
         </div>
       </div>
     </div>
@@ -233,6 +299,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/services/api'
 
 interface Props {
@@ -247,6 +314,7 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+const router = useRouter()
 
 const financialParams = ref({
   credit_terms: '',
@@ -258,6 +326,9 @@ const financialParams = ref({
 
 const generating = ref(false)
 const error = ref('')
+const errorType = ref<'already_generated' | 'code_collision' | null>(null)
+const existingCodeFromApi = ref('')
+const collidedCodeFromApi = ref('')
 const codePreview = ref('')
 const generatedCode = ref('')
 const copySuccess = ref(false)
@@ -265,6 +336,11 @@ const copySuccess = ref(false)
 // Computed property for request ID with fallback
 const requestId = computed(() => {
   return props.request?.id || props.request?.request_id || null
+})
+
+// Proactive "already has code" view when modal opens with a request that already has an engagement code
+const showAlreadyHasCodeView = computed(() => {
+  return Boolean(props.show && props.request?.engagement_code)
 })
 
 // Calculate code preview based on service type
@@ -299,7 +375,7 @@ watch(() => props.request, () => {
 watch(() => props.show, (newVal) => {
   if (newVal && props.request) {
     calculateCodePreview()
-    // Reset form
+    // Reset form and error state
     financialParams.value = {
       credit_terms: '',
       currency: '',
@@ -308,10 +384,27 @@ watch(() => props.show, (newVal) => {
       notes: ''
     }
     error.value = ''
+    errorType.value = null
+    existingCodeFromApi.value = ''
+    collidedCodeFromApi.value = ''
     generatedCode.value = ''
     copySuccess.value = false
   }
 })
+
+function goToRequestDetail() {
+  const id = props.request?.id ?? props.request?.request_id
+  if (id) {
+    router.push(`/coi/request/${id}`)
+  }
+  emit('close')
+}
+
+function clearErrorAndRetry() {
+  error.value = ''
+  errorType.value = null
+  collidedCodeFromApi.value = ''
+}
 
 const isFormValid = computed(() => {
   return !!(
@@ -390,14 +483,33 @@ const generateCode = async () => {
     }
   } catch (err: any) {
     console.error('[CodeGenerationModal] Error generating code:', err)
-    console.error('[CodeGenerationModal] Error details:', {
-      message: err.message,
-      response: err.response?.data,
-      status: err.response?.status,
-      statusText: err.response?.statusText
-    })
-    const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to generate engagement code. Please try again.'
+    const data = err.response?.data || {}
+    const status = err.response?.status
+    const errorMessage = data.error || data.message || err.message || 'Failed to generate engagement code. Please try again.'
     error.value = errorMessage
+    errorType.value = null
+    existingCodeFromApi.value = ''
+    collidedCodeFromApi.value = ''
+
+    // Prefer stable error_code from backend, then fallback to status + message
+    const code = data.error_code
+    if (code === 'request_already_has_code') {
+      errorType.value = 'already_generated'
+      if (data.existing_code) existingCodeFromApi.value = data.existing_code
+    } else if (code === 'generated_code_collision') {
+      errorType.value = 'code_collision'
+      if (data.collided_code) collidedCodeFromApi.value = data.collided_code
+    } else {
+      // Fallback: 400 = already has code, 409 = collision; check 400 first so "already has code" wins
+      if (status === 400 && (errorMessage.toLowerCase().includes('already generated') || errorMessage.toLowerCase().includes('already has'))) {
+        errorType.value = 'already_generated'
+        if (data.existing_code) existingCodeFromApi.value = data.existing_code
+      } else if (status === 409 || (errorMessage.toLowerCase().includes('already exists') && !errorType.value)) {
+        errorType.value = 'code_collision'
+        if (data.collided_code) collidedCodeFromApi.value = data.collided_code
+      }
+    }
+
     generating.value = false
   }
 }

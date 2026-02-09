@@ -157,7 +157,7 @@ const statusChartData = computed(() => {
   
   const labels = Object.keys(props.summaryData.byStatus)
   const data = Object.values(props.summaryData.byStatus)
-  const backgroundColors = labels.map(label => colors.status[label] || colors.default[0])
+  const backgroundColors = labels.map(label => (colors.status as Record<string, string>)[label] || colors.default[0])
   
   return {
     labels,
@@ -338,7 +338,8 @@ function exportChart(chartRef: string, chartTitle: string) {
   
   if (!chart || !chart.chart) return
   
-  const canvas = chart.chart.canvas
+  const canvas = (chart as { chart?: { canvas: HTMLCanvasElement } })?.chart?.canvas
+  if (!canvas) return
   const url = canvas.toDataURL('image/png')
   
   // Create download link

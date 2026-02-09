@@ -84,6 +84,12 @@
 
             <!-- Action Buttons -->
             <div class="px-4 py-4 border-t border-gray-200 space-y-3">
+              <p
+                v-if="!loading && !isFormValid && incompleteSectionsForSubmit.length"
+                class="text-xs text-gray-600"
+              >
+                To submit: complete {{ incompleteSectionsForSubmit.length === 1 ? 'this section' : 'these sections' }} — {{ incompleteSectionsForSubmit.join('; ') }}.
+              </p>
               <button
                 @click="handleSaveDraft"
                 :disabled="loading"
@@ -387,7 +393,10 @@
                     </p>
                     <template v-else>
                       <p v-if="selectedEntityType === 'prospect'" class="text-xs text-gray-500">Prospect from CRM.</p>
-                      <p v-else-if="selectedEntityType === 'client' && formData.client_id" class="text-xs text-gray-500">Existing client from PRMS.</p>
+                      <p v-else-if="selectedEntityType === 'client'" class="text-xs text-gray-500">
+                        <span v-if="formData.client_id">Existing client from PRMS.</span>
+                        <button type="button" class="font-medium text-blue-600 hover:text-blue-800 underline ml-1" @click="showPrmsModal = true">Load from PRMS</button>
+                      </p>
                     </template>
                   </div>
                 </div>
@@ -1025,7 +1034,7 @@
       :open="showJustificationModal"
       :justification="duplicateJustification"
       @update:justification="duplicateJustification = $event"
-      :duplicates="detectedDuplicates"
+      :duplicates="Array.isArray(detectedDuplicates) ? detectedDuplicates : []"
       :loading="loading"
       @cancel="showJustificationModal = false; duplicateJustification = ''"
       @confirm="submitWithJustification"
@@ -1047,6 +1056,15 @@
       :creating="creatingProspect"
       @cancel="showCreateProspectModal = false"
       @confirm="createAndSelectProspect"
+    />
+
+    <FetchPRMSDataModal
+      :show="showPrmsModal"
+      :initial-client-id="formData.client_id"
+      :clients="clients"
+      :show-apply-button="true"
+      @close="showPrmsModal = false"
+      @apply="onPrmsDataApply"
     />
   </div>
 
@@ -1087,6 +1105,7 @@ import ClientProspectCombobox from '@/components/coi/ClientProspectCombobox.vue'
 import DuplicateJustificationModal from '@/components/coi/DuplicateJustificationModal.vue'
 import ClarificationModal from '@/components/coi/ClarificationModal.vue'
 import CreateProspectModal from '@/components/coi/CreateProspectModal.vue'
+import FetchPRMSDataModal from '@/components/integration/FetchPRMSDataModal.vue'
 import { CLIENT_TYPES, REGULATED_BODIES, DEADLINE_REASONS } from '@/constants/coiFormOptions'
 import api from '@/services/api'
 
@@ -1098,6 +1117,7 @@ const { success, error: showError, warning, info } = useToast()
 
 const loading = ref(false)
 const showConfirmModal = ref(false)
+const showPrmsModal = ref(false)
 const activeSection = ref('section-1')
 
 // Save state for header indicator
@@ -1105,7 +1125,10 @@ const saveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
 const lastSavedAt = ref<Date | null>(null)
 const isDirty = ref(false)
 const showLeaveConfirm = ref(false)
-let pendingLeaveNext: ((value: boolean) => void) | null = null
+/** Pending navigation target when user must confirm leave; we navigate with router.push after confirm */
+let pendingLeaveTo: { fullPath: string } | null = null
+/** When true, the next route leave guard should allow navigation (user already confirmed) */
+let userConfirmedLeave = false
 
 function formatSaveTime(d: Date): string {
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
@@ -1376,8 +1399,8 @@ function populateGlobalCOIForm() {
                  formData.value.pie_status === 'No' ? 'No' : '',
     servicesDetails: formData.value.service_description || '',
     natureOfEngagement: formData.value.service_type || '',
-    industrySector: selectedClient?.industry || formData.value.industry || '',
-    website: selectedClient?.website || formData.value.website || '',
+    industrySector: (selectedClient as { industry?: string } | null)?.industry || (formData.value as { industry?: string }).industry || '',
+    website: (selectedClient as { website?: string } | null)?.website || (formData.value as { website?: string }).website || '',
     engagementInvolvesAnotherParty: formData.value.related_affiliated_entities ? 'Yes' : 'No',
     countries: existingCountries.length > 0 ? [...existingCountries] : []
   }
@@ -1506,6 +1529,17 @@ const isFormValid = computed(() => {
     return base && isSectionComplete('section-5')
   }
   return base
+})
+
+// Which sections are still required to enable Submit (so we can show a hint)
+const incompleteSectionsForSubmit = computed(() => {
+  const required: string[] = []
+  if (!isSectionComplete('section-1')) required.push('Requestor Info (Designation & Line of service)')
+  if (!isSectionComplete('section-2')) required.push('Document Type')
+  if (!isSectionComplete('section-3')) required.push('Client Details')
+  if (!isSectionComplete('section-4')) required.push('Service Info' + (formData.value.international_operations ? ' (and at least one country in Global COI Form)' : ''))
+  if (!formData.value.international_operations && !isSectionComplete('section-5')) required.push('Ownership (Full ownership structure)')
+  return required
 })
 
 const todayIso = computed(() => new Date().toISOString().slice(0, 10))
@@ -1944,7 +1978,7 @@ function onServiceTypeChange() {
   // Ambiguous service (Kuwait): show clarification modal so we can map to CMA code or NULL
   if (isClientCMARegulated.value && serviceType) {
     const config = ambiguousServiceConfig.value[serviceType]
-    if (config?.requires_question && config?.question_text && config?.options?.length) {
+    if ((config as { requires_question?: boolean })?.requires_question && config?.question_text && config?.options?.length) {
       clarificationModalConfig.value = { question_text: config.question_text, options: config.options }
       showClarificationModal.value = true
       return
@@ -1974,6 +2008,11 @@ function onClarificationCancel() {
   formData.value.service_type = ''
   formData.value.service_type_cma_code = undefined
   showClarificationModal.value = false
+}
+
+function onPrmsDataApply(payload: { parent_company?: string; client?: Record<string, unknown> }) {
+  if (payload.parent_company !== undefined) formData.value.parent_company = payload.parent_company
+  showPrmsModal.value = false
 }
 
 // Handle company type change - auto-infer control type and sync with group_structure
@@ -2150,12 +2189,12 @@ async function handleSubmit() {
       requestId,
       Object.keys(submitPayload).length > 0 ? submitPayload : undefined
     )
-    
-    // Check for duplicates - handle both array and object formats
-    const dupes = submitResult?.duplicates
-    const hasDuplicates = Array.isArray(dupes) 
-      ? dupes.length > 0 
-      : (dupes?.matches?.length > 0 || dupes?.recommendations?.length > 0)
+    // Check for duplicates - normalize to array so we never treat an object as array
+    const rawDuplicates = submitResult?.duplicates
+    const dupesList = Array.isArray(rawDuplicates)
+      ? rawDuplicates
+      : (Array.isArray(rawDuplicates?.matches) ? rawDuplicates.matches : [])
+    const hasDuplicates = Array.isArray(dupesList) && dupesList.length > 0
     
     if (hasDuplicates) {
       showError('Duplication detected! Please review.')
@@ -2182,11 +2221,12 @@ async function handleSubmit() {
   } catch (err: any) {
     // Check if this is a duplicate blocking error
     if (err.response?.data?.requiresJustification) {
-      // Handle both array and object formats for duplicates
+      // Normalize to array only (backend may return { matches: [] } or array; never pass a non-array)
       const dupes = err.response.data.duplicates
-      detectedDuplicates.value = Array.isArray(dupes) 
-        ? dupes 
-        : (dupes?.matches || [])
+      const list = Array.isArray(dupes)
+        ? dupes
+        : (Array.isArray(dupes?.matches) ? dupes.matches : [])
+      detectedDuplicates.value = Array.isArray(list) ? list : []
       showJustificationModal.value = true
       loading.value = false
       return
@@ -2349,6 +2389,15 @@ async function fetchLeadSources() {
 async function loadFormData() {
   formLoadError.value = null
   let criticalFailures = 0
+  let lastError: string | null = null
+
+  function captureError(err: unknown, context: string) {
+    criticalFailures++
+    const msg = (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
+      || (err as { message?: string })?.message
+      || 'Unknown error'
+    lastError = msg
+  }
 
   // Ensure Entity and Location dropdowns have options immediately (avoid empty while API loads)
   if (!entities.value?.length) entities.value = [...FALLBACK_ENTITIES]
@@ -2356,26 +2405,27 @@ async function loadFormData() {
 
   try {
     await fetchClients()
-  } catch {
-    criticalFailures++
+  } catch (err) {
+    captureError(err, 'clients')
   }
 
   try {
     await Promise.all([fetchEntities(), fetchCountries()])
-  } catch {
-    criticalFailures++
+  } catch (err) {
+    captureError(err, 'entities/countries')
   }
 
   if (formData.value.entity) {
     try {
       await fetchServiceTypes()
-    } catch {
-      criticalFailures++
+    } catch (err) {
+      captureError(err, 'service types')
     }
   }
 
-  if (criticalFailures === 3) {
-    formLoadError.value = 'Failed to load form data. Please check your connection and retry.'
+  if (criticalFailures >= 1) {
+    const reason = lastError ? ` ${lastError}` : ''
+    formLoadError.value = `Failed to load form data.${reason} Please check your connection and retry.`
   }
 
   // Non-critical fetches – best effort
@@ -2464,7 +2514,7 @@ onMounted(async () => {
         global_clearance_status: request.global_clearance_status || 'Not Required',
         backup_approver_id: request.backup_approver_id || null,
         lead_source_id: request.lead_source_id || null
-      }
+      } as typeof formData.value
       isDirty.value = false
       ownershipRows.value = parseOwnershipRowsFromText(formData.value.full_ownership_structure)
       onClientSelect()
@@ -2505,22 +2555,31 @@ onMounted(async () => {
   window.addEventListener('beforeunload', beforeUnloadHandler)
 })
 
-onBeforeRouteLeave((_to, _from, next) => {
+onBeforeRouteLeave((to, _from, next) => {
+  if (userConfirmedLeave) {
+    userConfirmedLeave = false
+    next()
+    return
+  }
   if (!isDirty.value) {
     next()
     return
   }
-  pendingLeaveNext = next
+  pendingLeaveTo = { fullPath: to.fullPath }
   showLeaveConfirm.value = true
   next(false)
 })
 
 function confirmLeave(leave: boolean) {
-  if (pendingLeaveNext) {
-    pendingLeaveNext(leave)
-    pendingLeaveNext = null
-  }
   showLeaveConfirm.value = false
+  if (leave && pendingLeaveTo) {
+    const target = pendingLeaveTo.fullPath
+    pendingLeaveTo = null
+    userConfirmedLeave = true
+    router.push(target)
+  } else {
+    pendingLeaveTo = null
+  }
 }
 
 let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null

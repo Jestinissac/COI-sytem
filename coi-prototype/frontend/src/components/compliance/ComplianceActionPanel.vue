@@ -157,6 +157,7 @@
               <option value="public_records">Public Records / Commercial Registry</option>
               <option value="client_confirmation">Client Confirmation</option>
             </select>
+            <p v-if="verificationData.verification_source === 'prms'" class="text-xs text-gray-500 mt-2">In production, verification can be checked against PRMS.</p>
           </div>
           
           <div>
@@ -397,6 +398,9 @@ interface GroupConflict {
   conflicting_engagement_id?: number
   conflicting_engagement_code?: string
   conflicting_engagement_end_date?: string
+  allConflicts?: Array<{ regulationSource?: string; regulationSources?: string[]; reason?: string }>
+  regulationSource?: string
+  regulationSources?: string[]
 }
 
 const props = defineProps<{
@@ -520,7 +524,7 @@ async function handleReRun() {
       emit('updated', {
         ...props.request,
         requires_re_evaluation: false,
-        stale_reason: null,
+        stale_reason: undefined,
         compliance_checks: response.data.complianceChecks,
         last_rule_check_at: new Date().toISOString()
       })

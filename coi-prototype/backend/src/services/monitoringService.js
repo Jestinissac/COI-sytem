@@ -172,7 +172,7 @@ export async function sendIntervalMonitoringAlerts() {
         
         // Compliance officers
         const complianceOfficers = db.prepare(`
-          SELECT id, name, email FROM users WHERE role = 'Compliance' AND is_active = 1
+          SELECT id, name, email FROM users WHERE role = 'Compliance' AND (COALESCE(active, 1) = 1)
         `).all()
         complianceOfficers.forEach(co => {
           recipients.push({
@@ -184,7 +184,7 @@ export async function sendIntervalMonitoringAlerts() {
         
         // Admin users
         const adminUsers = db.prepare(`
-          SELECT id, name, email FROM users WHERE role = 'Admin' AND is_active = 1
+          SELECT id, name, email FROM users WHERE role = 'Admin' AND (COALESCE(active, 1) = 1)
         `).all()
         adminUsers.forEach(admin => {
           recipients.push({
@@ -330,7 +330,7 @@ export async function checkAndLapseExpiredProposals() {
       
       // Compliance officers
       const complianceOfficers = db.prepare(`
-        SELECT id, name, email FROM users WHERE role = 'Compliance' AND is_active = 1
+        SELECT id, name, email FROM users WHERE role = 'Compliance' AND (COALESCE(active, 1) = 1)
       `).all()
       complianceOfficers.forEach(co => {
         recipients.push({
@@ -342,7 +342,7 @@ export async function checkAndLapseExpiredProposals() {
       
       // Admin users
       const adminUsers = db.prepare(`
-        SELECT id, name, email FROM users WHERE role = 'Admin' AND is_active = 1
+        SELECT id, name, email FROM users WHERE role = 'Admin' AND (COALESCE(active, 1) = 1)
       `).all()
       adminUsers.forEach(admin => {
         recipients.push({
@@ -580,7 +580,7 @@ export async function check3YearRenewalAlerts() {
           
           // Notify admin users
           const adminUsers = db.prepare(`
-            SELECT id, name, email FROM users WHERE role = 'Admin' AND is_active = 1
+            SELECT id, name, email FROM users WHERE role = 'Admin' AND (COALESCE(active, 1) = 1)
           `).all()
           for (const admin of adminUsers) {
             await notifyEngagementRenewal(engagement, admin, daysBeforeRenewal)
@@ -688,7 +688,7 @@ export async function checkPendingComplianceReviews() {
   
   // Get compliance officers
   const complianceOfficers = db.prepare(`
-    SELECT id, name, email FROM users WHERE role = 'Compliance' AND is_active = 1
+    SELECT id, name, email FROM users WHERE role = 'Compliance' AND (COALESCE(active, 1) = 1)
   `).all()
   
   if (pendingRequests.length > 0 && complianceOfficers.length > 0) {

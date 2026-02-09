@@ -40,6 +40,16 @@ import { checkAllPendingRequests as checkSLAStatus } from './services/slaMonitor
 
 dotenv.config()
 
+// Keep the server running on unhandled errors (log instead of exit)
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err.message)
+  console.error(err.stack)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason)
+})
+
 // Production: require JWT and refresh secrets; no fallback to prototype defaults
 if (process.env.NODE_ENV === 'production') {
   const jwtSecret = process.env.JWT_SECRET
@@ -104,12 +114,6 @@ const fileFilter = (req, file, cb) => {
 
 // Multer configuration moved to routes file to avoid circular dependency
 
-// Initialize database
-initDatabase().catch(err => {
-  console.error('Database initialization error:', err)
-  process.exit(1)
-})
-
 // Health check endpoint (returns environment info)
 app.get('/api/health', (req, res) => {
   const env = process.env.NODE_ENV || 'development'
@@ -156,7 +160,17 @@ import('../../client-intelligence/backend/routes/clientIntelligence.routes.js')
     console.log('ℹ️  Client Intelligence routes not loaded (feature may be disabled)')
   })
 
-app.listen(PORT, () => {
+// Global error handler (catches unhandled errors forwarded via next(err))
+app.use((err, req, res, next) => {
+  console.error('[Express] Unhandled error on', req?.originalUrl, ':', err?.message)
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'An unexpected error occurred. Please try again or contact support.' })
+  }
+})
+
+// Initialize database fully before accepting requests (prevents 500 on form load)
+function startServer() {
+  app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
   
   // ========================================
@@ -177,7 +191,7 @@ app.listen(PORT, () => {
       // Update monitoring days for all active proposals
       const monitoringResult = updateMonitoringDays()
       console.log('  ✓ Monitoring days updated')
-      
+
       // Check and lapse expired proposals (30-day rule)
       const lapseResult = await checkAndLapseExpiredProposals()
       if (lapseResult.lapsed > 0) {
@@ -185,19 +199,19 @@ app.listen(PORT, () => {
       } else {
         console.log('  ✓ No proposals to lapse')
       }
-      
+
       // Send interval alerts (every 10 days)
       const alertResult = await sendIntervalMonitoringAlerts()
       console.log(`  ✓ Monitoring alerts: ${alertResult.alertsSent || 0} sent`)
-      
+
       // Check 3-year renewal alerts
       const renewalResult = await check3YearRenewalAlerts()
       console.log(`  ✓ Renewal alerts: ${renewalResult.alertsSent || 0} sent`)
-      
+
       // Check SLA status for all pending requests
       const slaResult = await checkSLAStatus()
       console.log(`  ✓ SLA check: ${slaResult.checked} requests checked, ${slaResult.breached.length} breaches`)
-      
+
     } catch (error) {
       console.error('❌ Error in initial monitoring check:', error.message)
     }
@@ -239,4 +253,15 @@ app.listen(PORT, () => {
   }, MONITORING_INTERVAL_MS)
   
   console.log(`✅ Monitoring scheduler active (runs every hour)`)
-})
+  })
+}
+
+initDatabase()
+  .then(() => {
+    console.log('✅ Database initialized')
+    startServer()
+  })
+  .catch(err => {
+    console.error('Database initialization error:', err)
+    process.exit(1)
+  })

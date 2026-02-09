@@ -287,7 +287,13 @@ import { useToast } from '@/composables/useToast'
 import ToastContainer from '@/components/ui/ToastContainer.vue'
 import api from '@/services/api'
 
-const { showToast } = useToast()
+const { success, error, warning, info } = useToast()
+function showToast(message: string, type: 'success' | 'error' | 'warning' | 'info') {
+  if (type === 'success') success(message)
+  else if (type === 'error') error(message)
+  else if (type === 'warning') warning(message)
+  else info(message)
+}
 
 // Validation state
 const validationCode = ref('')

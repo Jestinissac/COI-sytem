@@ -2,7 +2,7 @@
   <div class="bg-white rounded-lg shadow-sm border border-gray-200">
     <div class="px-6 py-4 border-b border-gray-200">
       <h2 class="font-semibold text-gray-900">Parent Company Update Requests</h2>
-      <p class="text-sm text-gray-500 mt-1">Parent company updates from COI require PRMS Admin approval before they are sent to the Client Master.</p>
+      <p class="text-sm text-gray-500 mt-1">Parent company updates from COI require PRMS Admin approval before they are sent to the Client Master. In production, approval will push to PRMS Client Master.</p>
     </div>
 
     <div v-if="loading" class="p-6 text-center text-gray-500">

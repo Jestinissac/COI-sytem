@@ -87,7 +87,7 @@ A **fully functional prototype** validating the end-to-end COI workflow:
 - Mock PRMS integration validates engagement codes
 - Business Rules Engine with 88 rules
 - IESBA compliance framework (Pro edition)
-- 26 UI/UX improvements across 6 files (documented in COI_FORM_IMPROVEMENTS.md)
+- 26 UI/UX improvements across 6 files (documented in [COI_FORM_IMPROVEMENTS.md](../reference/COI_FORM_IMPROVEMENTS.md))
 
 ### 2.3 Key Prototype Files
 
@@ -1157,7 +1157,7 @@ Aligned with BDO's Microsoft ecosystem.
 | Detailed Prototype vs Production Guide | `docs/production-handover/Prototype_vs_Production_Handoff_Guide.md` |
 | PRMS Integration Current State | `docs/production-handover/PRMS_INTEGRATION_CURRENT_STATE.md` |
 | Permission System Verification | `docs/production-handover/PERMISSION_SYSTEM_VERIFICATION_REPORT.md` |
-| COI Form Improvements (26 items) | `coi-prototype/COI_FORM_IMPROVEMENTS.md` |
+| COI Form Improvements (26 items) | `coi-prototype/docs/reference/COI_FORM_IMPROVEMENTS.md` |
 | COI System Scope of Work | `docs/coi-system/COI_System_Prototype_Scope_of_Work.md` |
 | IESBA vs CMA Service Mapping | `docs/coi-system/IESBA_vs_CMA_Service_Mapping.md` |
 | User Journeys (End-to-End) | `docs/coi-system/User_Journeys_End_to_End.md` |

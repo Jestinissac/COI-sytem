@@ -4,7 +4,7 @@
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
       <p class="text-sm text-blue-800">
         <strong>Note:</strong> Fill in as much information as you have. Fields you don't know (like Client ID) 
-        will be completed by the PRMS Admin. Required fields are marked with *.
+        will be completed by the PRMS Admin. Required fields are marked with *. In production, PRMS Admin will complete in PRMS.
       </p>
     </div>
 

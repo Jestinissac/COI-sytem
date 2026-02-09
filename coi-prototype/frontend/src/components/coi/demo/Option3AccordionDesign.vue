@@ -251,8 +251,6 @@
             </div>
           </div>
         </div>
-      </div>
-
       <!-- Empty State for Countries -->
       <div v-if="countries.length === 0"
            class="text-center py-12 text-sm text-gray-500 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">

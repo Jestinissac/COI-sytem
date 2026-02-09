@@ -47,7 +47,8 @@ router.get('/hrms/user-data', async (req, res) => {
       }
     })
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    console.error('Error fetching HRMS user data:', error)
+    return res.status(500).json({ error: 'Failed to load user data.' })
   }
 })
 
@@ -96,7 +97,8 @@ router.get('/prms/client/:clientId', async (req, res) => {
       } : null
     })
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    console.error('Error fetching PRMS client:', error)
+    return res.status(500).json({ error: 'Failed to load client data.' })
   }
 })
 

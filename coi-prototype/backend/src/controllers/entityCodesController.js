@@ -22,7 +22,7 @@ export async function getEntityCodes(req, res) {
     res.json(entities)
   } catch (error) {
     console.error('Error fetching entity codes:', error)
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: 'Failed to load entity codes.' })
   }
 }
 

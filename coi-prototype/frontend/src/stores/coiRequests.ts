@@ -140,4 +140,3 @@ export const useCOIRequestsStore = defineStore('coiRequests', () => {
     getRequestById
   }
 })
-

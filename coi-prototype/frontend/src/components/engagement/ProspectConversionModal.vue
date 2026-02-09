@@ -19,6 +19,7 @@
               Before the engagement can proceed, this prospect must be added to PRMS as a client.
               You'll need to submit a client creation request to the PRMS Admin.
             </p>
+            <p class="text-xs text-amber-700 mt-2">PRMS integration is simulated in prototype; submission is to COI Admin.</p>
           </div>
         </div>
       </div>

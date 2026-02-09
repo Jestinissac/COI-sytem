@@ -1,0 +1,48 @@
+# Dependencies (reinstalled in image)
+backend/node_modules
+frontend/node_modules
+
+# Git and IDE
+.git
+.gitignore
+.claude
+.cursor
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Build outputs and logs
+frontend/dist
+.vite
+*.log
+npm-debug.log*
+
+# Test and coverage
+**/coverage
+**/.vitest
+**/playwright-report
+**/test-results
+**/*.spec.ts
+**/*.spec.js
+e2e/
+
+# Local env and secrets
+.env
+.env.local
+.env.*.local
+
+# Database files (use volume; schema is copied from database/)
+*.db
+*.db-journal
+backups/
+
+# Docs and design (not needed in image)
+docs/
+design-options/
+mockups/
+.backup/
+
+# Optional: keep database/migrations and database/seed for schema and seed data
+# (database/ is copied explicitly in Dockerfile.backend)

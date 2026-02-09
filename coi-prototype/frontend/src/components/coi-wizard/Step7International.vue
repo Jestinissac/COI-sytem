@@ -28,8 +28,8 @@
           class="w-full rounded-xl px-5 py-4 bg-white text-gray-800 text-base font-medium resize-none"
           style="border: 2px solid #93C5FD;"
           placeholder="List foreign subsidiaries..."
-          @focus="$event.target.style.borderColor='#3B82F6'; $event.target.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)'"
-          @blur="$event.target.style.borderColor='#93C5FD'; $event.target.style.boxShadow='none'"
+          @focus="onInputFocus"
+          @blur="onInputBlur"
         ></textarea>
       </div>
       
@@ -54,6 +54,22 @@ const emit = defineEmits<{
 
 function handleUpdate(field: keyof WizardFormData, value: any) {
   emit('update', { [field]: value })
+}
+
+function onInputFocus(e: Event) {
+  const el = e.target as HTMLElement
+  if (el) {
+    el.style.borderColor = '#3B82F6'
+    el.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
+  }
+}
+
+function onInputBlur(e: Event) {
+  const el = e.target as HTMLElement
+  if (el) {
+    el.style.borderColor = '#93C5FD'
+    el.style.boxShadow = 'none'
+  }
 }
 </script>
 

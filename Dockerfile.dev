@@ -1,25 +1,15 @@
 # syntax=docker/dockerfile:1
 
-# Development Dockerfile for Vue.js frontend with hot reload
-
 FROM node:25-alpine
 
 WORKDIR /app
 
-# Install dependencies first for better caching
 COPY prms-dashboard-v2/package*.json ./
+RUN npm ci --prefer-offline --no-audit
 
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --prefer-offline --no-audit
-
-# Copy the rest of the application
 COPY prms-dashboard-v2/ .
 
-# Create non-root user
-RUN addgroup -S appuser 2>/dev/null || true && \
-    adduser -D -S -G appuser appuser 2>/dev/null || true && \
-    chown -R appuser:appuser /app
-
+RUN addgroup -S appuser && adduser -D -S -G appuser appuser && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 5177

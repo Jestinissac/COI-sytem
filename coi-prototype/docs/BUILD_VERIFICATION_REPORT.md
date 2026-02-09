@@ -1,8 +1,9 @@
 # Build Verification Report
 
-**Date:** 2026-02-05  
-**Scope:** COI Prototype — User Journeys, Business Logic, Security/Data Segregation, Design (Dieter Rams)  
-**Reference:** Build Verification skill, User_Journeys_End_to_End.md, COI code quality checklist, security-compliance rules
+**Date:** 2026-02-08  
+**Run:** Full verification per End-to-End Build Verification Plan (Phases 2–3). PRMS placeholder work completed before this run.  
+**Scope:** COI Prototype — User Journeys, Business Logic, Code/Security, Design (Dieter Rams)  
+**Reference:** Build Verification skill, User_Journeys_End_to_End.md, FEEDBACK_LOOP_DESIGN.md, PRMS_INTEGRATION_TOUCHPOINTS.md, DIETER_RAMS_VIOLATIONS.md
 
 ---
 
@@ -10,133 +11,196 @@
 
 | Area | Status | Critical issues |
 |------|--------|-----------------|
-| User Journey alignment | ✅ Documented | 0 |
-| Auth context (req.userId / req.userRole) | ✅ Compliant | 0 |
-| Response mapper (COI data) | ✅ Applied where full request returned | 1 note |
-| Business logic (workflow, segregation) | ✅ Enforced in code | 0 |
-| Email/notification copy (no emojis) | ❌ Violations | Multiple |
-| Logging (devLog vs console.log) | ❌ Violations | Multiple |
-| Design (Dieter Rams) | ⚠️ Known violations doc exists | Existing |
+| User Journey alignment | Pass | 0 |
+| Business logic (workflow, engagement code, duplication, segregation) | Pass | 0 |
+| Auth context (req.userId / req.userRole) | Pass | 0 |
+| Response mapper (COI data) | Pass | 0 |
+| Email/notification copy (no emojis) | Fail | Multiple |
+| Logging (devLog vs console.log) | Fail | Multiple |
+| Design (Dieter Rams) | Violations documented | 169 (see violations doc) |
 
 ---
 
-## 1. User Journey Verification
+## 1. User Journey Verification (Phase 2.1)
 
 ### 1.1 Reference
 
-- **User Journeys:** `docs/coi-system/User_Journeys_End_to_End.md` — Requester, Director, Compliance, Partner, Finance, Admin flows documented with steps, status transitions, and notifications.
+- **User Journeys:** `docs/coi-system/User_Journeys_End_to_End.md` — Requester, Director, Compliance, Partner, Finance, Admin flows with steps, status transitions, and notifications.
+- **Feedback loop:** `coi-prototype/docs/prototype/FEEDBACK_LOOP_DESIGN.md` — Status change → Requester; Action required → Approver; Rejection / Need more info → Requester (immediate).
 
-### 1.2 Findings
+### 1.2 Checklist results
 
-- **Documented flows:** Requester (create → submit → track → respond to info requests), Director (review → approve/reject), Compliance (review → conflict check → approve/request info), Partner (final review → approve → engagement code), Finance (validate financials → approve), Admin (execute) are all described.
-- **Implementation:** Controllers and routes align with these flows (approval chain, status transitions, notifications). No missing workflow stages were identified in the code paths checked.
-- **Role-based access:** Routes use `authenticateToken` and `requireRole()`; controllers use `getUserById(req.userId)` and check `user.role` for permissions.
+| Check | Result | Notes |
+|-------|--------|-------|
+| User flow matches documented journey (Requester, Director, Compliance, Partner, Finance, Admin) | Pass | Controllers and routes align with approval chain and status flow. |
+| All required steps present (no missing workflow stages) | Pass | Draft → Pending Director → Pending Compliance → Pending Partner → Pending Finance → Approved / Rejected. |
+| Status transitions match state machine | Pass | coiController approve/reject logic enforces nextStatus by role; no skip. |
+| Role-based access | Pass | Routes use `authenticateToken` and `requireRole()`; controllers use `getUserById(req.userId)` and `user.role`. |
+| Notifications at correct points | Pass | sendApprovalNotification, sendRejectionNotification, sendNeedMoreInfoNotification, sendEngagementCodeNotification, sendProposalExecutedNotification used in coiController. |
+| Integration points (PRMS/HRMS) | Pass | PRMS placeholders and touchpoint copy per PRMS_INTEGRATION_TOUCHPOINTS.md; GET /integration/prms/client, GET /integration/clients; PRMS Demo and FetchPRMSDataModal. |
+| Error handling (duplicate justification, conflict blocks) | Pass | Duplication returns block/flag; justification required for critical duplicates; clear error messages. |
 
-**Verdict:** ✅ User journey alignment is consistent with documentation.
+### 1.3 Gaps
 
----
-
-## 2. Business Logic & Security
-
-### 2.1 Auth Context (CRITICAL)
-
-- **Rule:** `auth.js` sets `req.userId` and `req.userRole` only. It does **not** set `req.user`.
-- **Check:** Grep for `req.user.id` and `req.user.role` in backend: **no matches.**
-- **Pattern:** Controllers use `getUserById(req.userId)` and then `user.role` / `user.id`. Confirmed in coiController, myDayWeekController, priorityController, configController, executionController, complianceController, attachmentController, analyticsController, prospectController, entityCodesController, serviceCatalogController.
-
-**Verdict:** ✅ No auth context violations.
-
-### 2.2 Response Mapper (Data Segregation)
-
-- **Rule:** Every endpoint that returns COI request data must pass it through `mapResponseForRole(data, req.userRole)` so Compliance does not receive `financial_parameters`, `engagement_code`, `total_fees`, `fee_details`.
-- **Applied in:**
-  - `coiController.js`: list (getFilteredRequests → mapResponseForRole), getRequestById (mapResponseForRole), dashboard (getFilteredRequests → mapResponseForRole).
-  - `myDayWeekController.js`: My Day / Week / Month responses; Compliance branch applies mapResponseForRole to all actionRequired, expiring, overdue, dueThisWeek, etc.
-- **Not applied (by design):**
-  - `priorityController.js`: `getQueue` and `getGrouped` return a **reduced DTO** (requestId, clientName, serviceType, status, score, level, topFactors, slaStatus, createdAt). They do **not** return full request rows or commercial fields. So no mapper is required for current shape.
-- **Recommendation:** If priority endpoints ever return full request objects or add commercial fields, apply `mapResponseForRole` before sending.
-
-**Verdict:** ✅ Mapper applied everywhere full COI request data is returned. Priority uses reduced DTO only.
-
-### 2.3 Business Rules
-
-- Approval order (Director → Compliance → Partner → Finance → Admin), rejection stopping workflow, and department/role segregation are implemented in controllers and middleware. Duplication and conflict checks run on submission; engagement code generation is gated by approval state.
-
-**Verdict:** ✅ Business logic and segregation are enforced in code.
+None. User journey implementation is consistent with documentation.
 
 ---
 
-## 3. Violations Found
+## 2. Business Logic Verification (Phase 2.2)
 
-### 3.1 Email & Notification Content (High — Human-like copy standard)
+### 2.1 Core rules
 
-**Rule:** No emojis in email subjects or bodies. Email subjects must be plain professional text (e.g. "URGENT: Request REQ-001 - SLA Critical" not "⚠️ URGENT: ...").
+| Rule | Result | Evidence |
+|------|--------|----------|
+| No engagement without COI approval | Pass | generateEngagementCode requires status in ['Pending Finance','Approved']; partner approval checked; engagement code written only after validation. |
+| Duplication detection | Pass | checkDuplication used on submit; action === 'block' requires duplicate_justification; 90%+ and CMA critical trigger block. |
+| Approval workflow sequential (Director → Compliance → Partner → Finance → Admin) | Pass | nextStatus by role in coiController; no skip; rejection sets status to Rejected and stops workflow. |
+| Department segregation | Pass | getFilteredRequests (dataSegregation.js): Requester by requester_id + department; Director by team + department; Compliance/Partner/Finance/Admin see all, optional department filter. |
+| Engagement code format and PRMS project creation | Pass | createProject (integrationController) validates engagement code exists and is Active; trigger on prms_projects enforces Active. |
 
-| File | Location | Issue |
-|------|----------|--------|
-| `backend/src/services/emailService.js` | Subject lines ~188, 223, 254, 355, 393, 428 | ✅ ❌ ⚠️ in subjects |
-| `backend/src/services/emailService.js` | HTML bodies (e.g. 157, 164, 192, 227, 258, 359, 397, 432) | Emojis in body text (⚠️ Conflicts, ✅ Request Approved, ❌ Rejected, etc.) |
-| `backend/src/services/notificationService.js` | ~538 | SLA body: `🚨` / `⚠️` / `⚡` in notification body |
-| `backend/src/services/notificationService.js` | ~750, 800 | Body text: "⚠️ APPROVED WITH RESTRICTIONS", "📋 INFORMATION REQUIRED" |
-| `backend/src/services/notificationService.js` | ~1161, 1178 | Subject: "⚠️ URGENT: Request ... - SLA Critical" |
-| `backend/src/services/notificationService.js` | ~1204, 1222 | Subject: "🚨 SLA BREACHED: Request ..." |
+### 2.2 Business goals (GOAL_ACHIEVEMENT_ANALYSIS.md)
 
-**Recommended fix:** Remove all emojis from subjects and bodies. Use plain text (e.g. "URGENT: Request REQ-001 - SLA Critical", "SLA BREACHED: Request REQ-001", "Conflicts Detected:", "Approved with restrictions", "Information required").
+- “Inversing compliance rules” and “Increasing customer engagement”: Recommendations, triggers, and opportunity pipeline referenced in client-intelligence; no verification of every feature in this run. **Noted.**
 
----
-
-### 3.2 Logging (Medium — Production leak)
-
-**Rule:** Use `devLog` (gated by `isDevelopment()`) for debug output; do not use raw `console.log` in production code. `console.error` for real errors is acceptable.
-
-- **`config/environment.js`** exports `isDevelopment()`. **No** `devLog` pattern is used in controllers or services.
-- **Examples of raw `console.log`:**
-  - `coiController.js`: multiple (e.g. duplicate override, group conflict, international conflict, prospect, lead source, column fallback, re-evaluate, refresh duplicates).
-  - `configController.js`: getBusinessRules (user ID, role, query params, query, params, rule counts); template loading.
-  - `authController.js`: availability update.
-  - `emailService.js`: mock email and send confirmation.
-  - `monitoringService.js`: monitoring stats, lapse, SLA, renewal, stale request, scheduler.
-  - `init.js`, `index.js`: many startup/migration logs (these may be acceptable for bootstrap; controller/service debug logs should be gated).
-
-**Recommended fix:** Introduce a shared `devLog` (e.g. in a small util) that calls `console.log` only when `isDevelopment()` is true. Replace debug `console.log` in controllers and services with `devLog`. Keep `console.error` for actual errors.
+**Verdict:** Business logic and segregation are enforced in code.
 
 ---
 
-### 3.3 Design (Dieter Rams) — Existing Audit
+## 3. Code-Quality and Security (Phase 2.3)
 
-- **Reference:** `coi-prototype/docs/prototype/DIETER_RAMS_VIOLATIONS.md` (169 violations catalogued).
-- **Spot check:** Frontend Vue files still contain:
-  - Colored backgrounds (e.g. `bg-blue-50`, `bg-yellow-50`, `bg-red-50`) outside strict status badges.
-  - Multiple accent colors (blue, red, green, purple, amber) for buttons and badges.
-  - Rule Builder and COIRequestDetail use blue/yellow/green/red/purple/indigo for categories and status.
+### 3.1 Auth context
 
-No new design audit was run; the existing violations document and fixes plan remain the source of truth. **Recommendation:** Continue applying DIETER_RAMS_FIXES_PLAN.md and use the skill’s quick-reference (8px grid, single accent, neutral hovers, minimal shadows) for new UI.
+- **Rule:** auth.js sets `req.userId` and `req.userRole` only; no `req.user`.
+- **Grep:** `req.user.` and `req.user?` in backend — **no matches.**
+- **Verdict:** Pass.
+
+### 3.2 Response mapper
+
+- **Rule:** Endpoints returning full COI request data must use `mapResponseForRole(data, req.userRole)` so Compliance does not receive financial_parameters, engagement_code, total_fees, fee_details.
+- **Applied in:** coiController (list, getRequestById, dashboard); myDayWeekController (all actionRequired, expiring, overdue, dueThisWeek, etc. for Compliance).
+- **Priority endpoints:** Return reduced DTO (no full request); no mapper required for current shape.
+- **Verdict:** Pass.
+
+### 3.3 Emojis in email and notification content
+
+| Category | Severity | File | Location | Description |
+|----------|----------|------|----------|-------------|
+| Code | High | notificationService.js | ~538 | SLA body: 🚨 / ⚠️ / ⚡ in notification body |
+| Code | High | notificationService.js | ~750, 800 | Body: "⚠️ APPROVED WITH RESTRICTIONS", "📋 INFORMATION REQUIRED" |
+| Code | High | notificationService.js | ~1249, 1266, 1293, 1311, 1330 | Subjects: "⚠️ URGENT: ...", "🚨 SLA BREACHED: ...", "🚨 SLA Breach Escalation: ..." |
+| Code | High | emailService.js | ~157, 164, 188, 192, 223, 227, 254, 258, 342, 355, 359, 393, 397, 428, 432 | Subjects and HTML bodies: ✅, ❌, ⚠️ in subjects and body text |
+| Code | High | duplicationCheckService.js | ~167 | reasonKey strips emoji chars (defensive only; source text may still contain) |
+
+**Recommended fix:** Remove all emojis from email subjects and bodies and from notification subject/body. Use plain text (e.g. "URGENT: Request REQ-001 - SLA Critical", "SLA BREACHED: Request REQ-001", "Conflicts Detected:", "Approved with restrictions", "Information required"). Reference: coi-code-quality-checklist.mdc (Human-like copy).
+
+### 3.4 Logging (console.log in production paths)
+
+- **Rule:** Debug output behind `devLog` (gated by `isDevelopment()`); no raw `console.log` in controllers/services for production.
+- **config/environment.js** exports `isDevelopment()`. No shared `devLog` used in controllers or services.
+
+| Category | Severity | File | Description |
+|----------|----------|------|-------------|
+| Code | Medium | coiController.js | Multiple console.log (duplicate override, group conflict, prospect, re-evaluate, etc.) |
+| Code | Medium | configController.js | getBusinessRules, template loading: console.log (user ID, role, params, rule counts) |
+| Code | Medium | authController.js | availability update: console.log |
+| Code | Medium | notificationService.js | Mock email box, escalation, SLA notifications, init: console.log |
+| Code | Medium | monitoringService.js | monitoring stats, lapse, SLA, scheduler: console.log |
+| Code | Low | init.js, index.js | Startup/migration logs (bootstrap; can remain or be gated) |
+
+**Recommended fix:** Introduce `devLog` (e.g. in a small util) that calls `console.log` only when `isDevelopment()` is true. Replace debug `console.log` in controllers and services with `devLog`. Keep `console.error` for actual errors.
+
+### 3.5 SQL and input validation
+
+- **Rule:** Parameterized queries; no string interpolation of user input.
+- **Spot check:** coiController, dataSegregation, integrationController use `.prepare()` with `?` placeholders. No concatenation of user input into SQL observed.
+- **Verdict:** Pass.
 
 ---
 
-## 4. Summary Checklist
+## 4. Dieter Rams Design Verification (Phase 2.4 — Show Violations Only)
+
+**Reference:** `coi-prototype/docs/prototype/DIETER_RAMS_VIOLATIONS.md` (169 violations), `DIETER_RAMS_FIXES_PLAN.md`, `DIETER_RAMS_UI_AUDIT_REPORT.md`.
+
+**Scope of this run:** Document violations only; no design fixes in this cycle (per plan).
+
+### 4.1 Violations summary (from DIETER_RAMS_VIOLATIONS.md)
+
+| Severity | Count | Description |
+|----------|-------|-------------|
+| P0 Critical | 12 | Gradients (LandingPage, Reports), decorative icon containers (LandingPage, SystemTile), excessive shadows (30+ files with shadow-lg/xl/2xl), transform/hover translate |
+| P1 High | 45 | Colored backgrounds (bg-blue-50, bg-amber-50, etc.) across dashboards and forms; colored hover borders; multiple accent colors |
+| P2 Medium | 78 | Typography inconsistencies, border inconsistencies, minor spacing |
+| P3 Low | 34 | Fine-tuning, alignment |
+
+### 4.2 Sample P0 violations (for reference)
+
+| Component | Line | Issue | Fix (from doc) |
+|-----------|------|-------|----------------|
+| LandingPage.vue | 2 | Gradient background | `bg-gray-50` |
+| LandingPage.vue | 6 | Decorative icon container (gradient, shadow) | Remove gradient, shadow, rounded-2xl |
+| Reports.vue | 2, 53 | Gradient background and header | `bg-gray-50`; header `bg-white border-b border-gray-200` |
+| SystemTile.vue | 4, 7 | Excessive shadows, transform, gradient icon container | `border border-gray-200`, remove shadow/transform; icon container remove gradient |
+| 30+ files | — | shadow-lg, shadow-xl, shadow-2xl | Replace with shadow-sm or border |
+
+**Verdict:** Violations documented in DIETER_RAMS_VIOLATIONS.md; apply DIETER_RAMS_FIXES_PLAN for remediation. No design fixes applied in this verification run.
+
+---
+
+## 5. Violations Table (Consolidated)
+
+| Category | Severity | File | Line(s) | Description | Recommended fix | Reference |
+|----------|----------|------|---------|-------------|-----------------|-----------|
+| Code | High | emailService.js | 157, 164, 188, 223, 254, 342, 355, 393, 428, etc. | Emojis in subject and body | Remove emojis; plain text only | coi-code-quality-checklist.mdc |
+| Code | High | notificationService.js | 538, 750, 800, 1249, 1266, 1293, 1311, 1330 | Emojis in SLA/approval/info subject and body | Same | coi-code-quality-checklist.mdc |
+| Code | Medium | coiController.js, configController.js, authController.js | Multiple | Raw console.log | Use devLog gated by isDevelopment() | backend-patterns.mdc |
+| Code | Medium | notificationService.js, monitoringService.js | Multiple | Raw console.log | Same | — |
+| Design | Critical | LandingPage.vue, Reports.vue, SystemTile.vue | 2, 6, 53, 4, 7 | Gradients, shadows, decorative containers | See DIETER_RAMS_FIXES_PLAN | DIETER_RAMS_VIOLATIONS.md |
+| Design | Critical | 30+ Vue files | — | shadow-lg/xl/2xl | shadow-sm or border | DIETER_RAMS_VIOLATIONS.md |
+| Design | High | Dashboards, COIRequestForm, Reports | Various | Colored backgrounds, colored hovers | Neutral palette per skill | DIETER_RAMS_VIOLATIONS.md |
+
+---
+
+## 6. Prioritized Fix List
+
+**Critical (do first)**  
+1. **Email/notification emojis:** Remove all emojis from subjects and bodies in `emailService.js` and `notificationService.js`. Use plain, professional wording (e.g. "URGENT: Request REQ-001 - SLA Critical", "SLA BREACHED: Request REQ-001", "Conflicts Detected:", "Approved with restrictions", "Information required").  
+2. **Design P0:** Apply DIETER_RAMS_FIXES_PLAN for P0 items (gradients, decorative icon containers, excessive shadows) in LandingPage.vue, Reports.vue, SystemTile.vue, and other P0-listed files.
+
+**High**  
+3. **Logging:** Add `devLog` helper (e.g. in `config/environment.js` or `utils/devLog.js`) that logs only when `isDevelopment()` is true. Replace debug `console.log` in coiController, configController, authController, notificationService, monitoringService with `devLog`. Keep `console.error` for real errors.  
+4. **Design P1:** Apply DIETER_RAMS_FIXES_PLAN for P1 (colored backgrounds, colored hovers) per violations doc.
+
+**Medium / Backlog**  
+5. **Design P2/P3:** Apply remaining fixes from DIETER_RAMS_VIOLATIONS.md and DIETER_RAMS_FIXES_PLAN in follow-up passes.  
+6. **Ongoing:** For any new endpoint returning full COI request data, ensure `mapResponseForRole` is applied.
+
+---
+
+## 7. Summary Checklist
 
 | Check | Result |
 |-------|--------|
-| User flow matches documented journey | ✅ |
-| Status transitions correct | ✅ |
-| Role-based access enforced | ✅ |
-| No `req.user.id` / `req.user.role` | ✅ |
-| Response mapper on COI request data | ✅ (priority uses DTO only) |
-| No emojis in email/notification | ❌ — Fix required |
-| console.log gated (devLog) | ❌ — Fix required |
-| Dieter Rams / design | ⚠️ — Use existing violations doc |
+| User flow matches documented journey | Pass |
+| Status transitions correct | Pass |
+| Role-based access enforced | Pass |
+| No req.user.id / req.user.role | Pass |
+| Response mapper on COI request data | Pass (priority uses DTO only) |
+| Notifications at correct points | Pass |
+| PRMS/HRMS integration placeholders | Pass |
+| No emojis in email/notification | Fail — fix required |
+| console.log gated (devLog) | Fail — fix required |
+| Dieter Rams / design | Violations documented (169); show only this run |
 
 ---
 
-## 5. Recommended Next Steps
+## 8. Recommended Next Steps
 
-1. **Email/notification copy:** Remove all emojis from subjects and bodies in `emailService.js` and `notificationService.js`; use plain, professional wording.
-2. **Logging:** Add `devLog` and replace debug `console.log` in controllers and services (optionally keep init/index startup logs as-is or gate them too).
-3. **Design:** Proceed with DIETER_RAMS_FIXES_PLAN.md for existing violations; apply skill standards to any new UI.
+1. **Email/notification copy:** Remove all emojis from subjects and bodies in `emailService.js` and `notificationService.js`; use plain, professional wording.  
+2. **Logging:** Add `devLog` and replace debug `console.log` in controllers and services (optionally keep init/index startup logs as-is or gate them).  
+3. **Design:** Proceed with DIETER_RAMS_FIXES_PLAN for P0 then P1; apply skill standards to any new UI.  
 4. **Ongoing:** When adding or changing endpoints that return full COI request data, ensure `mapResponseForRole` is applied.
 
 ---
 
-**Report generated by Build Verification workflow.**  
-References: User_Journeys_End_to_End.md, backend-patterns.mdc, coi-code-quality-checklist.mdc, security-compliance.mdc, DIETER_RAMS_VIOLATIONS.md.
+**Report generated by Build Verification Plan (Phases 2–3).**  
+References: User_Journeys_End_to_End.md, FEEDBACK_LOOP_DESIGN.md, PRMS_INTEGRATION_TOUCHPOINTS.md, backend-patterns.mdc, coi-code-quality-checklist.mdc, security-compliance.mdc, DIETER_RAMS_VIOLATIONS.md, DIETER_RAMS_FIXES_PLAN.md.

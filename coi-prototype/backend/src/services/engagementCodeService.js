@@ -8,14 +8,15 @@ const SERVICE_TYPE_ABBREVIATIONS = {
   'Other': 'OTH'
 }
 
-export async function generateEngagementCode(serviceType, coiRequestId, generatedBy, financialParams = {}) {
+/**
+ * Synchronous engagement code generation for use inside a transaction.
+ * Does SELECT next seq + INSERT; throws if UNIQUE constraint fails.
+ * @returns {string} The generated engagement code
+ */
+export function generateEngagementCodeSync(serviceType, coiRequestId, generatedBy) {
   const db = getDatabase()
   const year = new Date().getFullYear()
-  
-  // Get abbreviation
   const abbreviation = SERVICE_TYPE_ABBREVIATIONS[serviceType] || 'OTH'
-  
-  // Get next sequential number
   const lastCode = db.prepare(`
     SELECT sequential_number 
     FROM coi_engagement_codes 
@@ -23,20 +24,25 @@ export async function generateEngagementCode(serviceType, coiRequestId, generate
     ORDER BY sequential_number DESC 
     LIMIT 1
   `).get(abbreviation, year)
-  
   const nextSeq = lastCode ? lastCode.sequential_number + 1 : 1
-  
-  // Generate code
   const engagementCode = `ENG-${year}-${abbreviation}-${String(nextSeq).padStart(5, '0')}`
-  
-  // Insert into engagement codes table
-  db.prepare(`
-    INSERT INTO coi_engagement_codes (
-      engagement_code, coi_request_id, service_type, year, sequential_number, generated_by, status
-    ) VALUES (?, ?, ?, ?, ?, ?, 'Active')
-  `).run(engagementCode, coiRequestId, abbreviation, year, nextSeq, generatedBy)
-  
+  try {
+    db.prepare(`
+      INSERT INTO coi_engagement_codes (
+        engagement_code, coi_request_id, service_type, year, sequential_number, generated_by, status
+      ) VALUES (?, ?, ?, ?, ?, ?, 'Active')
+    `).run(engagementCode, coiRequestId, abbreviation, year, nextSeq, generatedBy)
+  } catch (err) {
+    if (err.message && err.message.includes('UNIQUE constraint')) {
+      err.attemptedCode = engagementCode
+    }
+    throw err
+  }
   return engagementCode
+}
+
+export async function generateEngagementCode(serviceType, coiRequestId, generatedBy, financialParams = {}) {
+  return generateEngagementCodeSync(serviceType, coiRequestId, generatedBy)
 }
 
 /**
@@ -141,7 +147,7 @@ export function validateEngagementCode(engagementCode, options = {}) {
         return result
       }
 
-      // Query engagement code
+      // Query engagement code (schema uses generated_date)
       const codeRecord = db.prepare(`
         SELECT 
           engagement_code,
@@ -151,7 +157,7 @@ export function validateEngagementCode(engagementCode, options = {}) {
           sequential_number,
           status,
           generated_by,
-          generated_at
+          generated_date
         FROM coi_engagement_codes
         WHERE engagement_code = ?
       `).get(code)

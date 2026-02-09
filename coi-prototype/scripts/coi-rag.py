@@ -35,12 +35,13 @@ INDEX_DIR = REPO_ROOT / "docs" / "llm-context" / ".rag-index"
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text:latest")
 CHAT_MODEL = os.getenv("CHAT_MODEL", "qwen2.5-coder:32b-32k")
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1500"))
-CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "100"))  # ~100 lines ≈ fits in 2048 token context of nomic-embed-text
+CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "15"))
 TOP_K = int(os.getenv("TOP_K", "8"))
 
-# File patterns to index
+# File patterns to index (relative to REPO_ROOT)
 SOURCE_PATTERNS = [
+    # coi-prototype
     "backend/src/**/*.js",
     "frontend/src/**/*.ts",
     "frontend/src/**/*.vue",
@@ -49,6 +50,25 @@ SOURCE_PATTERNS = [
     "database/migrations/*.sql",
     "database/seed/*.js",
     "docs/llm-context/*.md",
+    # parent project (envision-prms)
+    "../prms-dashboard-v2/**/*.js",
+    "../prms-dashboard-v2/**/*.ts",
+    "../prms-dashboard-v2/**/*.vue",
+    "../prms-dashboard-v2/**/*.css",
+    "../prms-sample-dashboard/**/*.js",
+    "../prms-sample-dashboard/**/*.ts",
+    "../prms-sample-dashboard/**/*.vue",
+    "../prms-sample-dashboard/**/*.css",
+    "../Claude ML model for Priority engine/**/*.py",
+    "../docs/**/*.md",
+    "../scripts/**/*.sh",
+    "../scripts/**/*.py",
+    "*.yaml",
+    "*.yml",
+    "../*.yaml",
+    "../*.yml",
+    "../Makefile",
+    "../Dockerfile.*",
 ]
 
 SKIP_DIRS = {"node_modules", ".git", "dist", "build", ".backup"}

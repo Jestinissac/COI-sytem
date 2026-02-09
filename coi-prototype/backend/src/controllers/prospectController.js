@@ -149,7 +149,7 @@ export async function getProspectsForDropdown(req, res) {
     res.json(prospects)
   } catch (error) {
     console.error('Error fetching prospects for dropdown:', error)
-    res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: 'Failed to load prospects.' })
   }
 }
 
@@ -518,7 +518,7 @@ export async function getLeadSources(req, res) {
     res.json(leadSources)
   } catch (error) {
     console.error('Error fetching lead sources:', error)
-    res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: 'Failed to load lead sources.' })
   }
 }
 

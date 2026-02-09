@@ -4,7 +4,7 @@
       <!-- Header -->
       <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-indigo-600">
         <h2 class="text-xl font-semibold text-white">Review Client Creation Request</h2>
-        <p class="text-sm text-purple-100 mt-1">Complete and approve client information for PRMS</p>
+        <p class="text-sm text-purple-100 mt-1">Complete and approve client information for PRMS. In production, approved clients will be created in PRMS.</p>
       </div>
 
       <!-- Body -->

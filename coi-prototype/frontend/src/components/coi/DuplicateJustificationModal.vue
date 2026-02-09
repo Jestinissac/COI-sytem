@@ -17,10 +17,10 @@
           A proposal or engagement already exists. Provide a business justification to proceed.
         </p>
 
-        <div v-if="duplicates.length > 0" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div v-if="duplicatesList.length > 0" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <p class="text-sm font-medium text-amber-800 mb-2">Existing records found:</p>
           <ul class="text-sm text-amber-700 space-y-1">
-            <li v-for="(dup, idx) in duplicates" :key="idx" class="flex items-start gap-2">
+            <li v-for="(dup, idx) in duplicatesList" :key="idx" class="flex items-start gap-2">
               <span class="text-amber-500">•</span>
               <span>{{ dup.client_name || dup.entity_name }} - {{ dup.service_type || dup.type }} ({{ dup.status }})</span>
             </li>
@@ -65,12 +65,18 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  open: boolean
-  justification: string
-  duplicates: { client_name?: string; entity_name?: string; service_type?: string; type?: string; status?: string }[]
-  loading?: boolean
-}>()
+import { computed } from 'vue'
+
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    justification: string
+    duplicates?: { client_name?: string; entity_name?: string; service_type?: string; type?: string; status?: string }[]
+    loading?: boolean
+  }>(),
+  { duplicates: () => [] }
+)
+const duplicatesList = computed(() => Array.isArray(props.duplicates) ? props.duplicates : [])
 
 defineEmits<{
   'update:justification': [value: string]

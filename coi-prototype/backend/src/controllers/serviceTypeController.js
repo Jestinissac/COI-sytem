@@ -465,7 +465,7 @@ export async function getServiceTypes(req, res) {
     res.json(response)
   } catch (error) {
     console.error('Error fetching service types:', error)
-    res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: 'Failed to load service types.' })
   }
 }
 
@@ -479,7 +479,7 @@ export async function getAmbiguousServiceConfig(req, res) {
     res.json({ ambiguousServiceConfig: configs })
   } catch (error) {
     console.error('Error fetching ambiguous service config:', error)
-    res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: 'Failed to load ambiguous service config.' })
   }
 }
 
@@ -503,6 +503,6 @@ export async function getServiceSubCategories(req, res) {
     })
   } catch (error) {
     console.error('Error fetching service sub-categories:', error)
-    res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: 'Failed to load service sub-categories.' })
   }
 }

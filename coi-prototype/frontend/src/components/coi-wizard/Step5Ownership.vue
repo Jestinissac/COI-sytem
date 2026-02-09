@@ -16,8 +16,8 @@
           class="w-full rounded-xl px-5 py-4 bg-white text-gray-800 text-base font-medium resize-none"
           style="border: 2px solid #E5E7EB;"
           placeholder="Describe the ownership structure..."
-          @focus="$event.target.style.borderColor='#F97316'; $event.target.style.boxShadow='0 0 0 3px rgba(249, 115, 22, 0.1)'"
-          @blur="$event.target.style.borderColor='#E5E7EB'; $event.target.style.boxShadow='none'"
+          @focus="onInputFocus"
+          @blur="onInputBlur"
         ></textarea>
       </div>
       
@@ -65,6 +65,22 @@ const emit = defineEmits<{
 
 function handleUpdate(field: keyof WizardFormData, value: any) {
   emit('update', { [field]: value })
+}
+
+function onInputFocus(e: Event) {
+  const el = e.target as HTMLElement
+  if (el) {
+    el.style.borderColor = '#F97316'
+    el.style.boxShadow = '0 0 0 3px rgba(249, 115, 22, 0.1)'
+  }
+}
+
+function onInputBlur(e: Event) {
+  const el = e.target as HTMLElement
+  if (el) {
+    el.style.borderColor = '#E5E7EB'
+    el.style.boxShadow = 'none'
+  }
 }
 </script>
 

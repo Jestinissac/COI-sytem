@@ -107,10 +107,16 @@ api.interceptors.response.use(
       }
     }
     
+    // When there is no response, the server is unreachable (e.g. backend not running)
+    if (!error.response) {
+      const code = (error as any)?.code
+      const isNetwork = code === 'ERR_NETWORK' || code === 'ECONNABORTED' || !code
+      if (isNetwork) {
+        ;(error as any).message = 'Cannot reach server. Is the backend running on port 3000? Start it from coi-prototype/backend with: npm run dev'
+      }
+    }
     return Promise.reject(error)
   }
 )
 
 export default api
-
-

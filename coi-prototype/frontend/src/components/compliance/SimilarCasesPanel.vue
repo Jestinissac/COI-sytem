@@ -41,7 +41,7 @@
       <!-- Cases List -->
       <div v-else class="cases-list">
         <!-- Stats Summary -->
-        <div class="stats-summary">
+        <div v-if="stats" class="stats-summary">
           <div class="stat-card">
             <span class="stat-value text-green-600">{{ stats.approvedCount }}</span>
             <span class="stat-label">Approved</span>

@@ -1,6 +1,9 @@
 import express from 'express'
 import { getDatabase } from '../database/init.js'
 import { authenticateToken, requireRole } from '../middleware/auth.js'
+
+// Wrap async route handlers so rejected promises forward to the Express error handler
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next)
 import {
   getMyRequests,
   getRequestById,
@@ -13,6 +16,8 @@ import {
   resubmitRejectedRequest,
   requestInfo,
   requestMoreInfo,
+  commentToPreviousApprover,
+  sendBackToCurrentApprover,
   generateEngagementCode,
   executeProposal,
   getDashboardData,
@@ -107,10 +112,10 @@ router.get('/approvers', getApproversForBackup)
 router.get('/requests', getMyRequests)
 router.get('/requests/prospects', getProspectRequests) // Must come before /:id
 router.get('/requests/:id', getRequestById)
-router.post('/requests', createRequest)
-router.put('/requests/:id', updateRequest)
+router.post('/requests', asyncHandler(createRequest))
+router.put('/requests/:id', asyncHandler(updateRequest))
 router.delete('/requests/:id', deleteRequest) // Delete draft requests only
-router.post('/requests/:id/submit', submitRequest)
+router.post('/requests/:id/submit', asyncHandler(submitRequest))
 
 // Approval workflows
 router.post('/requests/:id/approve', approveRequest)
@@ -118,6 +123,8 @@ router.post('/requests/:id/reject', rejectRequest)
 router.post('/requests/:id/resubmit', resubmitRejectedRequest) // Resubmit rejected requests (fixable only)
 router.post('/requests/:id/request-info', requestInfo)
 router.post('/requests/:id/need-more-info', requestMoreInfo) // Enhanced: returns to requester with specific questions
+router.post('/requests/:id/comment-to-previous-approver', commentToPreviousApprover)
+router.post('/requests/:id/send-back-to-current-approver', sendBackToCurrentApprover)
 
 // Stale request handling - re-evaluate against current rules
 router.post('/requests/:id/re-evaluate', requireRole('Compliance'), reEvaluateRequest)

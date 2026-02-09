@@ -659,7 +659,7 @@ async function performSearch(searchQuery: string): Promise<SearchResult[]> {
   const navigationItems = getNavigationItemsForRole(userRole.value)
   
   navigationItems.forEach(item => {
-    if (item.keywords.some(keyword => lowerQuery.includes(keyword)) || 
+    if (item.keywords.some((keyword: string) => lowerQuery.includes(keyword)) || 
         item.title.toLowerCase().includes(lowerQuery)) {
       const result: SearchResult & { score?: number, originalData?: any } = {
         title: item.title,
@@ -968,7 +968,7 @@ function close() {
 function handleKeydown(event: KeyboardEvent) {
   if (!props.isOpen) return
   
-  const maxIndex = query.length === 1 && suggestions.value.length > 0 
+  const maxIndex = query.value.length === 1 && suggestions.value.length > 0 
     ? suggestions.value.length - 1 
     : results.value.length - 1
   
@@ -982,7 +982,7 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 function handleSearch() {
-  if (query.length === 1 && suggestions.value.length > 0) {
+  if (query.value.length === 1 && suggestions.value.length > 0) {
     if (selectedIndex.value < suggestions.value.length) {
       const suggestion = suggestions.value[selectedIndex.value]
       handleSelect(suggestion, suggestion.originalData)

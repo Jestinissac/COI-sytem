@@ -130,7 +130,7 @@
             :key="idx"
             class="flex items-center gap-2 text-xs"
           >
-            <span class="w-4 text-gray-400">{{ idx + 1 }}.</span>
+            <span class="w-4 text-gray-400">{{ Number(idx) + 1 }}.</span>
             <span class="flex-1 truncate text-gray-700">{{ person.name }}</span>
             <span class="font-medium text-gray-900">{{ person.converted }}</span>
           </div>

@@ -395,6 +395,16 @@
                   {{ validationChecks.clientExists ? 'Yes' : 'No' }}
                 </span>
               </div>
+              <p class="px-4 py-1 text-xs text-gray-500">In production, this checks PRMS Client Master.</p>
+              <div v-if="showViewPrmsData" class="px-4 py-3">
+                <button
+                  type="button"
+                  class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-1 -mx-1"
+                  @click="openPrmsModal"
+                >
+                  View PRMS data
+                </button>
+              </div>
               <div class="px-4 py-3 flex items-center justify-between">
                 <span class="text-gray-600">Client Active</span>
                 <span :class="validationChecks.clientActive ? 'text-green-600' : 'text-yellow-600'" class="font-medium">
@@ -818,8 +828,46 @@
             </div>
           </div>
 
-          <!-- Actions -->
-          <div v-if="canApprove" class="bg-white rounded-lg shadow-sm">
+          <!-- Previous approver reply (comment from current approver awaiting your reply) -->
+          <div v-if="canApprove && isPreviousApproverNeedingReply" class="bg-white rounded-lg shadow-sm">
+            <div class="px-4 py-3 border-b bg-amber-50 rounded-t-lg border border-amber-200">
+              <h2 class="font-medium text-gray-900">Comment from {{ request.approval_comment_from_role }} – Your Reply Requested</h2>
+            </div>
+            <div class="p-4 space-y-3">
+              <div class="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm text-gray-700">
+                <p class="font-medium text-gray-600 mb-1">Comment:</p>
+                <p class="whitespace-pre-wrap">{{ request.approval_comment_text }}</p>
+              </div>
+              <div v-if="request.approval_comment_reply_text" class="rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-gray-700">
+                <p class="font-medium text-green-800 mb-1">Your reply (saved):</p>
+                <p class="whitespace-pre-wrap">{{ request.approval_comment_reply_text }}</p>
+              </div>
+              <textarea 
+                v-model="replyToCommentText" 
+                rows="3" 
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                :placeholder="request.approval_comment_replied_at ? 'Add or replace your reply (optional)' : 'Your reply (optional)'"
+              ></textarea>
+              <div class="flex gap-2">
+                <button 
+                  @click="sendBackToCurrentApprover" 
+                  :disabled="actionLoading"
+                  class="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Send back to {{ request.approval_comment_from_role }}
+                </button>
+                <button 
+                  @click="replyToCommentText = ''"
+                  class="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions (standard approve/reject and optional comment to previous) -->
+          <div v-else-if="canApprove" class="bg-white rounded-lg shadow-sm border-t border-gray-100">
             <div class="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
               <h2 class="font-medium text-gray-900">Actions</h2>
             </div>
@@ -846,6 +894,18 @@
                   class="flex-1 px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                 >
                   Reject
+                </button>
+              </div>
+              
+              <!-- Comment to previous approver (Compliance, Partner, Finance only; Director has no previous) -->
+              <div v-if="canCommentToPrevious" class="border-t pt-3 mt-3">
+                <p class="text-xs text-gray-500 mb-2">Or ask the previous approver for clarification:</p>
+                <button 
+                  @click="showCommentToPreviousModal = true" 
+                  :disabled="actionLoading"
+                  class="w-full px-3 py-2 text-sm bg-slate-500 text-white rounded-lg hover:bg-slate-600 disabled:opacity-50"
+                >
+                  Comment to previous approver
                 </button>
               </div>
               
@@ -1050,6 +1110,39 @@
       </div>
     </div>
 
+    <!-- Comment to previous approver modal -->
+    <div v-if="showCommentToPreviousModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-md mx-4">
+        <div class="px-4 py-3 border-b border-gray-200 rounded-t-lg bg-gray-50">
+          <h3 class="font-medium text-gray-900">Comment to previous approver</h3>
+        </div>
+        <div class="p-4">
+          <p class="text-sm text-gray-600 mb-3">Your comment will be sent to the previous approver. The request will move to their queue until they reply.</p>
+          <textarea 
+            v-model="commentToPreviousText" 
+            rows="4" 
+            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder="Enter your comment or question for the previous approver (required)"
+          ></textarea>
+          <div class="flex gap-2 mt-3">
+            <button 
+              @click="submitCommentToPreviousApprover" 
+              :disabled="!commentToPreviousText.trim() || actionLoading"
+              class="flex-1 px-3 py-2 text-sm bg-slate-500 text-white rounded-lg hover:bg-slate-600 disabled:opacity-50"
+            >
+              Send comment
+            </button>
+            <button 
+              @click="showCommentToPreviousModal = false"
+              class="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Conversion Modals -->
     <ConvertToEngagementModal
       v-if="!request?.is_prospect"
@@ -1068,6 +1161,14 @@
       @converted="handleProspectConverted"
     />
 
+    <FetchPRMSDataModal
+      :show="showPrmsModal"
+      :initial-client-id="request?.client_id ?? null"
+      :clients="prmsModalClients"
+      :show-apply-button="false"
+      @close="showPrmsModal = false"
+    />
+
     <!-- Toast Notifications -->
     <ToastContainer />
   </div>
@@ -1082,6 +1183,7 @@ import ToastContainer from '@/components/ui/ToastContainer.vue'
 import FileUpload from '@/components/FileUpload.vue'
 import ConvertToEngagementModal from '@/components/engagement/ConvertToEngagementModal.vue'
 import ProspectConversionModal from '@/components/engagement/ProspectConversionModal.vue'
+import FetchPRMSDataModal from '@/components/integration/FetchPRMSDataModal.vue'
 import api from '@/services/api'
 
 const toast = useToast()
@@ -1097,11 +1199,14 @@ const actionLoading = ref(false)
 const showRejectModal = ref(false)
 const showRestrictionsModal = ref(false)
 const showInfoModal = ref(false)
+const showCommentToPreviousModal = ref(false)
 const approvalComments = ref('')
 const rejectionReason = ref('')
 const rejectionType = ref<'fixable' | 'permanent'>('fixable')
 const restrictions = ref('')
 const infoRequired = ref('')
+const commentToPreviousText = ref('')
+const replyToCommentText = ref('')
 const previousEngagements = ref<any[]>([])
 const duplicationMatches = ref<any[]>([])
 const ruleRecommendations = ref<any[]>([])
@@ -1118,6 +1223,8 @@ const showGlobalCOISummary = ref(false)
 const resubmitting = ref(false)
 const showConvertModal = ref(false)
 const prospectData = ref<any>(null)
+const showPrmsModal = ref(false)
+const prmsModalClients = ref<Array<{ id: number; client_name?: string; name?: string; client_code?: string; code?: string }>>([])
 
 const validationChecks = ref({
   clientExists: false,
@@ -1165,6 +1272,37 @@ const canApprove = computed(() => {
 })
 
 const userRole = computed(() => authStore.user?.role ?? '')
+
+const showViewPrmsData = computed(() => {
+  const role = authStore.user?.role ?? ''
+  return !!(request.value?.client_id && (role === 'Compliance' || role === 'Partner'))
+})
+
+/** True when this user is the previous approver and a comment is awaiting their reply */
+const isPreviousApproverNeedingReply = computed(() => {
+  const r = request.value
+  const role = authStore.user?.role
+  if (!r?.awaiting_previous_approver_reply || !r?.approval_comment_from_role) return false
+  const status = r.status
+  return (
+    (status === 'Pending Director Approval' && role === 'Director') ||
+    (status === 'Pending Compliance' && role === 'Compliance') ||
+    (status === 'Pending Partner' && role === 'Partner') ||
+    (status === 'Pending Finance' && role === 'Finance')
+  )
+})
+
+/** Comment to previous approver is available for Compliance, Partner, Finance (not Director) when they are current approver */
+const canCommentToPrevious = computed(() => {
+  const role = authStore.user?.role
+  const status = request.value?.status
+  if (role === 'Director') return false
+  return (
+    (role === 'Compliance' && status === 'Pending Compliance') ||
+    (role === 'Partner' && status === 'Pending Partner') ||
+    (role === 'Finance' && status === 'Pending Finance')
+  )
+})
 
 // Check if request can be resubmitted (fixable rejections only, requester only)
 const canResubmit = computed(() => {
@@ -1624,6 +1762,22 @@ async function handleConvertToEngagement() {
   showConvertModal.value = true
 }
 
+async function openPrmsModal() {
+  showPrmsModal.value = true
+  try {
+    const res = await api.get('/integration/clients')
+    prmsModalClients.value = (res.data || []).map((c: { id: number; name?: string; client_name?: string; code?: string; client_code?: string }) => ({
+      id: c.id,
+      name: c.name,
+      client_name: c.client_name ?? c.name,
+      code: c.code,
+      client_code: c.client_code ?? c.code
+    }))
+  } catch {
+    prmsModalClients.value = []
+  }
+}
+
 async function handleConverted(result: any) {
   showConvertModal.value = false
   
@@ -1714,6 +1868,41 @@ async function requestMoreInfo() {
     await loadRequest()
   } catch (error) {
     console.error('Failed to request more info:', error)
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function submitCommentToPreviousApprover() {
+  actionLoading.value = true
+  try {
+    await api.post(`/coi/requests/${request.value.id}/comment-to-previous-approver`, {
+      comments: commentToPreviousText.value.trim()
+    })
+    showCommentToPreviousModal.value = false
+    commentToPreviousText.value = ''
+    await loadRequest()
+    toast.success('Comment sent to previous approver. Request is in their queue for reply.')
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || error?.message || 'Failed to send comment'
+    toast.error(msg)
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function sendBackToCurrentApprover() {
+  actionLoading.value = true
+  try {
+    await api.post(`/coi/requests/${request.value.id}/send-back-to-current-approver`, {
+      reply_text: replyToCommentText.value.trim()
+    })
+    replyToCommentText.value = ''
+    await loadRequest()
+    toast.success('Reply sent. Request is back in the current approver\'s queue.')
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || error?.message || 'Failed to send reply'
+    toast.error(msg)
   } finally {
     actionLoading.value = false
   }

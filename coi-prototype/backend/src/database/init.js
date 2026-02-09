@@ -69,6 +69,17 @@ export async function initDatabase() {
     }
   }
 
+  // Add is_active column to users table if it doesn't exist (align with auth/HRMS code)
+  try {
+    db.exec('ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1')
+    // Sync existing rows: is_active mirrors active so existing code works
+    db.exec('UPDATE users SET is_active = COALESCE(active, 1)')
+  } catch (error) {
+    if (!error.message.includes('duplicate column')) {
+      console.log('Users table is_active column check:', error.message)
+    }
+  }
+
   // Seed demo users when users table is empty (development)
   const userCount = db.prepare('SELECT COUNT(*) as n FROM users').get()
   if (userCount && userCount.n === 0) {
@@ -496,6 +507,14 @@ export async function initDatabase() {
         INSERT INTO system_config (config_key, config_value, description)
         VALUES (?, ?, ?)
       `).run('system_edition', 'standard', 'Current system edition: standard or pro')
+    }
+    // Enable Client Intelligence (CRM/Business Development) for handover so Business Development tab and CRM reports work
+    const ciExisting = db.prepare('SELECT id FROM system_config WHERE config_key = ?').get('client_intelligence_enabled')
+    if (!ciExisting) {
+      db.prepare(`
+        INSERT INTO system_config (config_key, config_value, description)
+        VALUES (?, ?, ?)
+      `).run('client_intelligence_enabled', 'true', 'Client Intelligence module enabled for handover (CRM/Business Development)')
     }
   } catch (error) {
     if (!error.message.includes('already exists')) {
@@ -1641,6 +1660,28 @@ export async function initDatabase() {
     `)
   } catch (error) {
     // Ignore backfill errors
+  }
+
+  // Approval comment thread (comment to previous approver / reply and send back)
+  const approvalCommentColumns = [
+    { name: 'approval_comment_from_role', def: 'TEXT' },
+    { name: 'approval_comment_from_user_id', def: 'INTEGER REFERENCES users(id)' },
+    { name: 'approval_comment_text', def: 'TEXT' },
+    { name: 'approval_comment_requested_at', def: 'DATETIME' },
+    { name: 'approval_comment_reply_text', def: 'TEXT' },
+    { name: 'approval_comment_replied_by', def: 'INTEGER REFERENCES users(id)' },
+    { name: 'approval_comment_replied_at', def: 'DATETIME' },
+    { name: 'awaiting_previous_approver_reply', def: 'INTEGER DEFAULT 0' }
+  ]
+  for (const col of approvalCommentColumns) {
+    try {
+      db.exec(`ALTER TABLE coi_requests ADD COLUMN ${col.name} ${col.def}`)
+      console.log(`✅ Added column ${col.name} to coi_requests`)
+    } catch (error) {
+      if (!error.message.includes('duplicate column')) {
+        // Column already exists
+      }
+    }
   }
 
   // Seed IESBA rules (Pro Version)

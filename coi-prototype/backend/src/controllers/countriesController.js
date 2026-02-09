@@ -37,7 +37,7 @@ export async function getCountries(req, res) {
     res.json(countries)
   } catch (error) {
     console.error('Error fetching countries:', error)
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: 'Failed to load countries.' })
   }
 }
 

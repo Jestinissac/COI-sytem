@@ -262,7 +262,7 @@ export async function recordClientResponse(req, res) {
         }
         
         // Notify Admin users
-        const adminUsers = db.prepare('SELECT id, name, email FROM users WHERE role = ? AND is_active = 1').all('Admin')
+        const adminUsers = db.prepare('SELECT id, name, email FROM users WHERE role = ? AND (COALESCE(active, 1) = 1)').all('Admin')
         for (const admin of adminUsers) {
           await notifyClientAcceptedProposal(request, admin, true)
         }
@@ -298,7 +298,7 @@ export async function recordClientResponse(req, res) {
         }
         
         // Notify Admin users
-        const adminUsers = db.prepare('SELECT id, name, email FROM users WHERE role = ? AND is_active = 1').all('Admin')
+        const adminUsers = db.prepare('SELECT id, name, email FROM users WHERE role = ? AND (COALESCE(active, 1) = 1)').all('Admin')
         for (const admin of adminUsers) {
           await notifyClientRejectedProposal(request, admin, notes || null)
         }

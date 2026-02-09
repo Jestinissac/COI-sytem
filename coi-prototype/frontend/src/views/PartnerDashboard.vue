@@ -1589,7 +1589,7 @@ const expiringSoon = computed(() => requests.value.filter(r =>
   r.status === 'Active' && r.days_in_monitoring && r.days_in_monitoring >= 20
 ))
 const recentRequests = computed(() => [...requests.value].sort((a, b) => 
-  new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
 ).slice(0, 5))
 
 const redFlagsCount = computed(() => requests.value.filter(r => hasRedFlags(r)).length)
@@ -1598,7 +1598,7 @@ const redFlagsCount = computed(() => requests.value.filter(r => hasRedFlags(r)).
 const coiDecisions = computed(() => requests.value.filter(r => 
   r.compliance_approval_status || r.partner_approval_status || 
   ['Approved', 'Approved with Restrictions', 'Rejected', 'Active'].includes(r.status)
-).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()))
+).sort((a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime()))
 
 // NEW: Engagement Letters - approved requests awaiting or with engagement letters
 const engagementLetters = computed(() => requests.value.filter(r => 
@@ -1626,7 +1626,7 @@ const renewalAlerts = computed(() => requests.value.filter(r => {
 
 // NEW: All Requests History (including cancelled, lapsed, rejected)
 const allRequestsHistory = computed(() => [...requests.value].sort((a, b) => 
-  new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
 ))
 
 // Unique service types for filter dropdown
@@ -2020,7 +2020,7 @@ const filteredHistory = computed(() => {
   
   if (historyDateFilter.value) {
     const filterDate = new Date(historyDateFilter.value)
-    filtered = filtered.filter(r => new Date(r.created_at) >= filterDate)
+    filtered = filtered.filter(r => new Date(r.created_at ?? 0) >= filterDate)
   }
   
   return filtered
@@ -2177,7 +2177,8 @@ function hasRedFlags(request: any): boolean {
   }
 }
 
-function getStatusClass(status: string) {
+function getStatusClass(status: string | undefined) {
+  if (!status) return 'bg-gray-100 text-gray-700'
   const classes: Record<string, string> = {
     'Draft': 'bg-gray-100 text-gray-700',
     'Pending Director Approval': 'bg-yellow-100 text-yellow-700',
@@ -2192,7 +2193,8 @@ function getStatusClass(status: string) {
   return classes[status] || 'bg-gray-100 text-gray-700'
 }
 
-function getStatusLabel(status: string) {
+function getStatusLabel(status: string | undefined) {
+  if (!status) return '-'
   const labels: Record<string, string> = {
     'Pending Partner': 'Pending',
     'Pending Finance': 'Finance Review'
@@ -2221,12 +2223,12 @@ function getClientResponseLabel(request: any) {
   return 'Pending'
 }
 
-function formatDate(dateString: string) {
+function formatDate(dateString: string | undefined) {
   if (!dateString) return 'N/A'
   return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function getInitials(name: string) {
+function getInitials(name: string | undefined) {
   if (!name) return '?'
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 }

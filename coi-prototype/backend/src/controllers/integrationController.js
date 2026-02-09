@@ -27,15 +27,16 @@ export async function getClients(req, res) {
         code: client.client_code,
         client_name: client.client_name,
         client_code: client.client_code,
-        industry: client.industry,
-        description: client.description,
+        industry: client.industry ?? null,
+        description: client.description ?? null,
         status: client.status,
         parent_company: parentCompany
       }
     })
     res.json(transformedClients)
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    console.error('Error fetching clients:', error.message)
+    res.status(500).json({ error: 'Failed to load clients.' })
   }
 }
 

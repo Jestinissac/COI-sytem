@@ -6,7 +6,7 @@
     :aria-label="`Status: ${status}`"
   >
     <svg v-if="statusIcon" :class="iconClasses" class="w-3.5 h-3.5 mr-1.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-      <path :fill-rule="statusIcon.fillRule" :d="statusIcon.path" :clip-rule="statusIcon.clipRule" />
+      <path :fill-rule="(statusIcon.fillRule ?? 'inherit') as 'inherit' | 'evenodd' | 'nonzero'" :d="statusIcon.path" :clip-rule="(statusIcon.clipRule ?? 'inherit') as 'inherit' | 'evenodd' | 'nonzero'" />
     </svg>
     <span>{{ status }}</span>
   </span>

@@ -76,7 +76,7 @@
                       type="checkbox"
                       :checked="isPermissionGranted(role, permission.permission_key)"
                       :disabled="role === 'Super Admin' || saving"
-                      @change="togglePermission(role, permission.permission_key, $event.target.checked)"
+                      @change="togglePermission(role, permission.permission_key, ($event.target as HTMLInputElement)?.checked ?? false)"
                     />
                     <span class="toggle-slider"></span>
                   </label>
@@ -227,7 +227,7 @@ async function loadPermissions() {
     await loadAuditLog()
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Failed to load permissions'
-    showError(error.value)
+    showError(error.value ?? 'Failed to load permissions')
   } finally {
     loading.value = false
   }

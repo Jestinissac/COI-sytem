@@ -955,7 +955,7 @@ function getGlobalStatusClass(status: string) {
   return classes[status] || 'bg-gray-100 text-gray-700'
 }
 
-function formatDate(dateString: string) {
+function formatDate(dateString: string | undefined) {
   if (!dateString) return 'N/A'
   return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }

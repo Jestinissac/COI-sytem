@@ -427,7 +427,7 @@
                   </button>
                   <button
                     @click="exportPDF"
-                    :disabled="exporting"
+                    :disabled="exporting !== null"
                     class="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -437,7 +437,7 @@
                   </button>
                   <button
                     @click="exportExcel"
-                    :disabled="exporting"
+                    :disabled="exporting !== null"
                     class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1349,7 +1349,7 @@ async function loadReportData(page = 1, retry = 0) {
     }
     
     console.error('Error loading report:', err)
-    toast.error(error.value)
+    toast.error(error.value ?? 'Error loading report')
   } finally {
     if (retry === 0 || retry >= MAX_RETRIES) {
       loading.value = false

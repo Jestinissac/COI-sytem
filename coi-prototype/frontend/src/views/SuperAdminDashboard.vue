@@ -285,7 +285,7 @@
               </div>
             </div>
             <p class="text-sm text-gray-600">
-              Compliance reviews requests for conflicts, manages business rules, and monitors pipeline health.
+              Compliance reviews requests for conflicts, manages business rules, and tracks stale requests and duplications.
             </p>
           </div>
 

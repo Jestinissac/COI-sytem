@@ -83,6 +83,7 @@
             <!-- Existing Client Filter -->
             <div>
               <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Existing Client</label>
+              <p class="text-xs text-gray-500 mb-1">Synced = linked to PRMS client (prototype: COI client list).</p>
               <select
                 v-model="filters.prmsSynced"
                 class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -189,6 +190,7 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">PRMS Client Code (if exists)</label>
+              <p class="text-xs text-gray-500 mb-1">In prototype, checks COI client list; in production this will check PRMS.</p>
               <input v-model="newProspect.prms_client_code" type="text" class="w-full px-3 py-2 border rounded-lg" 
                      placeholder="Check if client exists in PRMS" />
               <button type="button" @click="checkPRMSClient" class="mt-2 text-sm text-blue-600 hover:text-blue-800">
@@ -400,7 +402,10 @@ async function createProspect() {
       prospect_name: '',
       commercial_registration: '',
       industry: '',
-      prms_client_code: ''
+      prms_client_code: '',
+      lead_source_id: null,
+      referred_by_client_id: null,
+      source_notes: ''
     }
   } catch (error: any) {
     console.error('Error creating prospect:', error)
@@ -438,6 +443,24 @@ function convertToClient(prospect: any) {
   if (confirm(`Convert prospect "${prospect.prospect_name}" to client?`)) {
     // Navigate to conversion flow
     router.push(`/coi/prospect/${prospect.id}/convert`)
+  }
+}
+
+async function fetchLeadSources() {
+  try {
+    const res = await api.get('/prospects/lead-sources').catch(() => ({ data: [] }))
+    leadSources.value = res?.data ?? []
+  } catch {
+    leadSources.value = []
+  }
+}
+
+async function fetchClients() {
+  try {
+    const res = await api.get('/integration/clients').catch(() => ({ data: [] }))
+    clients.value = res?.data ?? []
+  } catch {
+    clients.value = []
   }
 }
 

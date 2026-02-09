@@ -86,11 +86,6 @@ export function useKeyboardShortcuts() {
       : shortcut.key
     
     shortcuts.set(key, shortcut)
-    console.log('[Keyboard Shortcuts] Registered:', key, shortcut.description, {
-      originalModifier: shortcut.modifier,
-      normalizedModifier,
-      isMac
-    })
   }
 
   // Register multiple shortcuts
@@ -141,16 +136,6 @@ export function useKeyboardShortcuts() {
 
   // Main keyboard event handler (singleton)
   function handleKeydown(event: KeyboardEvent) {
-    // Debug logging for troubleshooting
-    console.log('[Keyboard] Key pressed:', event.key, {
-      ctrlKey: event.ctrlKey,
-      metaKey: event.metaKey,
-      shiftKey: event.shiftKey,
-      altKey: event.altKey,
-      shortcutsCount: shortcuts.size,
-      activeElement: document.activeElement?.tagName
-    })
-
     // Check if user is typing in input
     const activeElement = document.activeElement
     const tagName = activeElement?.tagName.toLowerCase()
@@ -163,7 +148,6 @@ export function useKeyboardShortcuts() {
     }
 
     const normalizedKey = normalizeKey(event)
-    console.log('[Keyboard] Normalized key:', normalizedKey, 'Available shortcuts:', Array.from(shortcuts.keys()))
 
     // Special case: Escape key always closes help modal
     if (normalizedKey === 'escape') {
@@ -177,9 +161,7 @@ export function useKeyboardShortcuts() {
     // Check for modifier shortcuts first
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
       const shortcut = shortcuts.get(normalizedKey)
-      console.log('[Keyboard] Checking modifier shortcut:', normalizedKey, 'Found:', !!shortcut)
       if (shortcut) {
-        if (import.meta.env.DEV) console.log('[Keyboard] Matched modifier shortcut:', normalizedKey, shortcut.description)
         event.preventDefault()
         event.stopPropagation()
         try {
@@ -276,13 +258,6 @@ export function useKeyboardShortcuts() {
     if (!isListenerAttached) {
       document.addEventListener('keydown', handleKeydown, true) // Use capture phase
       isListenerAttached = true
-      console.log('[Keyboard Shortcuts] Event listener attached', {
-        platform: navigator.platform,
-        isMac: navigator.platform.toUpperCase().indexOf('MAC') >= 0,
-        shortcutsRegistered: shortcuts.size
-      })
-    } else {
-      console.log('[Keyboard Shortcuts] Listener already attached, skipping')
     }
   })
 

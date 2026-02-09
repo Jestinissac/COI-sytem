@@ -695,7 +695,7 @@ export function sendApprovalNotification(requestId, approverName, nextRole, rest
   if (!request) return
   
   // Get all approvers for the next role (not just one)
-  let query = 'SELECT * FROM users WHERE role = ? AND is_active = 1'
+  let query = 'SELECT * FROM users WHERE role = ? AND (COALESCE(active, 1) = 1)'
   const params = [nextRole]
   
   // For Director and Compliance, filter by department
@@ -714,7 +714,7 @@ export function sendApprovalNotification(requestId, approverName, nextRole, rest
     
     // Notify requester when no approvers are available
     if (requestId) {
-      let unavailableQuery = 'SELECT name, unavailable_reason, unavailable_until FROM users WHERE role = ? AND is_active = 0'
+      let unavailableQuery = 'SELECT name, unavailable_reason, unavailable_until FROM users WHERE role = ? AND (COALESCE(active, 1) = 0)'
       const unavailableParams = [nextRole]
       
       if (request.department && (nextRole === 'Director' || nextRole === 'Compliance')) {
@@ -737,7 +737,7 @@ export function sendApprovalNotification(requestId, approverName, nextRole, rest
     }
     
     // Escalate to Admin
-    const adminUsers = db.prepare('SELECT * FROM users WHERE role = ? AND is_active = 1').all('Admin')
+    const adminUsers = db.prepare('SELECT * FROM users WHERE role = ? AND (COALESCE(active, 1) = 1)').all('Admin')
     if (adminUsers.length > 0) {
       approvers.push(...adminUsers)
     } else {
@@ -807,6 +807,92 @@ Best regards,
 COI System`
 
   return sendEmail(request.requester_email, subject, body, { requestId, infoRequired })
+}
+
+/**
+ * Notify the previous approver that the current approver has sent a comment and needs a reply.
+ * Recipients are users who can act on the request in its current (previous) status.
+ */
+export function sendCommentToPreviousApproverNotification(requestId, fromRole, fromName, commentText) {
+  const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(requestId)
+  if (!request) return
+
+  const previousRoleByStatus = {
+    'Pending Director Approval': 'Director',
+    'Pending Compliance': 'Compliance',
+    'Pending Partner': 'Partner'
+  }
+  const nextRole = previousRoleByStatus[request.status]
+  if (!nextRole) return
+
+  let query = 'SELECT * FROM users WHERE role = ? AND (COALESCE(active, 1) = 1)'
+  const params = [nextRole]
+  if (nextRole === 'Director' || nextRole === 'Compliance') {
+    if (request.department) {
+      query += ' AND department = ?'
+      params.push(request.department)
+    }
+  }
+  const approvers = db.prepare(query).all(...params)
+  if (approvers.length === 0) return
+
+  const subject = `COI Request ${request.request_id} - Comment from ${fromRole}; Your Reply Requested`
+  const body = `Dear recipient,
+
+${fromName} (${fromRole}) has sent a comment on COI request ${request.request_id} and is requesting your reply before they proceed.
+
+Request ID: ${request.request_id}
+Comment from ${fromRole}:
+${commentText}
+
+Please log in to the COI system, open this request, and use "Send back to ${fromRole}" to reply:
+http://localhost:5173/coi/request/${requestId}
+
+Best regards,
+COI System`
+
+  for (const approver of approvers) {
+    sendEmail(approver.email, subject, body.replace('Dear recipient,', `Dear ${approver.name},`), { requestId, fromRole })
+  }
+  return { success: true, notified: approvers.length }
+}
+
+/**
+ * Notify the current approver that the previous approver has replied and the request is back in their queue.
+ */
+export function sendReplyToCurrentApproverNotification(requestId, replyAuthorName, replyText, currentApproverRole) {
+  const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(requestId)
+  if (!request) return
+
+  let query = 'SELECT * FROM users WHERE role = ? AND (COALESCE(active, 1) = 1)'
+  const params = [currentApproverRole]
+  if (currentApproverRole === 'Director' || currentApproverRole === 'Compliance') {
+    if (request.department) {
+      query += ' AND department = ?'
+      params.push(request.department)
+    }
+  }
+  const approvers = db.prepare(query).all(...params)
+  if (approvers.length === 0) return
+
+  const subject = `COI Request ${request.request_id} - Previous Approver Replied; Pending Your Action`
+  const replyPreview = replyText ? `\n\nReply:\n${replyText}` : '\n\n(No reply text provided.)'
+  const body = `Dear recipient,
+
+The previous approver (${replyAuthorName}) has replied to your comment. The request is back in your queue for review.
+
+Request ID: ${request.request_id}${replyPreview}
+
+Please log in to the COI system to continue:
+http://localhost:5173/coi/request/${requestId}
+
+Best regards,
+COI System`
+
+  for (const approver of approvers) {
+    sendEmail(approver.email, subject, body.replace('Dear recipient,', `Dear ${approver.name},`), { requestId, currentApproverRole })
+  }
+  return { success: true, notified: approvers.length }
 }
 
 export function sendRejectionNotification(requestId, rejectorName, reason, rejectionType = 'fixable', rejectionCategory = null) {
@@ -972,7 +1058,7 @@ function getNextApprover(department, role, requestId = null) {
     // Filter by employee status (active only) — HRMS sync keeps is_active/active up to date
     candidates = candidates.filter(u => (u.is_active === 1 || u.active === 1))
   } else {
-    let query = 'SELECT * FROM users WHERE role = ? AND (is_active = 1 OR active = 1)'
+    let query = 'SELECT * FROM users WHERE role = ? AND (COALESCE(active, 1) = 1)'
     const params = [role]
     if (role === 'Director' || role === 'Compliance') {
       if (department) {
@@ -997,7 +1083,7 @@ function getNextApprover(department, role, requestId = null) {
   if (requestId) {
     const request = db.prepare('SELECT backup_approver_id FROM coi_requests WHERE id = ?').get(requestId)
     if (request && request.backup_approver_id) {
-      const backup = db.prepare('SELECT * FROM users WHERE id = ? AND (active = 1 OR is_active = 1)').get(request.backup_approver_id)
+      const backup = db.prepare('SELECT * FROM users WHERE id = ? AND (COALESCE(active, 1) = 1)').get(request.backup_approver_id)
       if (backup) {
         console.log(`[Backup] Using backup approver ${backup.name} (${backup.role}) for request ${requestId}`)
         return backup
@@ -1009,7 +1095,7 @@ function getNextApprover(department, role, requestId = null) {
   console.log(`[Escalation] No active ${role} approvers available${department ? ` for department ${department}` : ''}. Escalating to Admin.`)
 
   if (requestId) {
-    let unavailableQuery = 'SELECT name, unavailable_reason, unavailable_until FROM users WHERE role = ? AND (COALESCE(is_active, active, 1) = 0)'
+    let unavailableQuery = 'SELECT name, unavailable_reason, unavailable_until FROM users WHERE role = ? AND (COALESCE(active, 1) = 0)'
     const unavailableParams = [role]
     if (role === 'Director' || role === 'Compliance') {
       if (department) {
@@ -1031,7 +1117,7 @@ function getNextApprover(department, role, requestId = null) {
   }
 
   const admins = db.prepare(`
-    SELECT * FROM users WHERE role IN ('Admin', 'Super Admin') AND (is_active = 1 OR active = 1)
+    SELECT * FROM users WHERE role IN ('Admin', 'Super Admin') AND (COALESCE(active, 1) = 1)
   `).all()
   if (admins.length > 0) {
     sendEscalationNotification(role, department, admins)
@@ -1112,7 +1198,8 @@ COI System`
  * Handle SLA warning notification
  * Queued for daily digest (not urgent)
  */
-export function handleSLAWarning(payload) {
+export function handleSLAWarning(event) {
+  const payload = event?.data || event
   const { requestNumber, clientName, workflowStage, percentUsed, hoursRemaining, requesterId, requestId } = payload
   
   // Queue for digest
@@ -1153,7 +1240,8 @@ Please review and take action.`,
  * Handle SLA critical notification
  * Queued as urgent - sent immediately
  */
-export function handleSLACritical(payload) {
+export function handleSLACritical(event) {
+  const payload = event?.data || event
   const { requestNumber, clientName, workflowStage, percentUsed, hoursRemaining, requesterId, requestId } = payload
   
   // Send immediately to requester
@@ -1187,14 +1275,15 @@ This request is at ${percentUsed}% of its SLA and will breach shortly.`,
     }
   }
   
-  console.log(`[SLA Notification] Critical alert sent for request ${requestNumber}`)
+  console.log(`[SLA Notification] Critical alert sent for request ${requestNumber ?? payload?.requestNumber ?? event?.requestId ?? 'unknown'}`)
 }
 
 /**
  * Handle SLA breach notification
  * Always sent immediately + escalated to management
  */
-export function handleSLABreach(payload) {
+export function handleSLABreach(event) {
+  const payload = event?.data || event
   const { requestNumber, clientName, workflowStage, actualHours, targetHours, requesterId, requestId } = payload
   
   const hoursOverdue = Math.round(actualHours - targetHours)
@@ -1233,7 +1322,7 @@ Please resolve immediately. This breach has been logged.`,
   
   // Escalate to management (Admins/Super Admins)
   const admins = db.prepare(`
-    SELECT * FROM users WHERE role IN ('Admin', 'Super Admin') AND is_active = 1
+    SELECT * FROM users WHERE role IN ('Admin', 'Super Admin') AND (COALESCE(active, 1) = 1)
   `).all()
   
   for (const admin of admins) {

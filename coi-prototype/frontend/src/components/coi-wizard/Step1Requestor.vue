@@ -26,8 +26,8 @@
             class="w-full rounded-xl px-5 py-4 bg-white text-gray-800 text-base font-medium appearance-none cursor-pointer"
             style="border: 2px solid #E5E7EB; background-image: url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3E%3Cpath stroke=%27%236B7280%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27M6 8l4 4 4-4%27/%3E%3C/svg%3E'); background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 3rem;"
             required
-            @focus="$event.target.style.borderColor='#0066CC'; $event.target.style.boxShadow='0 0 0 3px rgba(0, 102, 204, 0.1)'"
-            @blur="$event.target.style.borderColor='#E5E7EB'; $event.target.style.boxShadow='none'"
+            @focus="onInputFocus"
+            @blur="onInputBlur"
           >
             <option value="">Select designation...</option>
             <option>Director</option>
@@ -45,8 +45,8 @@
             class="w-full rounded-xl px-5 py-4 bg-white text-gray-800 text-base font-medium appearance-none cursor-pointer"
             style="border: 2px solid #E5E7EB; background-image: url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3E%3Cpath stroke=%27%236B7280%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27M6 8l4 4 4-4%27/%3E%3C/svg%3E'); background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 3rem;"
             required
-            @focus="$event.target.style.borderColor='#0066CC'; $event.target.style.boxShadow='0 0 0 3px rgba(0, 102, 204, 0.1)'"
-            @blur="$event.target.style.borderColor='#E5E7EB'; $event.target.style.boxShadow='none'"
+            @focus="onInputFocus"
+            @blur="onInputBlur"
           >
             <option value="">Select entity...</option>
             <option>BDO Al Nisf & Partners</option>
@@ -60,8 +60,8 @@
             class="w-full rounded-xl px-5 py-4 bg-white text-gray-800 text-base font-medium appearance-none cursor-pointer"
             style="border: 2px solid #E5E7EB; background-image: url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3E%3Cpath stroke=%27%236B7280%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27M6 8l4 4 4-4%27/%3E%3C/svg%3E'); background-position: right 1rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 3rem;"
             required
-            @focus="$event.target.style.borderColor='#0066CC'; $event.target.style.boxShadow='0 0 0 3px rgba(0, 102, 204, 0.1)'"
-            @blur="$event.target.style.borderColor='#E5E7EB'; $event.target.style.boxShadow='none'"
+            @focus="onInputFocus"
+            @blur="onInputBlur"
           >
             <option value="">Select service...</option>
             <option>Audit & Assurance</option>
@@ -89,6 +89,22 @@ const emit = defineEmits<{
 
 function handleUpdate(field: keyof WizardFormData, value: any) {
   emit('update', { [field]: value })
+}
+
+function onInputFocus(e: Event) {
+  const el = e.target as HTMLElement
+  if (el) {
+    el.style.borderColor = '#0066CC'
+    el.style.boxShadow = '0 0 0 3px rgba(0, 102, 204, 0.1)'
+  }
+}
+
+function onInputBlur(e: Event) {
+  const el = e.target as HTMLElement
+  if (el) {
+    el.style.borderColor = '#E5E7EB'
+    el.style.boxShadow = 'none'
+  }
 }
 </script>
 

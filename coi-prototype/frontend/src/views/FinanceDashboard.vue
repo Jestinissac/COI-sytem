@@ -487,7 +487,7 @@
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
               <div class="px-6 py-4 border-b border-gray-200">
                 <h2 class="font-semibold text-gray-900">PRMS Synchronization Status</h2>
-                <p class="text-sm text-gray-500 mt-1">Engagement codes synced with PRMS system</p>
+                <p class="text-sm text-gray-500 mt-1">Engagement codes synced with PRMS system. In production, this reflects sync with PRMS; prototype shows COI data only.</p>
               </div>
               
               <div class="p-6">
@@ -535,7 +535,14 @@
                 </div>
 
                 <div class="text-center py-4">
-                  <button class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700">
+                  <button
+                    type="button"
+                    class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 mr-2"
+                    @click="openPrmsFetchModal"
+                  >
+                    Fetch PRMS data
+                  </button>
+                  <button class="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded hover:bg-gray-300">
                     Sync Now
                   </button>
                   <p class="text-xs text-gray-500 mt-2">Last sync: {{ lastSyncTime }}</p>
@@ -554,6 +561,14 @@
       :request="selectedRequest"
       @close="closeCodeModal"
       @success="handleCodeGenerated"
+    />
+
+    <!-- Fetch PRMS Data Modal -->
+    <FetchPRMSDataModal
+      :show="showPrmsModal"
+      :clients="prmsModalClients"
+      :show-apply-button="false"
+      @close="showPrmsModal = false"
     />
 
     <!-- Keyboard Shortcuts Modal -->
@@ -581,6 +596,8 @@ import { useRouter } from 'vue-router'
 import { useCOIRequestsStore } from '@/stores/coiRequests'
 import { useAuthStore } from '@/stores/auth'
 import CodeGenerationModal from '@/components/finance/CodeGenerationModal.vue'
+import FetchPRMSDataModal from '@/components/integration/FetchPRMSDataModal.vue'
+import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import GlobalSearch from '@/components/ui/GlobalSearch.vue'
 import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
@@ -607,6 +624,8 @@ const searchQuery = ref('')
 const codeSearchQuery = ref('')
 const showCodeModal = ref(false)
 const selectedRequest = ref<any>(null)
+const showPrmsModal = ref(false)
+const prmsModalClients = ref<Array<{ id: number; client_name?: string; name?: string; client_code?: string; code?: string }>>([])
 
 // ============================================
 // Enhanced Filter State Variables
@@ -848,7 +867,7 @@ function getStatusClass(status: string) {
   return classes[status] || 'bg-gray-100 text-gray-700'
 }
 
-function formatDate(dateString: string) {
+function formatDate(dateString: string | undefined) {
   if (!dateString) return 'N/A'
   return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
@@ -886,7 +905,8 @@ function openCodeGenerationModal(request: any) {
     }
     
     if (request.engagement_code) {
-      toast.error('Engagement code already generated for this request')
+      coiStore.fetchRequests()
+      toast.info(`This request already has an engagement code (${request.engagement_code}). List refreshed — use "View" to see details.`)
       return
     }
     
@@ -908,6 +928,24 @@ function openCodeGenerationModal(request: any) {
 function closeCodeModal() {
   showCodeModal.value = false
   selectedRequest.value = null
+  // Refresh list so table shows current state (e.g. "View" instead of "Generate" after "Close and refresh list")
+  coiStore.fetchRequests()
+}
+
+async function openPrmsFetchModal() {
+  showPrmsModal.value = true
+  try {
+    const res = await api.get('/integration/clients')
+    prmsModalClients.value = (res.data || []).map((c: { id: number; name?: string; client_name?: string; code?: string; client_code?: string }) => ({
+      id: c.id,
+      name: c.name,
+      client_name: c.client_name ?? c.name,
+      code: c.code,
+      client_code: c.client_code ?? c.code
+    }))
+  } catch {
+    prmsModalClients.value = []
+  }
 }
 
 function handleCodeGenerated(code: string) {

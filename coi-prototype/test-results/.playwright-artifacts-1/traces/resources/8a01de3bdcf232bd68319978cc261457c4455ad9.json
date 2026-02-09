@@ -1,1 +1,0 @@
-{"location":"auth.ts:26","message":"Frontend login response received","data":{"userId":10,"role":"Requester","email":"patricia.white@company.com"},"timestamp":1769930197077,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}

@@ -22,7 +22,7 @@
             <select
               id="prms-client-select"
               v-model="selectedClientId"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               :disabled="loading"
             >
               <option :value="null">Select a client...</option>
@@ -35,7 +35,7 @@
             <button
               type="button"
               :disabled="!selectedClientId || loading"
-              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:pointer-events-none"
               @click="fetchData"
             >
               {{ loading ? 'Fetching...' : 'Fetch' }}
@@ -67,7 +67,7 @@
             <div v-if="showApplyButton" class="mt-4 pt-4 border-t border-gray-200">
               <button
                 type="button"
-                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
                 @click="applyToForm"
               >
                 Apply to form

@@ -13,7 +13,7 @@
             <select
               v-model="selectedTemplate"
               @change="loadTemplate"
-              class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
               <option value="">Load Template...</option>
               <option v-for="template in templates" :key="template.id" :value="template.id">
@@ -44,7 +44,7 @@
             <button
               @click="saveForm"
               :disabled="saving"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 disabled:opacity-50"
             >
               {{ saving ? 'Saving...' : 'Save Form' }}
             </button>
@@ -84,7 +84,7 @@
               <button
                 v-if="selectedField"
                 @click="showImpactAnalysis = !showImpactAnalysis"
-                class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-1"
+                class="px-3 py-1.5 text-xs bg-primary-600 text-white rounded-md hover:bg-primary-700 flex items-center gap-1"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
@@ -101,7 +101,8 @@
               />
             </div>
             <div class="p-4 space-y-6" @drop="handleDrop" @dragover.prevent>
-              <div v-for="section in sections" :key="section.id" class="section-container">
+              <!-- B1 Fix: data-section-id for drop target resolution -->
+              <div v-for="section in sections" :key="section.id" class="section-container" :data-section-id="section.id">
                 <div class="section-header flex items-center justify-between mb-3">
                   <h4 class="text-sm font-medium text-gray-900">{{ section.label }}</h4>
                   <button
@@ -117,7 +118,7 @@
                     v-for="field in getFieldsForSection(section.id)"
                     :key="field.id || field.field_id"
                     class="field-item p-3 border border-gray-200 rounded-md hover:border-blue-300 cursor-pointer transition-colors"
-                    :class="selectedField?.id === field.id ? 'border-blue-500 bg-blue-50' : 'bg-white'"
+                    :class="selectedField?.id === field.id ? 'border-primary-500 bg-blue-50' : 'bg-white'"
                     @click="editField(field)"
                   >
                     <div class="flex items-center justify-between">
@@ -187,7 +188,7 @@
                 <input
                   v-model="selectedField.field_label"
                   type="text"
-                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
                 />
               </div>
 
@@ -195,7 +196,7 @@
                 <label class="block text-xs font-medium text-gray-700 mb-1">Field Type</label>
                 <select
                   v-model="selectedField.field_type"
-                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
                 >
                   <option value="text">Text</option>
                   <option value="textarea">Textarea</option>
@@ -209,7 +210,7 @@
                 <label class="block text-xs font-medium text-gray-700 mb-1">Section</label>
                 <select
                   v-model="selectedField.section_id"
-                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
                 >
                   <option v-for="section in sections" :key="section.id" :value="section.id">
                     {{ section.label }}
@@ -222,7 +223,7 @@
                 <input
                   v-model="selectedField.field_placeholder"
                   type="text"
-                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
                 />
               </div>
 
@@ -251,7 +252,7 @@
                 <textarea
                   v-model="optionsText"
                   rows="4"
-                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
                   placeholder="Option 1&#10;Option 2&#10;Option 3"
                 />
               </div>
@@ -260,7 +261,7 @@
                 <label class="block text-xs font-medium text-gray-700 mb-1">Data Source</label>
                 <select
                   v-model="selectedField.source_system"
-                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
                 >
                   <option value="manual">Manual Entry</option>
                   <option value="HRMS">HRMS</option>
@@ -274,7 +275,7 @@
                 <input
                   v-model="selectedField.source_field"
                   type="text"
-                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
                   :placeholder="getSourceFieldPlaceholder(selectedField.source_system)"
                 />
                 <small class="text-xs text-gray-500 mt-1 block">
@@ -287,7 +288,7 @@
                 <div class="space-y-2">
                   <select
                     v-model="conditionField"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
                   >
                     <option value="">No condition</option>
                     <option v-for="f in allFields" :key="f.field_id" :value="f.field_id">
@@ -297,7 +298,7 @@
                   <select
                     v-if="conditionField"
                     v-model="conditionOperator"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
                   >
                     <option value="equals">Equals</option>
                     <option value="not_equals">Not Equals</option>
@@ -308,14 +309,14 @@
                     v-model="conditionValue"
                     type="text"
                     placeholder="Value"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
                   />
                 </div>
               </div>
 
               <button
                 @click="saveFieldProperties"
-                class="w-full px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700"
+                class="w-full px-3 py-2 bg-primary-600 text-white text-sm font-medium rounded hover:bg-primary-700"
               >
                 Save Properties
               </button>
@@ -387,6 +388,8 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
+// B1 Fix: Import ImpactAnalysisPanel (referenced in template).
+import ImpactAnalysisPanel from '@/components/ImpactAnalysisPanel.vue'
 
 const { success, error: showError } = useToast()
 
@@ -449,8 +452,10 @@ function handleDrop(event: DragEvent) {
   event.preventDefault()
   const fieldType = event.dataTransfer?.getData('fieldType')
   if (fieldType) {
-    // Find which section was dropped on (simplified - drops to first section)
-    addNewField(fieldType, 'section-1')
+    // B1 Fix: Resolve drop target section from event (was hardcoded 'section-1').
+    const sectionEl = (event.target as HTMLElement)?.closest?.('[data-section-id]')
+    const sectionId = sectionEl?.getAttribute?.('data-section-id') || 'section-1'
+    addNewField(fieldType, sectionId)
   }
 }
 

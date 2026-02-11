@@ -15,7 +15,7 @@
               :value="prospect.prospect_name"
               @input="emit('update:prospect', { ...prospect, prospect_name: ($event.target as HTMLInputElement).value })"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               placeholder="Enter prospect name"
               aria-required="true"
             />
@@ -26,7 +26,7 @@
             <select
               :value="prospect.industry"
               @change="emit('update:prospect', { ...prospect, industry: ($event.target as HTMLSelectElement).value })"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
               <option value="">Select industry...</option>
               <option value="Financial Services">Financial Services</option>
@@ -48,7 +48,7 @@
               :value="prospect.commercial_registration"
               @input="emit('update:prospect', { ...prospect, commercial_registration: ($event.target as HTMLInputElement).value })"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               placeholder="Optional"
             />
           </div>
@@ -66,7 +66,7 @@
             type="button"
             @click="$emit('confirm')"
             :disabled="!prospect.prospect_name.trim() || creating"
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             <span v-if="creating">Creating...</span>
             <span v-else>Create & Select</span>

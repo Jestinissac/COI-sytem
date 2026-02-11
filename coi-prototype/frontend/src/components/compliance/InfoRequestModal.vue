@@ -48,7 +48,7 @@
             rows="6"
             required
             placeholder="Example:&#10;1. Please provide detailed ownership structure including all beneficial owners&#10;2. Clarify the scope of services - does this include tax advisory or only compliance?&#10;3. Provide copies of previous engagement letters with this client"
-            class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           />
           <p class="text-xs text-gray-500 mt-2">
             {{ infoRequired.length }} characters
@@ -65,7 +65,7 @@
             v-model="context"
             rows="3"
             placeholder="Provide any additional context or explain why this information is needed..."
-            class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           />
         </div>
 
@@ -96,7 +96,7 @@
             :disabled="!infoRequired.trim() || isSubmitting"
             class="px-6 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
             :class="infoRequired.trim() && !isSubmitting
-              ? 'bg-blue-600 hover:bg-blue-700'
+              ? 'bg-primary-600 hover:bg-primary-700'
               : 'bg-gray-300 cursor-not-allowed'"
           >
             <span v-if="isSubmitting" class="flex items-center gap-2">

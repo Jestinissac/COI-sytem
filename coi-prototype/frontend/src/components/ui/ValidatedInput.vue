@@ -167,7 +167,7 @@ const inputClasses = computed(() => {
   } else if (isValid.value && touched.value) {
     base.push('border-green-500 focus:ring-green-500 focus:border-green-500 pr-10');
   } else {
-    base.push('border-gray-300 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400');
+    base.push('border-gray-300 focus:ring-primary-500 focus:border-primary-500 hover:border-gray-400');
   }
   
   return base.join(' ');

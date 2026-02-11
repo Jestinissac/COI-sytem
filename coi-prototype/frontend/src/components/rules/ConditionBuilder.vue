@@ -69,7 +69,7 @@
             <select
               v-model="condition.field"
               @change="onFieldChange(groupIndex, condIndex)"
-              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
             >
               <option value="">Select field...</option>
               <template v-if="fieldCategories && Object.keys(fieldCategories).length > 0">
@@ -92,7 +92,7 @@
             <select
               v-model="condition.conditionOperator"
               :disabled="!condition.field"
-              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100"
             >
               <option value="">Operator...</option>
               <option v-for="op in getOperatorsForField(condition.field)" :key="op.id" :value="op.id">
@@ -107,7 +107,7 @@
               v-if="fieldHasOptions(condition.field)"
               v-model="condition.value"
               :disabled="!condition.conditionOperator"
-              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100"
             >
               <option value="">Select value...</option>
               <option v-for="opt in getFieldOptions(condition.field)" :key="opt" :value="opt">
@@ -119,7 +119,7 @@
               v-model="condition.value"
               type="text"
               :disabled="!condition.conditionOperator"
-              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100"
               placeholder="Enter value..."
             />
           </div>
@@ -142,7 +142,7 @@
         <button
           type="button"
           @click="addCondition(groupIndex)"
-          class="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+          class="flex items-center gap-2 px-3 py-2 text-sm text-primary-600 hover:text-primary-700 hover:bg-blue-50 rounded-md transition-colors"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>

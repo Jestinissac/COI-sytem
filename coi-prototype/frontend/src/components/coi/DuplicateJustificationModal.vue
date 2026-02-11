@@ -35,7 +35,7 @@
             :value="justification"
             @input="$emit('update:justification', ($event.target as HTMLTextAreaElement).value)"
             rows="4"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
             placeholder="Explain why this submission should proceed despite the existing record..."
             aria-required="true"
           ></textarea>
@@ -54,7 +54,7 @@
           type="button"
           @click="$emit('confirm')"
           :disabled="!justification.trim() || loading"
-          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+          class="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
         >
           <span v-if="loading">Submitting...</span>
           <span v-else>Submit with Justification</span>

@@ -154,7 +154,7 @@
                       v-model="searchQuery"
                       type="text" 
                       placeholder="Search by ID, client, requester..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -162,7 +162,7 @@
                   </div>
                   
                   <!-- Validation Type Filter -->
-                  <select v-model="filterType" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select v-model="filterType" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="all">All Requests</option>
                     <option value="conflicts">With Conflicts</option>
                     <option value="duplications">With Duplications</option>
@@ -172,7 +172,7 @@
                   </select>
                   
                   <!-- Service Type Filter -->
-                  <select v-model="pendingServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select v-model="pendingServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
                   </select>
@@ -182,7 +182,7 @@
                     <input 
                       type="checkbox" 
                       v-model="pendingInternationalOnly"
-                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-primary-500"
                     />
                     International only
                   </label>
@@ -236,7 +236,7 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-if="loading">
+                    <tr v-if="loading" role="status" aria-live="polite">
                       <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                         <div class="flex items-center justify-center">
                           <svg class="animate-spin h-5 w-5 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24">
@@ -248,10 +248,12 @@
                       </td>
                     </tr>
                     <tr v-else-if="coiStore.error && !coiStore.loading">
-                      <td colspan="7" class="px-6 py-8 text-center">
-                        <p class="text-red-600 font-medium">Could not load requests</p>
-                        <p class="text-sm text-gray-600 mt-1">{{ coiStore.error }}</p>
-                        <button type="button" @click="coiStore.fetchRequests()" class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">Retry</button>
+                      <td colspan="7" class="px-6 py-8" role="alert" aria-live="assertive">
+                        <EmptyState
+                          title="Could not load compliance queue"
+                          :message="coiStore.error"
+                          :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests(), ariaLabel: 'Retry loading compliance queue' }"
+                        />
                       </td>
                     </tr>
                     <tr v-else-if="filteredRequests.length === 0">
@@ -318,7 +320,7 @@
                         <div class="flex items-center gap-2">
                           <button 
                             @click="viewDetails(request)" 
-                            class="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
+                            class="px-3 py-1.5 bg-primary-600 text-white text-sm font-medium rounded hover:bg-primary-700 transition-colors"
                           >
                             Review
                           </button>
@@ -514,7 +516,7 @@
                       v-model="historySearchQuery"
                       type="text" 
                       placeholder="Search by ID, client..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -522,14 +524,14 @@
                   </div>
                   
                   <!-- Decision Type Filter -->
-                  <select v-model="historyDecisionFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select v-model="historyDecisionFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="all">All Decisions</option>
                     <option value="approved">Approved</option>
                     <option value="rejected">Rejected</option>
                   </select>
                   
                   <!-- Service Type Filter -->
-                  <select v-model="historyServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select v-model="historyServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
                   </select>
@@ -596,7 +598,7 @@
                         <span class="text-sm text-gray-500">{{ formatDate(item.compliance_review_date || item.updated_at || '') }}</span>
                       </td>
                       <td class="px-6 py-4">
-                        <button @click="viewDetails(item)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <button @click="viewDetails(item)" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
                           View →
                         </button>
                       </td>
@@ -682,6 +684,17 @@
               </div>
             </div>
 
+            <!-- B11c: Review recommendations (when request has rule recommendations) -->
+            <div v-if="hasRecommendations(selectedRequest)" class="mb-4">
+              <button
+                type="button"
+                @click="showRecommendationModal = true"
+                class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                Review recommendations ({{ getRecommendationsCount(selectedRequest) }})
+              </button>
+            </div>
+
             <!-- Compliance Action Panel -->
             <ComplianceActionPanel 
               :request="selectedRequest"
@@ -697,7 +710,7 @@
           <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
             <button 
               @click="goToFullDetails(selectedRequest)"
-              class="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              class="text-sm text-primary-600 hover:text-primary-700 font-medium"
             >
               View Full Details →
             </button>
@@ -729,6 +742,15 @@
     @cancel="showInfoRequestModal = false"
   />
 
+  <!-- B11c: Recommendation detail modal -->
+  <RecommendationDetailModal
+    :show="showRecommendationModal"
+    :recommendations="selectedRequest?.rule_recommendations ?? []"
+    :request-id="selectedRequest?.id"
+    @close="showRecommendationModal = false"
+    @confirm="handleRecommendationConfirm"
+  />
+
   <!-- Keyboard Shortcuts Modal -->
   <KeyboardShortcutsModal
     :is-open="showHelpModal"
@@ -755,8 +777,10 @@ import RuleBuilder from '@/components/RuleBuilder.vue'
 import ComplianceActionPanel from '@/components/compliance/ComplianceActionPanel.vue'
 import RestrictionsModal from '@/components/compliance/RestrictionsModal.vue'
 import InfoRequestModal from '@/components/compliance/InfoRequestModal.vue'
+import RecommendationDetailModal from '@/components/compliance/RecommendationDetailModal.vue'
 import GlobalSearch from '@/components/ui/GlobalSearch.vue'
 import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
@@ -770,7 +794,10 @@ const showReviewModal = ref(false)
 const selectedRequest = ref<COIRequest | null>(null)
 const showRestrictionsModal = ref(false)
 const showInfoRequestModal = ref(false)
+const showRecommendationModal = ref(false)
 const showSearch = ref(false)
+/** B11c: Per-request recommendation choices for approve payload (accepted/rejected/overridden) */
+const recommendationChoicesByRequestId = ref<Record<string, { acceptedRecommendations: (string | number)[]; rejectedRecommendations: (string | number)[]; overriddenRecommendations: { ruleId: string | number; justification: string }[] }>>({})
 
 // Keyboard shortcuts
 const { 
@@ -1232,9 +1259,10 @@ function getRecommendationsSummary(request: any): string {
       : request.rule_recommendations
     if (!Array.isArray(recommendations)) return ''
     
-    const critical = recommendations.filter((r: any) => r.severity === 'CRITICAL').length
-    const high = recommendations.filter((r: any) => r.severity === 'HIGH').length
-    const medium = recommendations.filter((r: any) => r.severity === 'MEDIUM').length
+    const severity = (r: any) => r.severity || r.confidence
+    const critical = recommendations.filter((r: any) => severity(r) === 'CRITICAL').length
+    const high = recommendations.filter((r: any) => severity(r) === 'HIGH').length
+    const medium = recommendations.filter((r: any) => severity(r) === 'MEDIUM').length
     
     const parts = []
     if (critical > 0) parts.push(`${critical} Critical`)
@@ -1286,13 +1314,36 @@ function goToFullDetails(request: any) {
   router.push(`/coi/request/${request.id}`)
 }
 
+function handleRecommendationConfirm(payload: {
+  acceptedRecommendations: (string | number)[]
+  rejectedRecommendations: (string | number)[]
+  overriddenRecommendations: { ruleId: string | number; justification: string }[]
+}) {
+  if (selectedRequest.value) {
+    const id = String(selectedRequest.value.id)
+    recommendationChoicesByRequestId.value = {
+      ...recommendationChoicesByRequestId.value,
+      [id]: payload
+    }
+  }
+  showRecommendationModal.value = false
+}
+
 async function handleApprove() {
   if (!selectedRequest.value) return
+  const id = String(selectedRequest.value.id)
+  const choices = recommendationChoicesByRequestId.value[id]
+  const body: Record<string, unknown> = {
+    status: 'Approved',
+    comments: 'Approved by Compliance'
+  }
+  if (choices) {
+    body.acceptedRecommendations = choices.acceptedRecommendations
+    body.rejectedRecommendations = choices.rejectedRecommendations
+    body.overriddenRecommendations = choices.overriddenRecommendations
+  }
   try {
-    await api.post(`/coi/requests/${selectedRequest.value.id}/approve`, {
-      status: 'Approved',
-      comments: 'Approved by Compliance'
-    })
+    await api.post(`/coi/requests/${selectedRequest.value.id}/approve`, body)
     await coiStore.fetchRequests()
     closeReviewModal()
   } catch (error: any) {

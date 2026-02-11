@@ -14,7 +14,7 @@
         <!-- Create Prospect Option -->
         <label 
           class="flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors"
-          :class="selectedAction === 'prospect' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+          :class="selectedAction === 'prospect' ? 'border-primary-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
         >
           <input 
             type="radio" 
@@ -36,7 +36,7 @@
         <!-- Create COI Request Option -->
         <label 
           class="flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors"
-          :class="selectedAction === 'coi' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+          :class="selectedAction === 'coi' ? 'border-primary-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
         >
           <input 
             type="radio" 
@@ -58,7 +58,7 @@
         <!-- Log Interaction Option -->
         <label 
           class="flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors"
-          :class="selectedAction === 'log' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+          :class="selectedAction === 'log' ? 'border-primary-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
         >
           <input 
             type="radio" 
@@ -111,7 +111,7 @@
         <button
           @click="executeAction"
           :disabled="!selectedAction || processing"
-          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+          class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <div v-if="processing" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
           {{ processing ? 'Processing...' : 'Continue' }}

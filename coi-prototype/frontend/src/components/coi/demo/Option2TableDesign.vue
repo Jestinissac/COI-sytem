@@ -6,7 +6,7 @@
         <input 
           type="checkbox" 
           v-model="internationalOperations"
-          class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
         />
         <span class="ml-2 text-sm font-medium text-gray-700">Client has international operations</span>
       </label>
@@ -19,7 +19,7 @@
         <button
           type="button"
           @click="addCountry"
-          class="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+          class="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-blue-600 rounded-md hover:bg-primary-700 transition-colors"
         >
           <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -48,7 +48,7 @@
                 <td class="px-4 py-3 whitespace-nowrap">
                   <select
                     v-model="country.country_code"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                   >
                     <option value="">Select country...</option>
                     <option value="KWT">Kuwait</option>
@@ -62,7 +62,7 @@
                   <button
                     type="button"
                     @click="addEntity(countryIndex)"
-                    class="flex items-center text-xs font-medium text-blue-600 hover:text-blue-700"
+                    class="flex items-center text-xs font-medium text-primary-600 hover:text-blue-700"
                   >
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -89,7 +89,7 @@
                 <td class="px-4 py-2">
                   <select
                     v-model="entity.relationship_type"
-                    class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                   >
                     <option value="">Select...</option>
                     <option value="parent">Parent Company</option>
@@ -102,7 +102,7 @@
                     v-model="entity.name"
                     type="text"
                     :placeholder="getEntityPlaceholder(entity.relationship_type)"
-                    class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                   />
                 </td>
                 <td class="px-4 py-2">
@@ -110,7 +110,7 @@
                     v-model="entity.details"
                     type="text"
                     placeholder="Details..."
-                    class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                   />
                 </td>
                 <td class="px-4 py-2 whitespace-nowrap text-right">
@@ -152,7 +152,7 @@
         <label class="block text-sm font-medium text-gray-700 mb-1.5">Global Clearance Status</label>
         <select 
           v-model="globalClearanceStatus"
-          class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
         >
           <option>Not Required</option>
           <option>Pending</option>

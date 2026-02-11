@@ -108,7 +108,7 @@ export function useHRMSStatus() {
  */
 export function getEnvironmentConfig() {
   const env = getEnvironment()
-  
+
   return {
     environment: env,
     isProduction: isProduction(),
@@ -120,5 +120,15 @@ export function getEnvironmentConfig() {
     enableLoadTesting: isLoadTestingAllowed(),
     useADApprovers: useADApprovers(),
     useHRMSStatus: useHRMSStatus()
+  }
+}
+
+/**
+ * Development-only logger. No-op in production.
+ * Use for debug/trace; use console.error for real errors.
+ */
+export function devLog(...args) {
+  if (!isProduction()) {
+    console.log(...args)
   }
 }

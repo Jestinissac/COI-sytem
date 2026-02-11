@@ -395,7 +395,7 @@ function buildOpportunityTitle(trigger, metadata) {
   } else if (trigger.trigger_type === 'business_cycle') {
     return `${clientName} - ${trigger.trigger_subtype} Opportunity`
   } else {
-    return `${clientName} - Business Development Opportunity`
+    return `${clientName} - Prospect CRM Opportunity`
   }
 }
 

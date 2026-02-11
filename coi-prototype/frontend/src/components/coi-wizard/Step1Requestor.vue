@@ -49,8 +49,12 @@
             @blur="onInputBlur"
           >
             <option value="">Select entity...</option>
-            <option>BDO Al Nisf & Partners</option>
+            <option v-for="e in entities" :key="e.entity_code" :value="e.entity_name">
+              {{ e.entity_display_name || e.entity_name }}
+            </option>
           </select>
+          <p v-if="loadingEntities" class="text-sm text-gray-500 mt-1">Loading entities...</p>
+          <p v-if="entitiesError" class="text-sm text-red-600 mt-1">Failed to load entities. Please try again later.</p>
         </div>
         <div class="space-y-2">
           <label class="block text-sm font-bold text-gray-800 mb-2">Line of Service *</label>
@@ -77,7 +81,16 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import api from '@/services/api'
 import type { WizardFormData } from '@/composables/useWizard'
+
+interface EntityOption {
+  entity_code: string
+  entity_name: string
+  entity_display_name?: string
+  is_default?: boolean
+}
 
 const props = defineProps<{
   formData: WizardFormData
@@ -86,6 +99,28 @@ const props = defineProps<{
 const emit = defineEmits<{
   update: [data: Partial<WizardFormData>]
 }>()
+
+const entities = ref<EntityOption[]>([])
+const loadingEntities = ref(true)
+const entitiesError = ref(false)
+
+onMounted(async () => {
+  try {
+    const response = await api.get('/entity-codes')
+    const raw = response?.data
+    const data = Array.isArray(raw) ? raw : (raw?.data ?? [])
+    entities.value = data
+
+    if (!props.formData.entity && entities.value.length > 0) {
+      const defaultEntity = entities.value.find((e) => e.is_default) || entities.value[0]
+      emit('update', { entity: defaultEntity.entity_name })
+    }
+  } catch {
+    entitiesError.value = true
+  } finally {
+    loadingEntities.value = false
+  }
+})
 
 function handleUpdate(field: keyof WizardFormData, value: any) {
   emit('update', { [field]: value })

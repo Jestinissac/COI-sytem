@@ -10,7 +10,7 @@
           </div>
           <router-link 
             to="/coi/request/new" 
-            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+            class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors"
           >
             + New Request
           </router-link>
@@ -22,7 +22,7 @@
       <!-- Mobile Menu Button -->
       <button 
         @click="sidebarOpen = !sidebarOpen"
-        class="md:hidden mb-4 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        class="md:hidden mb-4 p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
         aria-label="Toggle navigation menu"
         :aria-expanded="sidebarOpen"
       >
@@ -98,7 +98,7 @@
               <router-link 
                 to="/coi/request/new"
                 @click="sidebarOpen = false"
-                class="flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                class="flex items-center justify-center w-full px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 aria-label="Create new COI request"
               >
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -204,6 +204,14 @@
                 <div v-if="loading" class="space-y-3">
                   <SkeletonCard v-for="i in 3" :key="i" />
                 </div>
+                <!-- Error State -->
+                <div v-else-if="coiStore.error" role="alert" aria-live="assertive">
+                  <EmptyState
+                    title="Could not load your recent requests"
+                    :message="coiStore.error"
+                    :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests(), ariaLabel: 'Retry loading recent requests' }"
+                  />
+                </div>
                 <!-- Empty State -->
                 <EmptyState
                   v-else-if="recentRequests.length === 0"
@@ -229,7 +237,7 @@
                       </span>
                       <button 
                         @click="viewRequest(request)" 
-                        class="text-blue-600 hover:text-blue-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                        class="text-primary-600 hover:text-primary-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
                         aria-label="View request details"
                       >
                         View →
@@ -250,7 +258,7 @@
                   <button 
                     @click="exportAllRequestsList"
                     :disabled="exportingAllList || enhancedFilteredRequests.length === 0"
-                    class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                    class="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
                     aria-label="Export requests"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -268,7 +276,7 @@
                       v-model="searchQuery"
                       type="text" 
                       placeholder="Search by ID, client, service..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -278,7 +286,7 @@
                   <!-- Status Filter -->
                   <select 
                     v-model="allStatusFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Statuses</option>
                     <option value="Draft">Draft</option>
@@ -291,7 +299,7 @@
                   <!-- Service Type Filter -->
                   <select 
                     v-model="allServiceFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
@@ -354,11 +362,11 @@
                       </td>
                     </tr>
                     <tr v-else-if="coiStore.error && !loading">
-                      <td colspan="6" class="px-6 py-8">
+                      <td colspan="6" class="px-6 py-8" role="alert" aria-live="assertive">
                         <EmptyState
-                          title="Could not load requests"
+                          title="Could not load your requests"
                           :message="coiStore.error"
-                          :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests() }"
+                          :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests(), ariaLabel: 'Retry loading requests' }"
                         />
                       </td>
                     </tr>
@@ -392,7 +400,7 @@
                       <td class="px-6 py-4">
                         <button 
                           @click="viewRequest(request)" 
-                          class="text-blue-600 hover:text-blue-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                          class="text-primary-600 hover:text-primary-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
                           aria-label="View request details"
                         >
                           View →
@@ -408,12 +416,13 @@
                 <div v-if="loading" class="space-y-4">
                   <SkeletonCard v-for="i in 5" :key="i" />
                 </div>
-                <EmptyState
-                  v-else-if="coiStore.error"
-                  title="Could not load requests"
-                  :message="coiStore.error"
-                  :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests() }"
-                />
+                <div v-else-if="coiStore.error" role="alert" aria-live="assertive">
+                  <EmptyState
+                    title="Could not load your requests"
+                    :message="coiStore.error"
+                    :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests(), ariaLabel: 'Retry loading requests' }"
+                  />
+                </div>
                 <EmptyState
                   v-else-if="enhancedFilteredRequests.length === 0"
                   title="No requests found"
@@ -446,7 +455,7 @@
                   </div>
                   <button 
                     @click="viewRequest(request)" 
-                    class="w-full mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    class="w-full mt-3 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                     aria-label="View request details"
                   >
                     View Details
@@ -467,7 +476,7 @@
                   >
                     Previous
                   </button>
-                  <span class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded">{{ currentPage }}</span>
+                  <span class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded">{{ currentPage }}</span>
                   <button 
                     @click="currentPage++" 
                     :disabled="currentPage >= enhancedTotalPages"
@@ -504,7 +513,7 @@
                       <div class="flex gap-2">
                         <button 
                           @click="editDraft(request)"
-                          class="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700"
+                          class="px-3 py-1.5 bg-primary-600 text-white text-sm font-medium rounded hover:bg-primary-700"
                         >
                           Continue Editing
                         </button>
@@ -552,7 +561,7 @@
                       v-model="pendingSearchQuery"
                       type="text" 
                       placeholder="Search by ID, client..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -562,7 +571,7 @@
                   <!-- Stage Filter -->
                   <select 
                     v-model="pendingStageFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Stages</option>
                     <option value="Pending Director Approval">Director Review</option>
@@ -574,7 +583,7 @@
                   <!-- Service Type Filter -->
                   <select 
                     v-model="pendingServiceFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
@@ -657,7 +666,7 @@
                         <p v-if="getDaysPending(request) > 14" class="text-xs text-red-600 font-medium mt-1">Overdue</p>
                       </td>
                       <td class="px-6 py-4">
-                        <button @click="viewRequest(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <button @click="viewRequest(request)" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
                           Track →
                         </button>
                       </td>
@@ -800,7 +809,7 @@
                             <button 
                               v-if="!request.proposal_sent_date && request.status === 'Approved'"
                               @click="openSendProposalModal(request)"
-                              class="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
+                              class="px-2 py-1 bg-primary-600 text-white text-xs font-medium rounded hover:bg-primary-700"
                             >
                               Send Proposal
                             </button>
@@ -819,7 +828,7 @@
                               Record Response
                             </button>
                           </template>
-                          <button @click="viewRequest(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                          <button @click="viewRequest(request)" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
                             View →
                           </button>
                         </div>
@@ -886,7 +895,7 @@
                     <input 
                       v-model="proposalEmail"
                       type="email"
-                      class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                       placeholder="client@company.com"
                     />
                   </div>
@@ -902,7 +911,7 @@
                   <button 
                     @click="sendProposal"
                     :disabled="!proposalEmail || sendingProposal"
-                    class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50"
                   >
                     {{ sendingProposal ? 'Sending...' : 'Send Proposal' }}
                   </button>
@@ -934,7 +943,7 @@
                     <textarea 
                       v-model="followUpNotes"
                       rows="3"
-                      class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                       placeholder="Details of the follow-up..."
                     ></textarea>
                   </div>
@@ -987,7 +996,7 @@
                     <textarea 
                       v-model="responseNotes"
                       rows="3"
-                      class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                       placeholder="Additional notes about the response..."
                     ></textarea>
                   </div>
@@ -1023,7 +1032,7 @@
                       v-model="rejectedSearchQuery"
                       type="text" 
                       placeholder="Search by ID, client..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -1033,7 +1042,7 @@
                   <!-- Rejection Type Filter -->
                   <select 
                     v-model="rejectedTypeFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Types</option>
                     <option value="fixable">Fixable</option>
@@ -1043,7 +1052,7 @@
                   <!-- Service Type Filter -->
                   <select 
                     v-model="rejectedServiceFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
@@ -1114,7 +1123,7 @@
                       </td>
                       <td class="px-6 py-4">
                         <div class="flex items-center gap-2">
-                          <button @click="viewRequest(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                          <button @click="viewRequest(request)" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
                             View
                           </button>
                           <button 
@@ -1149,7 +1158,7 @@
             </div>
           </div>
 
-          <!-- Business Development Tab -->
+          <!-- Prospect CRM Tab -->
           <div v-if="activeTab === 'business-dev'" class="space-y-6">
             <!-- Sub-tab Navigation -->
             <div class="bg-white rounded border border-gray-200">
@@ -1161,7 +1170,7 @@
                     @click="activeBDSubTab = subTab.id"
                     class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
                     :class="activeBDSubTab === subTab.id 
-                      ? 'border-blue-500 text-blue-600' 
+                      ? 'border-primary-500 text-primary-600' 
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                   >
                     {{ subTab.label }}
@@ -1376,10 +1385,10 @@ const tabs = computed(() => [
   { id: 'pending', label: 'Pending', icon: PendingIcon, count: inProgressCount.value, alertColor: 'bg-yellow-100 text-yellow-700', divider: false },
   { id: 'active', label: 'Active', icon: ActiveIcon, count: activeEngagementsCount.value, alertColor: 'bg-green-100 text-green-700', divider: false },
   { id: 'rejected', label: 'Rejected', icon: RejectedIcon, count: rejectedCount.value, alertColor: 'bg-red-100 text-red-700', divider: false },
-  { id: 'business-dev', label: 'Business Development', icon: BusinessDevIcon, count: 0, alertColor: '', divider: true }
+  { id: 'business-dev', label: 'Prospect CRM', icon: BusinessDevIcon, count: 0, alertColor: '', divider: true }
 ])
 
-// Business Development sub-tabs
+// Prospect CRM sub-tabs
 const activeBDSubTab = ref('prospects')
 const bdSubTabs = [
   { id: 'prospects', label: 'Prospects' },

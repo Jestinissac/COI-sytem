@@ -1,7 +1,7 @@
 import { getDatabase } from '../database/init.js'
 import { getFilteredRequests } from '../middleware/dataSegregation.js'
 import { checkDuplication, checkGroupConflicts, checkInternationalOperationsConflicts } from '../services/duplicationCheckService.js'
-import { sendApprovalNotification, sendRejectionNotification, sendEngagementCodeNotification, sendProposalExecutedNotification, sendNeedMoreInfoNotification, sendCommentToPreviousApproverNotification, sendReplyToCurrentApproverNotification, sendEmail } from '../services/notificationService.js'
+import { sendApprovalNotification, sendRejectionNotification, sendEngagementCodeNotification, sendProposalExecutedNotification, sendNeedMoreInfoNotification, sendCommentToPreviousApproverNotification, sendReplyToCurrentApproverNotification, sendEmail, notifyPreviousApproversOfProgress } from '../services/notificationService.js'
 import { notifyRequestSubmitted, notifyDirectorApprovalRequired, notifyComplianceReviewRequired, notifyGroupConflictFlagged } from '../services/emailService.js'
 import { generateEngagementCodeSync } from '../services/engagementCodeService.js'
 import { updateMonitoringDays, getApproachingLimitRequests, getExceededLimitRequests } from '../services/monitoringService.js'
@@ -16,7 +16,29 @@ import { isClientParentTBDOrEmpty } from './parentCompanyUpdateController.js'
 import { mapServiceTypeToCMA } from '../services/cmaConflictMatrix.js'
 import { eventBus, EVENT_TYPES } from '../services/eventBus.js'
 import { logFunnelEvent, logStatusChange, FUNNEL_STAGES } from '../services/funnelTrackingService.js'
+import { devLog } from '../config/environment.js'
 const db = getDatabase()
+
+/**
+ * Returns the next approval stage status_name from workflow_stages for the current status.
+ * Used to drive dynamic approval flow; Finance step (Pending Finance) has no next stage (null) and leads to Approved via generate-code endpoint.
+ * @param {string} currentStatus - e.g. 'Pending Director Approval', 'Pending Compliance', 'Pending Partner', 'Pending Finance'
+ * @returns {string|null} Next stage status_name or null if last stage or table missing
+ */
+function getNextApprovalStatus(currentStatus) {
+  try {
+    const stage = db.prepare(`
+      SELECT id, next_stage_id FROM workflow_stages
+      WHERE status_name = ? AND is_active = 1
+    `).get(currentStatus)
+    if (!stage || stage.next_stage_id == null) return null
+    const nextStage = db.prepare('SELECT status_name FROM workflow_stages WHERE id = ?').get(stage.next_stage_id)
+    return nextStage ? nextStage.status_name : null
+  } catch (err) {
+    devLog('getNextApprovalStatus:', err.message)
+    return null
+  }
+}
 
 // Allowed enum values for DB CHECK constraints (coi_requests)
 const ALLOWED_CONTROL_TYPES = new Set(['Majority', 'Minority', 'Joint', 'Significant Influence', 'None'])
@@ -78,7 +100,7 @@ function getCurrentFormVersion() {
     return version?.max_version || 1
   } catch (error) {
     // Table doesn't exist, return default version
-    console.log('form_versions table not found, using default version 1')
+    devLog('form_versions table not found, using default version 1')
     return 1
   }
 }
@@ -94,7 +116,7 @@ function getFieldMappings() {
     }
   } catch (error) {
     // Table doesn't exist, use standard mappings only
-    console.log('form_field_mappings table not found, using standard mappings only')
+    devLog('form_field_mappings table not found, using standard mappings only')
   }
   
   // Add standard mappings if not in DB
@@ -980,6 +1002,8 @@ export async function submitRequest(req, res) {
     // --- Success response ---
     return res.json({
       success: true,
+      id: request.id,
+      request_id: request.request_id,
       duplicates: safeArray(duplicates),
       groupConflicts: safeArray(groupConflicts.conflicts),
       ruleRecommendations: safeArray(ruleEvaluation.recommendations),
@@ -1027,7 +1051,7 @@ export async function approveRequest(req, res) {
       byField = 'director_approval_by'
       notesField = 'director_approval_notes'
       restrictionsField = 'director_restrictions'
-      nextStatus = 'Pending Compliance'
+      nextStatus = getNextApprovalStatus(request.status) ?? 'Pending Compliance'
       
       // Emit event for approval
       eventBus.emitEvent(EVENT_TYPES.REQUEST_APPROVED, {
@@ -1042,7 +1066,7 @@ export async function approveRequest(req, res) {
       byField = 'compliance_reviewed_by'
       notesField = 'compliance_review_notes'
       restrictionsField = 'compliance_restrictions'
-      nextStatus = 'Pending Partner'
+      nextStatus = getNextApprovalStatus(request.status) ?? 'Pending Partner'
       
       // Emit event for approval
       eventBus.emitEvent(EVENT_TYPES.REQUEST_APPROVED, {
@@ -1088,7 +1112,7 @@ export async function approveRequest(req, res) {
       byField = 'partner_approved_by'
       notesField = 'partner_approval_notes'
       restrictionsField = 'partner_restrictions'
-      nextStatus = 'Pending Finance'
+      nextStatus = getNextApprovalStatus(request.status) ?? 'Pending Finance'
     } else {
       return res.status(400).json({ error: 'Invalid approval action' })
     }
@@ -1151,7 +1175,7 @@ export async function approveRequest(req, res) {
       }
     } catch (error) {
       // Fallback: try without restrictions column
-      console.log(`Column ${restrictionsField} not found, updating without restrictions`)
+      devLog(`Column ${restrictionsField} not found, updating without restrictions`)
       updateQuery = `
         UPDATE coi_requests 
         SET ${updateField} = ?, 
@@ -1202,12 +1226,15 @@ http://localhost:5173/coi
 Best regards,
 COI System`
       
-      sendEmail(requester.email, requesterSubject, requesterBody, { 
-        requestId: request.id, 
+      sendEmail(requester.email, requesterSubject, requesterBody, {
+        requestId: request.id,
         requestNumber: request.request_id,
         type: 'progress_update'
       })
     }
+
+    // Notify previous approvers (e.g. Director when Compliance approves)
+    notifyPreviousApproversOfProgress(req.params.id, user.id, user.name, user.role, nextStatus)
 
     // ========================================
     // FUNNEL TRACKING: Log status change for prospects
@@ -1246,7 +1273,7 @@ COI System`
       }
     }
 
-    res.json({ success: true, approval_status: approvalStatus })
+    res.json({ success: true, approval_status: approvalStatus, nextStatus })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -1256,38 +1283,46 @@ COI System`
 export async function requestMoreInfo(req, res) {
   try {
     const user = getUserById(req.userId)
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' })
+    }
     const request = db.prepare('SELECT * FROM coi_requests WHERE id = ?').get(req.params.id)
-    
     if (!request) {
       return res.status(404).json({ error: 'Request not found' })
     }
 
-    // Role-based validation: Directors cannot request more info (Compliance/Partner only)
-    if (user.role === 'Director') {
-      return res.status(403).json({ 
-        error: 'Directors can only approve or reject requests. The "Need More Info" option is available to Compliance and Partner roles only.' 
-      })
-    }
-
     const { info_required, comments } = req.body
-    
+
     let updateField, notesField
-    
-    if (user.role === 'Compliance' && request.status === 'Pending Compliance') {
+    if (user.role === 'Director' && request.status === 'Pending Director Approval') {
+      updateField = 'director_approval_status'
+      notesField = 'director_approval_notes'
+    } else if (user.role === 'Compliance' && request.status === 'Pending Compliance') {
       updateField = 'compliance_review_status'
       notesField = 'compliance_review_notes'
     } else if (user.role === 'Partner' && request.status === 'Pending Partner') {
       updateField = 'partner_approval_status'
       notesField = 'partner_approval_notes'
-    } else if (user.role === 'Finance' && request.status === 'Pending Finance') {
-      updateField = 'finance_approval_status'
-      notesField = 'finance_approval_notes'
     } else {
-      return res.status(400).json({ error: 'Invalid action for current status' })
+      return res.status(403).json({ error: 'You are not authorized to perform this action for the current request status.' })
     }
 
-    // Set status back to allow requester to update
-    // Also increment escalation_count for priority scoring
+    // B2: Persist info request for history (table may not exist yet if migration has not run)
+    try {
+      db.prepare(`
+        INSERT INTO info_requests (coi_request_id, requested_by, requested_by_role, info_required)
+        VALUES (?, ?, ?, ?)
+      `).run(
+        req.params.id,
+        req.userId,
+        user.role,
+        (info_required || '').trim() || 'Please provide more details.'
+      )
+    } catch (infoErr) {
+      devLog('info_requests insert skipped:', infoErr.message)
+    }
+
+    // Set status back to allow requester to update; increment escalation_count for priority scoring
     db.prepare(`
       UPDATE coi_requests 
       SET ${updateField} = 'Need More Info',
@@ -1312,7 +1347,9 @@ export async function requestMoreInfo(req, res) {
 
     res.json({ success: true })
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    console.error('requestMoreInfo error:', error.message)
+    if (error.stack) console.error(error.stack)
+    res.status(500).json({ error: 'Internal server error' })
   }
 }
 
@@ -1818,30 +1855,26 @@ export async function generateEngagementCode(req, res) {
       })()
     }
 
+    const MAX_ENGAGEMENT_CODE_ATTEMPTS = 3
     let code
-    let retried = false
-    try {
-      code = runTransaction()
-    } catch (error) {
-      if (error.message.includes('UNIQUE constraint') && !retried) {
-        retried = true
-        lastAttemptedCode = null
-        try {
-          code = runTransaction()
-        } catch (retryError) {
-          const retryAttemptedCode = lastAttemptedCode || retryError.attemptedCode
-          if (retryError.message.includes('UNIQUE constraint')) {
+    for (let attempt = 0; attempt < MAX_ENGAGEMENT_CODE_ATTEMPTS; attempt++) {
+      try {
+        code = runTransaction()
+        break
+      } catch (e) {
+        if (e.message.includes('UNIQUE constraint')) {
+          lastAttemptedCode = e.attemptedCode || lastAttemptedCode
+          if (attempt === MAX_ENGAGEMENT_CODE_ATTEMPTS - 1) {
             return res.status(409).json({
               error: 'Engagement code already exists. Please try again or contact support.',
               error_code: 'generated_code_collision',
               hint: 'A different request already has this code. Try again to generate a new code.',
-              ...(retryAttemptedCode && { collided_code: retryAttemptedCode })
+              ...(lastAttemptedCode && { collided_code: lastAttemptedCode })
             })
           }
-          throw retryError
+        } else {
+          throw e
         }
-      } else {
-        throw error
       }
     }
 
@@ -2050,7 +2083,7 @@ export async function reEvaluateRequest(req, res) {
     `).run(JSON.stringify(complianceChecks), id)
     
     // Log the re-evaluation
-    console.log(`Request ${id} re-evaluated by user ${userId}. ${complianceChecks.length} checks performed.`)
+    devLog(`Request ${id} re-evaluated by user ${userId}. ${complianceChecks.length} checks performed.`)
     
     res.json({ 
       success: true, 
@@ -2121,7 +2154,7 @@ export async function refreshDuplicates(req, res) {
       WHERE id = ?
     `).run(JSON.stringify(allRecommendations), id)
     
-    console.log(`[Refresh Duplicates] Request ${request.request_id}: ${duplicates.length} matches found (was refreshed)`)
+    devLog(`[Refresh Duplicates] Request ${request.request_id}: ${duplicates.length} matches found (was refreshed)`)
     
     res.json({
       success: true,

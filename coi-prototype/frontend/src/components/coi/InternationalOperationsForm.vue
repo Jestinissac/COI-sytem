@@ -223,7 +223,7 @@
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Country <span class="text-red-500">*</span></label>
                   <select
                     v-model="country.country_code"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option value="">Select country...</option>
                     <option v-for="c in availableCountries" :key="c.country_code" :value="c.country_code">
@@ -260,7 +260,7 @@
                     <button
                       type="button"
                       @click="addEntity(countryIndex)"
-                      class="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                      class="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 transition-colors"
                     >
                       <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -284,7 +284,7 @@
                             <div class="flex items-center space-x-2">
                               <select
                                 v-model="entity.relationship_type"
-                                class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium"
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white font-medium"
                               >
                                 <option value="">Select relationship...</option>
                                 <option value="parent">Parent Company</option>
@@ -330,7 +330,7 @@
                             v-model="entity.name"
                             type="text"
                             :placeholder="getEntityPlaceholder(entity.relationship_type)"
-                            class="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium"
+                            class="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white font-medium"
                           />
                         </div>
                         
@@ -349,7 +349,7 @@
                             min="0"
                             max="100"
                             step="0.01"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                             placeholder="e.g., 75.5"
                             @blur="validateEntityOwnership(countryIndex, entityIndex)"
                           />
@@ -376,7 +376,7 @@
                             v-model="entity.details"
                             rows="3"
                             placeholder="Registration number, address, business activities, etc."
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                           />
                         </div>
                         

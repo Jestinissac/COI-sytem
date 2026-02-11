@@ -13,7 +13,7 @@
             <select
               v-model="selectedEntityCode"
               @change="loadEntityCatalog"
-              class="px-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="px-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
               <option value="">Select entity...</option>
               <option v-for="entity in entities" :key="entity.id" :value="entity.entity_code">
@@ -35,7 +35,7 @@
             <button
               v-if="selectedEntityCode"
               @click="exportCatalog"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 flex items-center gap-2"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 flex items-center gap-2"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -68,7 +68,7 @@
                 v-model="globalSearchQuery"
                 type="text"
                 placeholder="Search services..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-4 focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-4 focus:ring-2 focus:ring-primary-500"
               />
               <div class="space-y-2 max-h-96 overflow-y-auto">
                 <div
@@ -126,7 +126,7 @@
                 v-model="entitySearchQuery"
                 type="text"
                 placeholder="Search enabled services..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-4 focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-4 focus:ring-2 focus:ring-primary-500"
               />
               
               <div v-if="loading" class="text-center py-8">
@@ -230,7 +230,7 @@
               v-model="customServiceForm.category"
               type="text"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500"
               placeholder="e.g., Advisory - Custom"
             />
           </div>
@@ -240,7 +240,7 @@
               v-model="customServiceForm.service_name"
               type="text"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div>
@@ -248,7 +248,7 @@
             <textarea
               v-model="customServiceForm.description"
               rows="3"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div class="flex justify-end gap-3 pt-4">
@@ -262,7 +262,7 @@
             <button
               type="submit"
               :disabled="saving"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 disabled:opacity-50"
             >
               {{ saving ? 'Saving...' : 'Add Service' }}
             </button>
@@ -280,7 +280,7 @@
         <div class="p-6 space-y-4">
           <button
             @click="copyFromAnotherEntity"
-            class="w-full px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 text-left"
+            class="w-full px-4 py-3 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 text-left"
           >
             Copy from Another Entity
           </button>
@@ -510,7 +510,7 @@ function getHistoryBorderColor(action: string) {
   const colors: Record<string, string> = {
     enabled: 'border-green-500',
     disabled: 'border-red-500',
-    created: 'border-blue-500',
+    created: 'border-primary-500',
     updated: 'border-yellow-500',
     deleted: 'border-gray-500'
   }

@@ -11,7 +11,7 @@
             </div>
             <button
               @click="showCreateModal = true"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors flex items-center gap-2"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -31,7 +31,7 @@
                 v-model="filters.search"
                 type="text"
                 placeholder="Search prospects..."
-                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
 
@@ -43,7 +43,7 @@
                   <input
                     type="checkbox"
                     v-model="filters.prospectsOnly"
-                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-primary-500"
                   />
                   <span class="text-sm text-gray-700">Prospects Only</span>
                 </label>
@@ -51,7 +51,7 @@
                   <input
                     type="checkbox"
                     v-model="filters.existingClientsOnly"
-                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-primary-500"
                   />
                   <span class="text-sm text-gray-700">Linked to Existing Clients</span>
                 </label>
@@ -59,7 +59,7 @@
                   <input
                     type="checkbox"
                     v-model="filters.convertedOnly"
-                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-primary-500"
                   />
                   <span class="text-sm text-gray-700">Converted Prospects</span>
                 </label>
@@ -71,7 +71,7 @@
               <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Status</label>
               <select
                 v-model="filters.status"
-                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 <option value="">All Statuses</option>
                 <option value="Active">Active</option>
@@ -86,7 +86,7 @@
               <p class="text-xs text-gray-500 mb-1">Synced = linked to PRMS client (prototype: COI client list).</p>
               <select
                 v-model="filters.prmsSynced"
-                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 <option value="">All</option>
                 <option value="synced">Existing Client</option>
@@ -255,7 +255,7 @@
               <button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
                 Cancel
               </button>
-              <button type="submit" :disabled="creating" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              <button type="submit" :disabled="creating" class="px-4 py-2 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50">
                 {{ creating ? 'Creating...' : 'Create Prospect' }}
               </button>
             </div>

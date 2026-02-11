@@ -1,6 +1,7 @@
 import { getDatabase } from '../database/init.js'
 import { notifyEngagementExpiring, notifyProposalMonitoringAlert, notifyProposalLapsed } from './emailService.js'
 import { logAuditTrail } from './auditTrailService.js'
+import { devLog } from '../config/environment.js'
 
 /**
  * Monitoring Service
@@ -19,7 +20,7 @@ export function updateMonitoringDays() {
       // Add the column if it doesn't exist
       try {
         db.exec('ALTER TABLE coi_requests ADD COLUMN monitoring_days_elapsed INTEGER DEFAULT 0')
-        console.log('✅ Added monitoring_days_elapsed column to coi_requests')
+        devLog('Added monitoring_days_elapsed column to coi_requests')
       } catch (alterError) {
         if (!alterError.message.includes('duplicate column')) {
           console.error('Error adding monitoring_days_elapsed column:', alterError)
@@ -243,7 +244,7 @@ export async function sendIntervalMonitoringAlerts() {
       }
     }
     
-    console.log(`📅 30-day monitoring alerts: ${results.checked} checked, ${results.alertsSent} alerts sent`)
+    devLog(`30-day monitoring alerts: ${results.checked} checked, ${results.alertsSent} alerts sent`)
     return results
   } catch (error) {
     console.error('Error in sendIntervalMonitoringAlerts:', error)
@@ -314,7 +315,7 @@ export async function checkAndLapseExpiredProposals() {
       })
       
       // Log the lapse
-      console.log(`[Monitoring] Request ${proposal.request_id} automatically lapsed after 30 days without client response`)
+      devLog(`[Monitoring] Request ${proposal.request_id} automatically lapsed after 30 days without client response`)
       
       // Get all recipients for notification
       const recipients = []
@@ -511,7 +512,7 @@ export async function checkExpiringEngagements() {
     }
   }
   
-  console.log(`📅 Expiring engagement check: ${results.checked} checked, ${results.alertsSent} alerts sent`)
+  devLog(`Expiring engagement check: ${results.checked} checked, ${results.alertsSent} alerts sent`)
   return results
 }
 
@@ -612,7 +613,7 @@ export async function check3YearRenewalAlerts() {
       }
     }
     
-    console.log(`📅 3-Year renewal check: ${results.checked} checked, ${results.alertsSent} alerts sent`)
+    devLog(`3-Year renewal check: ${results.checked} checked, ${results.alertsSent} alerts sent`)
     return results
   } catch (error) {
     console.error('Error in check3YearRenewalAlerts:', error)
@@ -648,14 +649,14 @@ COI System
   `.trim()
   
   // Log the notification (actual email would be sent via emailService)
-  console.log(`📧 3-Year Renewal Alert: ${engagement.request_id} -> ${recipient.email} (${daysUntilRenewal} days)`)
+  devLog(`3-Year Renewal Alert: ${engagement.request_id} -> ${recipient.email} (${daysUntilRenewal} days)`)
   
   // In production, this would call the email service
   try {
     const { sendEmailNotification } = await import('./emailService.js')
     await sendEmailNotification(recipient.email, subject, body)
   } catch (error) {
-    console.log(`[Mock Email] To: ${recipient.email}, Subject: ${subject}`)
+    devLog(`[Mock Email] To: ${recipient.email}, Subject: ${subject}`)
   }
 }
 
@@ -693,7 +694,7 @@ export async function checkPendingComplianceReviews() {
   
   if (pendingRequests.length > 0 && complianceOfficers.length > 0) {
     // Log reminder (email would go here)
-    console.log(`📋 ${pendingRequests.length} pending compliance reviews need attention`)
+    devLog(`${pendingRequests.length} pending compliance reviews need attention`)
     
     for (const request of pendingRequests) {
       db.prepare(`
@@ -744,7 +745,7 @@ export async function checkStaleRequests() {
     `).run(request.id)
     
     results.notificationsSent++
-    console.log(`⚠️ Stale request ${request.request_id}: ${request.stale_reason}`)
+    devLog(`Stale request ${request.request_id}: ${request.stale_reason}`)
   }
   
   return results
@@ -913,7 +914,7 @@ export function getMonitoringDashboard() {
  * Run all scheduled monitoring tasks
  */
 export async function runScheduledTasks() {
-  console.log('🔄 Running scheduled monitoring tasks...')
+  devLog('Running scheduled monitoring tasks...')
   
   const results = {
     timestamp: new Date().toISOString(),
@@ -959,7 +960,7 @@ export async function runScheduledTasks() {
     results.tasks.intervalAlerts = { error: error.message }
   }
   
-  console.log('✅ Scheduled tasks completed:', JSON.stringify(results.tasks))
+  devLog('Scheduled tasks completed:', JSON.stringify(results.tasks))
   return results
 }
 
@@ -968,7 +969,7 @@ let monitoringInterval = null
 
 export function startMonitoringScheduler() {
   if (monitoringInterval) {
-    console.log('⚠️ Monitoring scheduler already running')
+    devLog('Monitoring scheduler already running')
     return
   }
   
@@ -979,7 +980,7 @@ export function startMonitoringScheduler() {
     await runScheduledTasks()
   }, intervalMs)
   
-  console.log(`📅 Monitoring scheduler started (every ${MONITORING_CONFIG.staleRequestCheckIntervalHours} hours)`)
+  devLog(`Monitoring scheduler started (every ${MONITORING_CONFIG.staleRequestCheckIntervalHours} hours)`)
   
   // Run immediately on start
   runScheduledTasks()
@@ -989,7 +990,7 @@ export function stopMonitoringScheduler() {
   if (monitoringInterval) {
     clearInterval(monitoringInterval)
     monitoringInterval = null
-    console.log('⏹️ Monitoring scheduler stopped')
+    devLog('Monitoring scheduler stopped')
   }
 }
 

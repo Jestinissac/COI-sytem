@@ -42,14 +42,45 @@ export async function initDatabase() {
   const schemaPath = join(__dirname, '../../../database/schema.sql')
   const schema = readFileSync(schemaPath, 'utf-8')
   
-  // Split by semicolons and execute each statement
-  const statements = schema
-    .split(';')
-    .map(s => s.trim())
-    .filter(s => s.length > 0 && !s.startsWith('--'))
-  
+  // Parse SQL: strip line-comments, then split on semicolons outside BEGIN..END blocks
+  const stripped = schema
+    .split('\n')
+    .map(line => {
+      // Remove line comments (but keep content before --)
+      const idx = line.indexOf('--')
+      return idx >= 0 ? line.substring(0, idx) : line
+    })
+    .join('\n')
+
+  // Smart split: don't split on semicolons inside BEGIN...END (triggers)
+  const statements = []
+  let current = ''
+  let inBlock = false
+  for (const part of stripped.split(';')) {
+    current += (current ? ';' : '') + part
+    // Track BEGIN/END blocks (for triggers)
+    const upper = current.toUpperCase()
+    const begins = (upper.match(/\bBEGIN\b/g) || []).length
+    const ends = (upper.match(/\bEND\b/g) || []).length
+    if (begins > 0 && begins > ends) {
+      inBlock = true
+      continue
+    }
+    inBlock = false
+    const trimmed = current.trim()
+    if (trimmed.length > 0) {
+      statements.push(trimmed)
+    }
+    current = ''
+  }
+  // Flush any remaining
+  if (current.trim().length > 0) {
+    statements.push(current.trim())
+  }
+
   statements.forEach(statement => {
     try {
+      // db.exec runs the SQL statement against the SQLite database
       db.exec(statement)
     } catch (error) {
       // Ignore errors for existing tables/indexes/triggers
@@ -485,6 +516,94 @@ export async function initDatabase() {
     }
   }
 
+  // B2: info_requests table for Need More Info history (idempotent)
+  try {
+    const infoRequestsPath = join(__dirname, '../../../database/migrations/20260210_add_info_requests_table.sql')
+    const infoRequestsSql = readFileSync(infoRequestsPath, 'utf-8')
+    db.exec(infoRequestsSql)
+  } catch (error) {
+    if (!error.message.includes('already exists') && !error.message.includes('ENOENT')) {
+      console.log('B2 info_requests migration:', error.message)
+    }
+  }
+
+  // B8: workflow_stages table and default approval chain (idempotent)
+  try {
+    const workflowStagesPath = join(__dirname, '../../../database/migrations/20260210_add_workflow_stages_table.sql')
+    const workflowStagesSql = readFileSync(workflowStagesPath, 'utf-8')
+    db.exec(workflowStagesSql)
+  } catch (error) {
+    if (!error.message.includes('already exists') && !error.message.includes('ENOENT')) {
+      console.log('B8 workflow_stages migration:', error.message)
+    }
+  }
+
+  // B2: Expand director_approval_status (and compliance/partner) CHECK to allow 'Need More Info' and 'Approved with Restrictions'
+  // SQLite cannot ALTER CHECK; recreate coi_requests only when the table has the narrow CHECK.
+  try {
+    const tableInfo = db.prepare('PRAGMA table_info(coi_requests)').all()
+    if (tableInfo.length === 0) {
+      // No coi_requests table (e.g. fresh DB); skip.
+    } else {
+      const one = db.prepare('SELECT id, director_approval_status FROM coi_requests LIMIT 1').get()
+      let needMigration = !one
+      if (one) {
+        try {
+          db.prepare('UPDATE coi_requests SET director_approval_status = ? WHERE id = ?').run('Need More Info', one.id)
+          db.prepare('UPDATE coi_requests SET director_approval_status = ? WHERE id = ?').run(one.director_approval_status || 'Pending', one.id)
+        } catch (e) {
+          if (e.message && e.message.includes('CHECK constraint failed')) needMigration = true
+          else throw e
+        }
+      }
+      if (needMigration) {
+      const expandedCheck = " IN ('Pending', 'Approved', 'Approved with Restrictions', 'Need More Info', 'Rejected')"
+      const statusColumns = new Set(['director_approval_status', 'compliance_review_status', 'partner_approval_status'])
+      const cols = tableInfo.map((col) => {
+        const name = col.name
+        if (statusColumns.has(name)) {
+          return `${name} VARCHAR(50) DEFAULT 'Pending' CHECK (${name}${expandedCheck})`
+        }
+        const type = col.type || 'TEXT'
+        const notnull = col.notnull ? ' NOT NULL' : ''
+        const rawDflt = col.dflt_value
+        let dflt = ''
+        if (rawDflt != null) {
+          const strVal = String(rawDflt)
+          if (typeof rawDflt === 'number' || /^-?\d+(\.\d+)?$/.test(strVal)) {
+            dflt = ` DEFAULT ${strVal}`
+          } else {
+            // SQLite PRAGMA returns string defaults WITH surrounding quotes, e.g. 'Pending'
+            // Strip them before re-wrapping to avoid DEFAULT ''Pending'' (syntax error)
+            const unquoted = strVal.replace(/^'(.*)'$/, '$1')
+            dflt = ` DEFAULT '${unquoted.replace(/'/g, "''")}'`
+          }
+        }
+        const pk = col.pk ? ' PRIMARY KEY' + (name === 'id' && type.toUpperCase().includes('INT') ? ' AUTOINCREMENT' : '') : ''
+        return `${name} ${type}${notnull}${dflt}${pk}`
+      })
+      db.exec('PRAGMA foreign_keys = OFF')
+      db.exec(`CREATE TABLE coi_requests_new (${cols.join(', ')})`)
+      db.exec('INSERT INTO coi_requests_new SELECT * FROM coi_requests')
+      db.exec('DROP TABLE coi_requests')
+      db.exec('ALTER TABLE coi_requests_new RENAME TO coi_requests')
+      db.exec('PRAGMA foreign_keys = ON')
+      // Recreate indexes that were dropped with the table
+      try { db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_requester ON coi_requests(requester_id)') } catch (e) { /* ignore */ }
+      try { db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_department ON coi_requests(department)') } catch (e) { /* ignore */ }
+      try { db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_status ON coi_requests(status)') } catch (e) { /* ignore */ }
+      try { db.exec('CREATE INDEX IF NOT EXISTS idx_coi_requests_client ON coi_requests(client_id)') } catch (e) { /* ignore */ }
+      console.log('B2: coi_requests CHECK constraints updated for Need More Info')
+      }
+    }
+  } catch (error) {
+    if (!error.message.includes('no such table')) {
+      console.error('B2 coi_requests CHECK migration failed:', error.message)
+      if (error.stack) console.error(error.stack)
+    }
+    try { db.exec('PRAGMA foreign_keys = ON') } catch (_) { /* ensure FK back on */ }
+  }
+
   // Initialize system_config table if it doesn't exist
   try {
     db.exec(`
@@ -508,13 +627,13 @@ export async function initDatabase() {
         VALUES (?, ?, ?)
       `).run('system_edition', 'standard', 'Current system edition: standard or pro')
     }
-    // Enable Client Intelligence (CRM/Business Development) for handover so Business Development tab and CRM reports work
+    // Enable Client Intelligence (CRM/Prospect CRM) for handover so Prospect CRM tab and CRM reports work
     const ciExisting = db.prepare('SELECT id FROM system_config WHERE config_key = ?').get('client_intelligence_enabled')
     if (!ciExisting) {
       db.prepare(`
         INSERT INTO system_config (config_key, config_value, description)
         VALUES (?, ?, ?)
-      `).run('client_intelligence_enabled', 'true', 'Client Intelligence module enabled for handover (CRM/Business Development)')
+      `).run('client_intelligence_enabled', 'true', 'Client Intelligence module enabled for handover (CRM/Prospect CRM)')
     }
   } catch (error) {
     if (!error.message.includes('already exists')) {
@@ -1391,6 +1510,25 @@ export async function initDatabase() {
     if (!error.message.includes('duplicate column')) {
       // Column already exists, that's fine
     }
+  }
+
+  // B11a: Seed default CMA/IESBA rules from seed-rules.sql (count-and-skip for idempotency)
+  try {
+    const cmaIesbaCount = db.prepare(
+      "SELECT COUNT(*) as count FROM business_rules_config WHERE rule_category IN ('CMA', 'IESBA')"
+    ).get().count
+    if (cmaIesbaCount < 15) {
+      const seedPath = join(__dirname, '../../../database/seed-rules.sql')
+      if (existsSync(seedPath)) {
+        const seedSql = readFileSync(seedPath, 'utf8')
+        db.exec(seedSql)
+        console.log('✅ B11a: seed-rules.sql executed (default CMA/IESBA rules)')
+      } else {
+        console.log('Note: seed-rules.sql not found at', seedPath)
+      }
+    }
+  } catch (b11SeedError) {
+    console.log('Note: B11a seed-rules skipped:', b11SeedError?.message)
   }
 
   // Seed IESBA rules into business_rules_config (CMA + IESBA only)

@@ -31,11 +31,23 @@
             </p>
           </div>
           <div class="flex items-center gap-3">
+            <RouterLink
+              to="/coi/reports/analytics"
+              class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              aria-label="Open Analytics dashboard"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              Analytics
+            </RouterLink>
             <button
               @click="showCatalog = !showCatalog"
-              class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm"
+              class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              :aria-expanded="showCatalog"
+              aria-label="Toggle report catalog visibility"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
               </svg>
               {{ showCatalog ? 'Hide Report Catalog' : 'Browse Report Catalog' }}
@@ -167,7 +179,7 @@
                       <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                       </svg>
-                      <h4 class="text-sm font-semibold text-gray-700">Planned Reports</h4>
+                      <h4 class="text-sm font-semibold text-gray-700">Phase 2 Reports</h4>
                       <span class="inline-flex items-center px-2 py-0.5 bg-gray-100 border border-gray-200 text-gray-600 text-xs font-medium rounded">
                         {{ roleGroup.reports.filter(r => r.status === 'coming-soon').length }}
                       </span>
@@ -201,7 +213,7 @@
                             <h4 class="text-base font-semibold text-gray-600 mb-1">{{ report.name }}</h4>
                             <div class="flex items-center gap-2 flex-wrap">
                               <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium rounded-md">
-                                Coming Soon
+                                Phase 2
                               </span>
                               <span v-if="report.category" class="inline-flex items-center px-2 py-0.5 bg-gray-100 border border-gray-200 text-gray-600 text-xs font-medium rounded-md">
                                 {{ report.category === 'governance' ? 'Governance' : 'Operational' }}
@@ -229,7 +241,7 @@
             <!-- Sidebar Header -->
             <div class="bg-white px-6 py-4 border-b border-gray-200">
               <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+                <div class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center">
                   <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
                   </svg>
@@ -254,7 +266,7 @@
                 </label>
                 <select
                   v-model="selectedReport"
-                  class="w-full px-4 py-3 border border-gray-200 rounded text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-gray-300 transition-colors bg-white hover:border-gray-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-gray-300 transition-colors bg-white hover:border-gray-300"
                   aria-label="Select Report Type"
                   @keydown.enter="loadReportData(1)"
                 >
@@ -294,7 +306,7 @@
                     <input
                       v-model="filters.dateFrom"
                       type="date"
-                      class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-gray-300 transition-colors hover:border-gray-300"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-gray-300 transition-colors hover:border-gray-300"
                     />
                   </div>
                   <div>
@@ -302,7 +314,7 @@
                     <input
                       v-model="filters.dateTo"
                       type="date"
-                      class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-gray-300 transition-colors hover:border-gray-300"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-gray-300 transition-colors hover:border-gray-300"
                     />
                   </div>
                 </div>
@@ -312,7 +324,7 @@
                   <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Request Status</label>
                   <select
                     v-model="filters.status"
-                    class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-gray-300 transition-colors bg-white hover:border-gray-300"
+                    class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-gray-300 transition-colors bg-white hover:border-gray-300"
                   >
                     <option value="">All Statuses</option>
                     <option value="Draft">Draft</option>
@@ -332,7 +344,7 @@
                     v-model="filters.serviceType"
                     type="text"
                     placeholder="e.g., Audit, Tax, Advisory"
-                    class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-gray-300"
+                    class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all hover:border-gray-300"
                   />
                 </div>
 
@@ -341,7 +353,7 @@
                   <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Conversion Status</label>
                   <select
                     v-model="filters.conversionStatus"
-                    class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-gray-300 transition-colors bg-white hover:border-gray-300"
+                    class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-gray-300 transition-colors bg-white hover:border-gray-300"
                   >
                     <option value="">All</option>
                     <option value="Converted">Converted</option>
@@ -417,7 +429,7 @@
                   <button
                     @click="printReport"
                     :disabled="!reportData"
-                    class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     aria-label="Print Report"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -438,7 +450,7 @@
                   <button
                     @click="exportExcel"
                     :disabled="exporting !== null"
-                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -473,7 +485,7 @@
                 <p class="text-sm text-gray-500 mb-6">Choose a report from the left sidebar to generate insights</p>
                 <button
                   @click="showCatalog = true"
-                  class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
@@ -505,7 +517,7 @@
                 <p class="text-sm text-red-600 mb-6">{{ error }}</p>
                 <button
                   @click="loadReportData(1)"
-                  class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -632,7 +644,7 @@
                   <!-- Selection Action Bar -->
                   <div v-if="selectedRowCount > 0" class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                      <div class="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full text-sm font-bold">
+                      <div class="flex items-center justify-center w-8 h-8 bg-primary-600 text-white rounded-full text-sm font-bold">
                         {{ selectedRowCount }}
                       </div>
                       <span class="text-sm font-medium text-blue-900">
@@ -670,7 +682,7 @@
                         v-model="tableSearch"
                         type="text"
                         placeholder="Search in table..."
-                        class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                       />
                       <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -683,7 +695,7 @@
                       <div v-if="hasStatusColumn" class="flex-1 min-w-[200px]">
                         <select
                           v-model="tableStatusFilter"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                         >
                           <option value="">All Statuses</option>
                           <option value="Draft">Draft</option>
@@ -702,7 +714,7 @@
                           v-model="tableServiceTypeFilter"
                           type="text"
                           placeholder="Filter by service type..."
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         />
                       </div>
                       
@@ -728,7 +740,7 @@
                                 :checked="selectAll"
                                 :indeterminate="selectedRowCount > 0 && selectedRowCount < filteredTableData.length"
                                 @change="toggleSelectAll"
-                                class="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                                class="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-primary-500 focus:ring-2 cursor-pointer"
                                 title="Select all rows"
                               />
                             </th>
@@ -739,7 +751,7 @@
                               @keydown.enter="sortTable(header)"
                               @keydown.space.prevent="sortTable(header)"
                               tabindex="0"
-                              class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 select-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 select-none focus:outline-none focus:ring-2 focus:ring-primary-500"
                               :class="{ 'bg-gray-100': sortColumn === header }"
                               role="columnheader"
                               :aria-sort="sortColumn === header ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'"
@@ -772,7 +784,7 @@
                                 type="checkbox"
                                 :checked="isRowSelected(index)"
                                 @change="toggleRowSelection(index)"
-                                class="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                                class="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-primary-500 focus:ring-2 cursor-pointer"
                               />
                             </td>
                             <td
@@ -899,7 +911,7 @@
                   <p class="text-sm text-gray-500 mb-4">There is no data matching your current filters. Try adjusting your selection.</p>
                   <button
                     @click="clearFilters"
-                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -950,7 +962,7 @@
               <div class="flex items-center gap-3">
                 <button
                   @click="printReport"
-                  class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
@@ -1097,89 +1109,98 @@ const reportCatalog = computed(() => {
     {
       role: 'Requester',
       reports: [
-        { id: 'my-requests-summary', name: 'My Requests Summary', description: 'Personal tracking of all requests with status breakdown, service types, and processing times', dataPoints: 'Total, Status, Service Type, Client, Timeline', status: 'available', rolePath: 'requester', category: 'governance' },
-        { id: 'my-request-details', name: 'My Request Details', description: 'Detailed view of specific request(s) with approval history and attachments', dataPoints: 'Full Details, History, Notes, Attachments', status: 'coming-soon', rolePath: 'requester', category: 'operational' },
-        { id: 'my-request-status', name: 'My Request Status', description: 'Current status of all requests with days in status and next actions', dataPoints: 'Status, Stage, Days, Next Action', status: 'coming-soon', rolePath: 'requester', category: 'operational' },
+        { id: 'my-requests-summary', name: 'My Requests Summary', description: 'Personal tracking of all requests with status breakdown, service types, and processing times', dataPoints: 'Total, Status, Service Type, Client, Timeline', status: 'available', phase: '1', rolePath: 'requester', category: 'governance' },
+        { id: 'my-request-details', name: 'My Request Details', description: 'Detailed view of specific request(s) with approval history and attachments', dataPoints: 'Full Details, History, Notes, Attachments', status: 'coming-soon', phase: '2', rolePath: 'requester', category: 'operational' },
+        { id: 'my-request-status', name: 'My Request Status', description: 'Current status of all requests with days in status and next actions', dataPoints: 'Status, Stage, Days, Next Action', status: 'coming-soon', phase: '2', rolePath: 'requester', category: 'operational' },
         // CRM Reports for Requester (sales cycle participant)
-        { id: 'lead-source-effectiveness', name: 'Lead Source Effectiveness', description: 'Analyze which lead sources generate the most conversions', dataPoints: 'Lead Source, Prospects, Conversions, Conversion Rate', status: 'available', rolePath: 'requester', category: 'operational' },
-        { id: 'funnel-performance', name: 'Funnel Performance', description: 'Track prospect progression through the sales funnel', dataPoints: 'Stage, Count, Drop-off Rate, Avg Time in Stage', status: 'available', rolePath: 'requester', category: 'operational' },
-        { id: 'insights-to-conversion', name: 'Insights to Conversion', description: 'Track effectiveness of AI-generated insights', dataPoints: 'Insights Generated, Acted Upon, Converted', status: 'available', rolePath: 'requester', category: 'operational' },
-        { id: 'attribution-by-user', name: 'Attribution by User', description: 'Track conversions attributed to each user', dataPoints: 'User, Conversions, Avg Time, Success Rate', status: 'available', rolePath: 'requester', category: 'operational' },
-        { id: 'pipeline-forecast', name: 'Pipeline Forecast', description: 'Forecast expected conversions based on current pipeline', dataPoints: 'Stage, Count, Probability, Expected Conversions', status: 'available', rolePath: 'requester', category: 'operational' },
-        { id: 'conversion-trends', name: 'Conversion Trends', description: 'Monthly conversion trends over time', dataPoints: 'Month, Conversions, Rate, Trend Direction', status: 'available', rolePath: 'requester', category: 'operational' },
-        { id: 'period-comparison', name: 'Period Comparison', description: 'Compare current vs previous period performance', dataPoints: 'Metric, Current, Previous, Change %', status: 'available', rolePath: 'requester', category: 'operational' },
-        { id: 'lost-prospect-analysis', name: 'Lost Prospect Analysis', description: 'Analyze why prospects were lost', dataPoints: 'Reason, Count, Stage Lost, Lead Source', status: 'available', rolePath: 'requester', category: 'operational' }
+        { id: 'lead-source-effectiveness', name: 'Lead Source Effectiveness', description: 'Analyze which lead sources generate the most conversions', dataPoints: 'Lead Source, Prospects, Conversions, Conversion Rate', status: 'available', phase: '1', rolePath: 'requester', category: 'operational' },
+        { id: 'funnel-performance', name: 'Funnel Performance', description: 'Track prospect progression through the sales funnel', dataPoints: 'Stage, Count, Drop-off Rate, Avg Time in Stage', status: 'available', phase: '1', rolePath: 'requester', category: 'operational' },
+        { id: 'insights-to-conversion', name: 'Insights to Conversion', description: 'Track effectiveness of AI-generated insights', dataPoints: 'Insights Generated, Acted Upon, Converted', status: 'available', phase: '1', rolePath: 'requester', category: 'operational' },
+        { id: 'attribution-by-user', name: 'Attribution by User', description: 'Track conversions attributed to each user', dataPoints: 'User, Conversions, Avg Time, Success Rate', status: 'available', phase: '1', rolePath: 'requester', category: 'operational' },
+        { id: 'pipeline-forecast', name: 'Pipeline Forecast', description: 'Forecast expected conversions based on current pipeline', dataPoints: 'Stage, Count, Probability, Expected Conversions', status: 'available', phase: '1', rolePath: 'requester', category: 'operational' },
+        { id: 'conversion-trends', name: 'Conversion Trends', description: 'Monthly conversion trends over time', dataPoints: 'Month, Conversions, Rate, Trend Direction', status: 'available', phase: '1', rolePath: 'requester', category: 'operational' },
+        { id: 'period-comparison', name: 'Period Comparison', description: 'Compare current vs previous period performance', dataPoints: 'Metric, Current, Previous, Change %', status: 'available', phase: '1', rolePath: 'requester', category: 'operational' },
+        { id: 'lost-prospect-analysis', name: 'Lost Prospect Analysis', description: 'Analyze why prospects were lost', dataPoints: 'Reason, Count, Stage Lost, Lead Source', status: 'available', phase: '1', rolePath: 'requester', category: 'operational' }
       ]
     },
     {
       role: 'Director',
       reports: [
-        { id: 'department-overview', name: 'Department Requests Overview', description: 'Department-wide request tracking with team member breakdown', dataPoints: 'Total, By Requester, Status, Service Type, Approval Rate', status: 'available', rolePath: 'director', category: 'governance' },
-        { id: 'team-performance', name: 'Team Performance Report', description: 'Track team member request activity and performance metrics', dataPoints: 'Per Member, Approval Rate, Processing Time', status: 'coming-soon', rolePath: 'director', category: 'operational' },
-        { id: 'pending-approvals', name: 'Pending Approvals Report', description: 'Track requests awaiting director approval with priority indicators', dataPoints: 'Request Details, Days Pending, Priority', status: 'coming-soon', rolePath: 'director', category: 'governance' },
-        { id: 'department-service-analysis', name: 'Department Service Analysis', description: 'Analyze service types and trends in department', dataPoints: 'Service Distribution, Client Distribution, Trends', status: 'coming-soon', rolePath: 'director', category: 'operational' },
+        { id: 'department-overview', name: 'Department Requests Overview', description: 'Department-wide request tracking with team member breakdown', dataPoints: 'Total, By Requester, Status, Service Type, Approval Rate', status: 'available', phase: '1', rolePath: 'director', category: 'governance' },
+        { id: 'team-performance', name: 'Team Performance Report', description: 'Track team member request activity and performance metrics', dataPoints: 'Per Member, Approval Rate, Processing Time', status: 'coming-soon', phase: '2', rolePath: 'director', category: 'operational' },
+        { id: 'pending-approvals', name: 'Pending Approvals Report', description: 'Track requests awaiting director approval with priority indicators', dataPoints: 'Request Details, Days Pending, Priority', status: 'coming-soon', phase: '2', rolePath: 'director', category: 'governance' },
+        { id: 'department-service-analysis', name: 'Department Service Analysis', description: 'Analyze service types and trends in department', dataPoints: 'Service Distribution, Client Distribution, Trends', status: 'coming-soon', phase: '2', rolePath: 'director', category: 'operational' },
         // CRM Reports for Director (sales cycle participant)
-        { id: 'lead-source-effectiveness', name: 'Lead Source Effectiveness', description: 'Analyze which lead sources generate the most conversions', dataPoints: 'Lead Source, Prospects, Conversions, Conversion Rate', status: 'available', rolePath: 'director', category: 'operational' },
-        { id: 'funnel-performance', name: 'Funnel Performance', description: 'Track prospect progression through the sales funnel', dataPoints: 'Stage, Count, Drop-off Rate, Avg Time in Stage', status: 'available', rolePath: 'director', category: 'operational' },
-        { id: 'insights-to-conversion', name: 'Insights to Conversion', description: 'Track effectiveness of AI-generated insights', dataPoints: 'Insights Generated, Acted Upon, Converted', status: 'available', rolePath: 'director', category: 'operational' },
-        { id: 'attribution-by-user', name: 'Attribution by User', description: 'Track conversions attributed to each user', dataPoints: 'User, Conversions, Avg Time, Success Rate', status: 'available', rolePath: 'director', category: 'operational' },
-        { id: 'pipeline-forecast', name: 'Pipeline Forecast', description: 'Forecast expected conversions based on current pipeline', dataPoints: 'Stage, Count, Probability, Expected Conversions', status: 'available', rolePath: 'director', category: 'operational' },
-        { id: 'conversion-trends', name: 'Conversion Trends', description: 'Monthly conversion trends over time', dataPoints: 'Month, Conversions, Rate, Trend Direction', status: 'available', rolePath: 'director', category: 'operational' },
-        { id: 'period-comparison', name: 'Period Comparison', description: 'Compare current vs previous period performance', dataPoints: 'Metric, Current, Previous, Change %', status: 'available', rolePath: 'director', category: 'operational' },
-        { id: 'lost-prospect-analysis', name: 'Lost Prospect Analysis', description: 'Analyze why prospects were lost', dataPoints: 'Reason, Count, Stage Lost, Lead Source', status: 'available', rolePath: 'director', category: 'operational' }
+        { id: 'lead-source-effectiveness', name: 'Lead Source Effectiveness', description: 'Analyze which lead sources generate the most conversions', dataPoints: 'Lead Source, Prospects, Conversions, Conversion Rate', status: 'available', phase: '1', rolePath: 'director', category: 'operational' },
+        { id: 'funnel-performance', name: 'Funnel Performance', description: 'Track prospect progression through the sales funnel', dataPoints: 'Stage, Count, Drop-off Rate, Avg Time in Stage', status: 'available', phase: '1', rolePath: 'director', category: 'operational' },
+        { id: 'insights-to-conversion', name: 'Insights to Conversion', description: 'Track effectiveness of AI-generated insights', dataPoints: 'Insights Generated, Acted Upon, Converted', status: 'available', phase: '1', rolePath: 'director', category: 'operational' },
+        { id: 'attribution-by-user', name: 'Attribution by User', description: 'Track conversions attributed to each user', dataPoints: 'User, Conversions, Avg Time, Success Rate', status: 'available', phase: '1', rolePath: 'director', category: 'operational' },
+        { id: 'pipeline-forecast', name: 'Pipeline Forecast', description: 'Forecast expected conversions based on current pipeline', dataPoints: 'Stage, Count, Probability, Expected Conversions', status: 'available', phase: '1', rolePath: 'director', category: 'operational' },
+        { id: 'conversion-trends', name: 'Conversion Trends', description: 'Monthly conversion trends over time', dataPoints: 'Month, Conversions, Rate, Trend Direction', status: 'available', phase: '1', rolePath: 'director', category: 'operational' },
+        { id: 'period-comparison', name: 'Period Comparison', description: 'Compare current vs previous period performance', dataPoints: 'Metric, Current, Previous, Change %', status: 'available', phase: '1', rolePath: 'director', category: 'operational' },
+        { id: 'lost-prospect-analysis', name: 'Lost Prospect Analysis', description: 'Analyze why prospects were lost', dataPoints: 'Reason, Count, Stage Lost, Lead Source', status: 'available', phase: '1', rolePath: 'director', category: 'operational' }
       ]
     },
     {
       role: 'Compliance',
       reports: [
-        { id: 'review-summary', name: 'Compliance Review Summary', description: 'Overview of all compliance reviews with conflicts and duplications', dataPoints: 'Pending Reviews, Conflicts, Duplications, Approval Rate', status: 'available', rolePath: 'compliance', category: 'governance' },
-        { id: 'conflict-analysis', name: 'Conflict Analysis Report', description: 'Detailed conflict and duplication analysis with resolution status', dataPoints: 'Flagged Conflicts, Duplication Matches, Resolution', status: 'coming-soon', rolePath: 'compliance', category: 'governance' },
-        { id: 'service-conflict-matrix', name: 'Service Conflict Matrix', description: 'Visual matrix of service conflicts by client with risk levels', dataPoints: 'Client List, Service Types, Conflict Indicators', status: 'coming-soon', rolePath: 'compliance', category: 'governance' },
-        { id: 'global-clearance', name: 'Global Clearance Report', description: 'Track international operations requiring global clearance', dataPoints: 'International Requests, Clearance Status, Member Firm', status: 'coming-soon', rolePath: 'compliance', category: 'governance' },
-        { id: 'compliance-decision', name: 'Compliance Decision Report', description: 'Track all compliance decisions with notes and restrictions', dataPoints: 'Decisions, Dates, Notes, Restrictions', status: 'coming-soon', rolePath: 'compliance', category: 'governance' },
-        { id: 'duplication-detection', name: 'Duplication Detection Report', description: 'Detailed duplication matches with scores and actions', dataPoints: 'Matches, Scores, Reasons, Actions', status: 'coming-soon', rolePath: 'compliance', category: 'governance' }
+        { id: 'review-summary', name: 'Compliance Review Summary', description: 'Overview of all compliance reviews with conflicts and duplications', dataPoints: 'Pending Reviews, Conflicts, Duplications, Approval Rate', status: 'available', phase: '1', rolePath: 'compliance', category: 'governance' },
+        { id: 'conflict-analysis', name: 'Conflict Analysis Report', description: 'Detailed conflict and duplication analysis with resolution status', dataPoints: 'Flagged Conflicts, Duplication Matches, Resolution', status: 'available', phase: '1', rolePath: 'compliance', category: 'governance' },
+        { id: 'service-conflict-matrix', name: 'Service Conflict Matrix', description: 'Visual matrix of service conflicts by client with risk levels', dataPoints: 'Client List, Service Types, Conflict Indicators', status: 'coming-soon', phase: '2', rolePath: 'compliance', category: 'governance' },
+        { id: 'global-clearance', name: 'Global Clearance Report', description: 'Track international operations requiring global clearance', dataPoints: 'International Requests, Clearance Status, Member Firm', status: 'coming-soon', phase: '2', rolePath: 'compliance', category: 'governance' },
+        { id: 'compliance-decision', name: 'Compliance Decision Report', description: 'Track all compliance decisions with notes and restrictions', dataPoints: 'Decisions, Dates, Notes, Restrictions', status: 'coming-soon', phase: '2', rolePath: 'compliance', category: 'governance' },
+        { id: 'duplication-detection', name: 'Duplication Detection Report', description: 'Detailed duplication matches with scores and actions', dataPoints: 'Matches, Scores, Reasons, Actions', status: 'coming-soon', phase: '2', rolePath: 'compliance', category: 'governance' }
       ]
     },
     {
       role: 'Partner',
       reports: [
-        { id: 'pending-approvals', name: 'Pending Partner Approvals', description: 'Requests awaiting partner approval with compliance decisions', dataPoints: 'Request Details, Compliance Decision, Days Pending', status: 'available', rolePath: 'partner', category: 'governance' },
-        { id: 'dashboard-summary', name: 'Partner Dashboard Summary', description: 'High-level overview with pending approvals and key metrics', dataPoints: 'Pending, Active Proposals, Engagements, Expiring', status: 'coming-soon', rolePath: 'partner', category: 'operational' },
-        { id: 'active-engagements', name: 'Active Engagements Report', description: 'All active engagements overview with renewal dates', dataPoints: 'Engagement Code, Client, Dates, Status, Renewal', status: 'coming-soon', rolePath: 'partner', category: 'operational' },
-        { id: 'expiring-engagements', name: 'Expiring Engagements Report', description: 'Engagements approaching renewal/expiry with action required', dataPoints: 'Expiry Date, Days Until, Renewal Status, Action', status: 'coming-soon', rolePath: 'partner', category: 'governance' },
-        { id: 'approval-history', name: 'Partner Approval History', description: 'Track partner approval decisions with notes and restrictions', dataPoints: 'Decisions, Dates, Notes, Restrictions', status: 'coming-soon', rolePath: 'partner', category: 'governance' }
+        { id: 'pending-approvals', name: 'Pending Partner Approvals', description: 'Requests awaiting partner approval with compliance decisions', dataPoints: 'Request Details, Compliance Decision, Days Pending', status: 'available', phase: '1', rolePath: 'partner', category: 'governance' },
+        { id: 'dashboard-summary', name: 'Partner Dashboard Summary', description: 'High-level overview with pending approvals and key metrics', dataPoints: 'Pending, Active Proposals, Engagements, Expiring', status: 'coming-soon', phase: '2', rolePath: 'partner', category: 'operational' },
+        { id: 'active-engagements', name: 'Active Engagements Report', description: 'All active engagements overview with renewal dates', dataPoints: 'Engagement Code, Client, Dates, Status, Renewal', status: 'available', phase: '1', rolePath: 'partner', category: 'operational' },
+        { id: 'expiring-engagements', name: 'Expiring Engagements Report', description: 'Engagements approaching renewal/expiry with action required', dataPoints: 'Expiry Date, Days Until, Renewal Status, Action', status: 'coming-soon', phase: '2', rolePath: 'partner', category: 'governance' },
+        { id: 'approval-history', name: 'Partner Approval History', description: 'Track partner approval decisions with notes and restrictions', dataPoints: 'Decisions, Dates, Notes, Restrictions', status: 'coming-soon', phase: '2', rolePath: 'partner', category: 'governance' }
       ]
     },
     {
       role: 'Finance',
       reports: [
-        { id: 'engagement-code-summary', name: 'Engagement Code Summary', description: 'Overview of engagement codes generated by service type and status', dataPoints: 'Total Codes, By Service Type, Status, Queue', status: 'available', rolePath: 'finance', category: 'governance' }
+        { id: 'engagement-code-summary', name: 'Engagement Code Summary', description: 'Overview of engagement codes generated by service type and status', dataPoints: 'Total Codes, By Service Type, Status, Queue', status: 'available', phase: '1', rolePath: 'finance', category: 'governance' }
       ]
     },
     {
       role: 'Admin',
       reports: [
-        { id: 'system-overview', name: 'System Overview Report', description: 'Complete system status with health metrics and alerts', dataPoints: 'Total Requests, Active Engagements, Alerts, Renewals', status: 'available', rolePath: 'admin', category: 'governance' },
-        { id: 'prospect-conversion', name: 'Prospect Conversion Report', description: 'Track prospect to client conversion ratio and timeline', dataPoints: 'Total Prospects, Converted, Conversion Ratio, Timeline', status: 'available', rolePath: 'admin', category: 'operational' },
-        { id: 'execution-tracking', name: 'Execution Tracking Report', description: 'Track proposal execution with 30-day deadline status', dataPoints: 'Execution Status, Dates, Deadline Status, Letter Status', status: 'coming-soon', rolePath: 'admin', category: 'governance' },
-        { id: 'monitoring-alerts', name: 'Monitoring Alerts Report', description: 'All monitoring alerts with types and action taken', dataPoints: 'Alert Type, Dates, Days in Monitoring, Actions', status: 'coming-soon', rolePath: 'admin', category: 'governance' },
-        { id: 'renewals-due', name: 'Renewals Due Report', description: 'Engagements requiring renewal with days until renewal', dataPoints: 'Engagement Code, Client, Renewal Date, Days Until', status: 'coming-soon', rolePath: 'admin', category: 'governance' },
-        { id: '30-day-deadline-tracking', name: '30-Day Deadline Tracking', description: 'Monitor 30-day proposal deadlines and engagement letters', dataPoints: 'Execution Date, Deadline, Days Remaining, Status', status: 'coming-soon', rolePath: 'admin', category: 'governance' },
-        { id: 'workflow-performance', name: 'Workflow Performance Report', description: 'Analyze workflow efficiency with bottlenecks and trends', dataPoints: 'Processing Time, Bottlenecks, Department Performance', status: 'coming-soon', rolePath: 'admin', category: 'operational' },
-        { id: 'system-activity', name: 'System Activity Report', description: 'Overall system activity with user and department metrics', dataPoints: 'Requests Created, Approvals, Rejections, User Activity', status: 'coming-soon', rolePath: 'admin', category: 'operational' }
+        { id: 'system-overview', name: 'System Overview Report', description: 'Complete system status with health metrics and alerts', dataPoints: 'Total Requests, Active Engagements, Alerts, Renewals', status: 'available', phase: '1', rolePath: 'admin', category: 'governance' },
+        { id: 'prospect-conversion', name: 'Prospect Conversion Report', description: 'Track prospect to client conversion ratio and timeline', dataPoints: 'Total Prospects, Converted, Conversion Ratio, Timeline', status: 'available', phase: '1', rolePath: 'admin', category: 'operational' },
+        { id: 'approval-workflow', name: 'Approval Workflow Report', description: 'Request counts by workflow stage for bottleneck analysis', dataPoints: 'By Stage, Total Requests', status: 'available', phase: '1', rolePath: 'admin', category: 'operational' },
+        { id: 'sla-compliance', name: 'SLA Compliance Report', description: 'SLA breach and on-time counts by department and stage', dataPoints: 'Breached, On Time, By Department, By Stage', status: 'available', phase: '1', rolePath: 'admin', category: 'governance' },
+        { id: 'conflict-analysis', name: 'Conflict Analysis Report', description: 'Detailed conflict and duplication analysis with resolution status', dataPoints: 'Flagged Conflicts, Duplication Matches, Resolution', status: 'available', phase: '1', rolePath: 'admin', category: 'governance' },
+        { id: 'active-engagements', name: 'Active Engagements Report', description: 'All active engagements overview with renewal dates', dataPoints: 'Engagement Code, Client, Dates, Status, Renewal', status: 'available', phase: '1', rolePath: 'admin', category: 'operational' },
+        { id: 'execution-tracking', name: 'Execution Tracking Report', description: 'Track proposal execution with 30-day deadline status', dataPoints: 'Execution Status, Dates, Deadline Status, Letter Status', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'governance' },
+        { id: 'monitoring-alerts', name: 'Monitoring Alerts Report', description: 'All monitoring alerts with types and action taken', dataPoints: 'Alert Type, Dates, Days in Monitoring, Actions', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'governance' },
+        { id: 'renewals-due', name: 'Renewals Due Report', description: 'Engagements requiring renewal with days until renewal', dataPoints: 'Engagement Code, Client, Renewal Date, Days Until', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'governance' },
+        { id: '30-day-deadline-tracking', name: '30-Day Deadline Tracking', description: 'Monitor 30-day proposal deadlines and engagement letters', dataPoints: 'Execution Date, Deadline, Days Remaining, Status', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'governance' },
+        { id: 'workflow-performance', name: 'Workflow Performance Report', description: 'Analyze workflow efficiency with bottlenecks and trends', dataPoints: 'Processing Time, Bottlenecks, Department Performance', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'operational' },
+        { id: 'system-activity', name: 'System Activity Report', description: 'Overall system activity with user and department metrics', dataPoints: 'Requests Created, Approvals, Rejections, User Activity', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'operational' }
       ]
     },
     {
       role: 'Super Admin',
       reports: [
-        { id: 'system-overview', name: 'System Overview Report', description: 'Complete system status with health metrics and alerts', dataPoints: 'Total Requests, Active Engagements, Alerts, Renewals', status: 'available', rolePath: 'admin', category: 'governance' },
-        { id: 'prospect-conversion', name: 'Prospect Conversion Report', description: 'Track prospect to client conversion ratio and timeline', dataPoints: 'Total Prospects, Converted, Conversion Ratio, Timeline', status: 'available', rolePath: 'admin', category: 'operational' },
-        { id: 'system-wide-analytics', name: 'System-Wide Analytics Report', description: 'Complete system overview with all metrics from all roles', dataPoints: 'All Metrics, Statistics, User Activity, Performance', status: 'coming-soon', rolePath: 'admin', category: 'operational' },
-        { id: 'user-activity', name: 'User Activity Report', description: 'Track user activity across system with login and action data', dataPoints: 'User, Role, Requests, Approvals, Last Login', status: 'coming-soon', rolePath: 'admin', category: 'operational' },
-        { id: 'department-performance', name: 'Department Performance Report', description: 'Compare department performance with approval rates', dataPoints: 'Department, Requests, Approval Rate, Processing Time', status: 'coming-soon', rolePath: 'admin', category: 'operational' },
-        { id: 'business-rules', name: 'Business Rules Report', description: 'Track business rules usage with impact analysis', dataPoints: 'Rule Name, Times Triggered, Actions, Impact', status: 'coming-soon', rolePath: 'admin', category: 'operational' },
-        { id: 'audit-trail', name: 'Audit Trail Report', description: 'Complete audit log with all actions and timestamps', dataPoints: 'Action Type, User, Entity, Timestamp, Details', status: 'coming-soon', rolePath: 'admin', category: 'governance' },
-        { id: 'system-configuration', name: 'System Configuration Report', description: 'System settings and configuration details', dataPoints: 'Active Features, Settings, Form Versions, Workflow', status: 'coming-soon', rolePath: 'admin', category: 'operational' }
+        { id: 'system-overview', name: 'System Overview Report', description: 'Complete system status with health metrics and alerts', dataPoints: 'Total Requests, Active Engagements, Alerts, Renewals', status: 'available', phase: '1', rolePath: 'admin', category: 'governance' },
+        { id: 'prospect-conversion', name: 'Prospect Conversion Report', description: 'Track prospect to client conversion ratio and timeline', dataPoints: 'Total Prospects, Converted, Conversion Ratio, Timeline', status: 'available', phase: '1', rolePath: 'admin', category: 'operational' },
+        { id: 'approval-workflow', name: 'Approval Workflow Report', description: 'Request counts by workflow stage for bottleneck analysis', dataPoints: 'By Stage, Total Requests', status: 'available', phase: '1', rolePath: 'admin', category: 'operational' },
+        { id: 'sla-compliance', name: 'SLA Compliance Report', description: 'SLA breach and on-time counts by department and stage', dataPoints: 'Breached, On Time, By Department, By Stage', status: 'available', phase: '1', rolePath: 'admin', category: 'governance' },
+        { id: 'department-performance', name: 'Department Performance Report', description: 'Compare department performance with approval rates', dataPoints: 'Department, Requests, Approval Rate, Processing Time', status: 'available', phase: '1', rolePath: 'admin', category: 'operational' },
+        { id: 'conflict-analysis', name: 'Conflict Analysis Report', description: 'Detailed conflict and duplication analysis with resolution status', dataPoints: 'Flagged Conflicts, Duplication Matches, Resolution', status: 'available', phase: '1', rolePath: 'admin', category: 'governance' },
+        { id: 'active-engagements', name: 'Active Engagements Report', description: 'All active engagements overview with renewal dates', dataPoints: 'Engagement Code, Client, Dates, Status, Renewal', status: 'available', phase: '1', rolePath: 'admin', category: 'operational' },
+        { id: 'system-wide-analytics', name: 'System-Wide Analytics Report', description: 'Complete system overview with all metrics from all roles', dataPoints: 'All Metrics, Statistics, User Activity, Performance', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'operational' },
+        { id: 'user-activity', name: 'User Activity Report', description: 'Track user activity across system with login and action data', dataPoints: 'User, Role, Requests, Approvals, Last Login', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'operational' },
+        { id: 'department-performance', name: 'Department Performance Report', description: 'Compare department performance with approval rates', dataPoints: 'Department, Requests, Approval Rate, Processing Time', status: 'available', phase: '1', rolePath: 'admin', category: 'operational' },
+        { id: 'business-rules', name: 'Business Rules Report', description: 'Track business rules usage with impact analysis', dataPoints: 'Rule Name, Times Triggered, Actions, Impact', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'operational' },
+        { id: 'audit-trail', name: 'Audit Trail Report', description: 'Complete audit log with all actions and timestamps', dataPoints: 'Action Type, User, Entity, Timestamp, Details', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'governance' },
+        { id: 'system-configuration', name: 'System Configuration Report', description: 'System settings and configuration details', dataPoints: 'Active Features, Settings, Form Versions, Workflow', status: 'coming-soon', phase: '2', rolePath: 'admin', category: 'operational' }
       ]
     }
   ]
@@ -1264,7 +1285,7 @@ function selectReportFromCatalog(report: any) {
       document.querySelector('.col-span-4')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 100)
   } else {
-    toast.warning('This report is coming soon. Phase 1 reports are currently available.')
+    toast.warning('This report is planned for Phase 2 and is not yet available.')
   }
 }
 

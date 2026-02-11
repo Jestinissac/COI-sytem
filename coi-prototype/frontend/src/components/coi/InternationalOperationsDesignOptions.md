@@ -8,7 +8,7 @@
 <section id="section-7" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
   <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
     <div class="flex items-center">
-      <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
+      <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
       <div>
         <h2 class="text-base font-semibold text-gray-900">International Operations</h2>
         <p class="text-sm text-gray-500">Cross-border and global clearance requirements</p>
@@ -203,7 +203,7 @@
 <section id="section-7" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
   <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
     <div class="flex items-center">
-      <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
+      <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
       <div>
         <h2 class="text-base font-semibold text-gray-900">International Operations</h2>
         <p class="text-sm text-gray-500">Cross-border and global clearance requirements</p>
@@ -232,7 +232,7 @@
         <button
           type="button"
           @click="addCountry"
-          class="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+          class="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-blue-600 rounded-md hover:bg-primary-700 transition-colors"
         >
           <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -376,7 +376,7 @@
 <section id="section-7" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
   <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
     <div class="flex items-center">
-      <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
+      <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
       <div>
         <h2 class="text-base font-semibold text-gray-900">International Operations</h2>
         <p class="text-sm text-gray-500">Cross-border and global clearance requirements</p>
@@ -495,7 +495,7 @@
                 <button
                   type="button"
                   @click="addEntity(countryIndex)"
-                  class="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                  class="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 transition-colors"
                 >
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>

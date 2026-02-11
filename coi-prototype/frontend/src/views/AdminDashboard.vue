@@ -57,6 +57,17 @@
         <div class="flex-1">
           <!-- Overview Tab -->
           <div v-if="activeTab === 'overview'" class="space-y-6">
+            <div v-if="coiStore.loading" class="bg-white rounded-lg border border-gray-200 p-12 flex flex-col items-center justify-center" role="status" aria-live="polite">
+              <LoadingSpinner message="Loading overview..." />
+            </div>
+            <div v-else-if="coiStore.error" class="bg-white rounded-lg border border-gray-200 p-8" role="alert" aria-live="assertive">
+              <EmptyState
+                title="Could not load admin overview"
+                :message="coiStore.error"
+                :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests(), ariaLabel: 'Retry loading admin overview' }"
+              />
+            </div>
+            <template v-else>
             <!-- Stats Cards - Clickable -->
             <div class="grid grid-cols-4 gap-4">
               <div @click="activeTab = 'execution'" class="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 transition-colors">
@@ -142,6 +153,7 @@
                 </div>
               </div>
             </div>
+            </template>
           </div>
 
           <!-- Execution Queue Tab -->
@@ -165,6 +177,20 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
+                    <tr v-if="coiStore.loading" role="status" aria-live="polite">
+                      <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <LoadingSpinner message="Loading execution queue..." />
+                      </td>
+                    </tr>
+                    <tr v-else-if="coiStore.error" role="alert" aria-live="assertive">
+                      <td colspan="6" class="px-6 py-8">
+                        <EmptyState
+                          title="Could not load execution queue"
+                          :message="coiStore.error"
+                          :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests(), ariaLabel: 'Retry loading execution queue' }"
+                        />
+                      </td>
+                    </tr>
                     <tr v-for="item in executionQueue" :key="item.id" class="hover:bg-gray-50">
                       <td class="px-6 py-4">
                         <span class="text-sm font-medium text-blue-600">{{ item.request_id }}</span>
@@ -190,7 +216,7 @@
                         <button @click="viewDetails(item)" class="text-blue-600 hover:text-blue-800 text-xs">View</button>
                       </td>
                     </tr>
-                    <tr v-if="executionQueue.length === 0">
+                    <tr v-if="!coiStore.loading && !coiStore.error && executionQueue.length === 0">
                       <td colspan="6" class="px-6 py-8 text-center text-gray-500">
                         No items in execution queue
                       </td>
@@ -209,7 +235,7 @@
                   <h2 class="font-semibold text-gray-900">10/20/30 Day Monitoring</h2>
                   <p class="text-sm text-gray-500 mt-1">Engagement tracking and expiry alerts</p>
                 </div>
-                <button @click="runMonitoringCheck" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                <button @click="runMonitoringCheck" class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700">
                   Send Alerts
                 </button>
               </div>
@@ -348,7 +374,7 @@
                   <h2 class="font-semibold text-gray-900">ISQM Forms Management</h2>
                   <p class="text-sm text-gray-500 mt-1">Client Screening and New Client Acceptance</p>
                 </div>
-                <button class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                <button class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700">
                   + Upload Form
                 </button>
               </div>
@@ -667,7 +693,7 @@
           <button @click="showResponseModal = false" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
             Cancel
           </button>
-          <button @click="submitResponse" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700">
+          <button @click="submitResponse" class="px-4 py-2 text-sm text-white bg-primary-600 rounded-md hover:bg-primary-700">
             Save Response
           </button>
         </div>
@@ -700,6 +726,8 @@ import api from '@/services/api'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
 import GlobalSearch from '@/components/ui/GlobalSearch.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const router = useRouter()
 const coiStore = useCOIRequestsStore()

@@ -36,14 +36,14 @@
           v-for="(opt, idx) in options"
           :key="idx"
           class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
-          :class="selectedIndex === idx ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'"
+          :class="selectedIndex === idx ? 'border-primary-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'"
         >
           <input
             type="radio"
             :name="`clarification-${serviceTypeName}`"
             :value="idx"
             v-model="selectedIndex"
-            class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+            class="w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
           />
           <span class="text-sm text-gray-900">{{ opt.label }}</span>
         </label>
@@ -62,7 +62,7 @@
           type="button"
           @click="confirm"
           :disabled="selectedIndex < 0"
-          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Confirm
         </button>

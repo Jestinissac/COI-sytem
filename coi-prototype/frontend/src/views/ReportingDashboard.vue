@@ -3,19 +3,37 @@
     <!-- Header -->
     <div class="dashboard-header">
       <div class="header-content">
-        <h1>Advanced Reporting</h1>
+        <RouterLink
+          to="/coi/reports"
+          class="back-link"
+          aria-label="Back to Reports"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          Back to Reports
+        </RouterLink>
+        <h1 id="advanced-reporting-heading">Advanced Reporting</h1>
         <p>Comprehensive analytics and insights for COI management</p>
       </div>
       <div class="header-actions">
-        <select v-model="selectedPeriod" class="period-select">
+        <select
+          v-model="selectedPeriod"
+          class="period-select"
+          aria-label="Select reporting period"
+        >
           <option value="week">Last 7 Days</option>
           <option value="month">This Month</option>
           <option value="quarter">This Quarter</option>
           <option value="year">This Year</option>
           <option value="custom">Custom Range</option>
         </select>
-        <button @click="exportReport" class="export-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button
+          @click="exportReport"
+          class="export-btn"
+          aria-label="Export report"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
           </svg>
           Export Report
@@ -30,9 +48,9 @@
     </div>
 
     <!-- Dashboard Content -->
-    <div v-else class="dashboard-content">
+    <main v-else class="dashboard-content" role="main" aria-labelledby="advanced-reporting-heading">
       <!-- Key Metrics Row -->
-      <div class="metrics-grid">
+      <section class="metrics-grid" aria-label="Key metrics">
         <div class="metric-card">
           <div class="metric-icon blue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -88,10 +106,10 @@
             <span class="metric-trend">{{ metrics.conflictRate }}% of requests</span>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Charts Row -->
-      <div class="charts-row">
+      <section class="charts-row" aria-label="Charts">
         <!-- Status Distribution -->
         <div class="chart-card">
           <h3>Request Status Distribution</h3>
@@ -142,10 +160,10 @@
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Tables Row -->
-      <div class="tables-row">
+      <section class="tables-row" aria-label="Data tables">
         <!-- Service Type Breakdown -->
         <div class="table-card">
           <h3>Requests by Service Type</h3>
@@ -202,12 +220,21 @@
         <div class="section-header">
           <h3>Monthly Compliance Report</h3>
           <div class="month-selector">
-            <select v-model="selectedMonth" class="month-select">
+            <select
+              v-model="selectedMonth"
+              class="month-select"
+              aria-label="Select month for compliance report"
+            >
               <option v-for="month in availableMonths" :key="month.value" :value="month.value">
                 {{ month.label }}
               </option>
             </select>
-            <button @click="generateReport" class="generate-btn" :disabled="generatingReport">
+            <button
+              @click="generateReport"
+              class="generate-btn"
+              :disabled="generatingReport"
+              aria-label="Generate monthly report"
+            >
               {{ generatingReport ? 'Generating...' : 'Generate Report' }}
             </button>
           </div>
@@ -238,7 +265,8 @@
           </div>
         </div>
       </div>
-    </div>
+      </section>
+    </main>
   </div>
 </template>
 
@@ -530,6 +558,30 @@ onMounted(() => {
 .header-content p {
   margin: 4px 0 0;
   color: #64748b;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: 6px;
+  padding: 4px 0;
+}
+.back-link:hover {
+  text-decoration: underline;
+}
+.back-link:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.back-link svg {
+  width: 20px;
+  height: 20px;
 }
 
 .header-actions {

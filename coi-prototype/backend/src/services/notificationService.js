@@ -2,6 +2,7 @@ import { appendFileSync } from 'fs'
 import { getDatabase } from '../database/init.js'
 import { calculatePriority, PRIORITY_LEVEL } from './priorityService.js'
 import { getApproversFromAD } from './adIntegrationService.js'
+import { devLog } from '../config/environment.js'
 
 const db = getDatabase()
 const USE_AD_APPROVERS = process.env.USE_AD_APPROVERS === 'true' || process.env.USE_AD_APPROVERS === '1'
@@ -491,10 +492,10 @@ async function buildDigestBody(recipientName, notifications) {
   
   // Priority level labels
   const priorityLabels = {
-    [PRIORITY_LEVEL.CRITICAL]: '🔴 CRITICAL PRIORITY',
-    [PRIORITY_LEVEL.HIGH]: '🟠 HIGH PRIORITY',
-    [PRIORITY_LEVEL.MEDIUM]: '🟡 MEDIUM PRIORITY',
-    [PRIORITY_LEVEL.LOW]: '⚪ LOW PRIORITY'
+    [PRIORITY_LEVEL.CRITICAL]: 'CRITICAL PRIORITY',
+    [PRIORITY_LEVEL.HIGH]: 'HIGH PRIORITY',
+    [PRIORITY_LEVEL.MEDIUM]: 'MEDIUM PRIORITY',
+    [PRIORITY_LEVEL.LOW]: 'LOW PRIORITY'
   }
   
   // Build sections by priority level (highest first)
@@ -535,8 +536,8 @@ async function buildDigestBody(recipientName, notifications) {
       
       // Show SLA status if available
       if (item.slaStatus) {
-        const slaEmoji = item.slaStatus === 'BREACH' ? '🚨' : item.slaStatus === 'CRITICAL' ? '⚠️' : '⚡'
-        body += `   SLA Status: ${slaEmoji} ${item.slaStatus}\n`
+        const slaLabel = item.slaStatus === 'BREACH' ? 'BREACH' : item.slaStatus === 'CRITICAL' ? 'CRITICAL' : 'WARNING'
+        body += `   SLA Status: ${slaLabel} ${item.slaStatus}\n`
       }
       
       // Show top factors if available
@@ -667,17 +668,17 @@ function ensureNotificationStatsTable() {
 export function sendEmail(to, subject, body, metadata = {}) {
   const timestamp = new Date().toISOString()
   
-  // Log to console
-  console.log('╔════════════════════════════════════════════════════════════════')
-  console.log('║ 📧 MOCK EMAIL SENT')
-  console.log('╠════════════════════════════════════════════════════════════════')
-  console.log(`║ To: ${to}`)
-  console.log(`║ Subject: ${subject}`)
-  console.log(`║ Time: ${timestamp}`)
-  console.log('╠════════════════════════════════════════════════════════════════')
-  console.log(`║ Body:`)
-  console.log(`║ ${body.replace(/\n/g, '\n║ ')}`)
-  console.log('╚════════════════════════════════════════════════════════════════')
+  // Log to console (dev only)
+  devLog('╔════════════════════════════════════════════════════════════════')
+  devLog('║ MOCK EMAIL SENT')
+  devLog('╠════════════════════════════════════════════════════════════════')
+  devLog(`║ To: ${to}`)
+  devLog(`║ Subject: ${subject}`)
+  devLog(`║ Time: ${timestamp}`)
+  devLog('╠════════════════════════════════════════════════════════════════')
+  devLog(`║ Body:`)
+  devLog(`║ ${body.replace(/\n/g, '\n║ ')}`)
+  devLog('╚════════════════════════════════════════════════════════════════')
   
   // Log to file
   try {
@@ -710,7 +711,7 @@ export function sendApprovalNotification(requestId, approverName, nextRole, rest
   
   // If no approvers found, escalate to Admin (using existing logic)
   if (approvers.length === 0) {
-    console.log(`[Escalation] No active ${nextRole} approvers available${request.department ? ` for department ${request.department}` : ''}. Escalating to Admin.`)
+    devLog(`[Escalation] No active ${nextRole} approvers available${request.department ? ` for department ${request.department}` : ''}. Escalating to Admin.`)
     
     // Notify requester when no approvers are available
     if (requestId) {
@@ -747,7 +748,7 @@ export function sendApprovalNotification(requestId, approverName, nextRole, rest
   
   const restrictionsText = restrictions ? `
 
-⚠️ APPROVED WITH RESTRICTIONS:
+APPROVED WITH RESTRICTIONS:
 ${restrictions}
 
 Please ensure these restrictions are noted and followed.` : ''
@@ -797,7 +798,7 @@ Your Conflict of Interest request requires additional information before it can 
 Request ID: ${request.request_id}
 Requested By: ${approverName}
 
-📋 INFORMATION REQUIRED:
+INFORMATION REQUIRED:
 ${infoRequired}
 
 Please log in to the COI system, update your request with the requested information, and re-submit:
@@ -1018,6 +1019,55 @@ COI System`
   return { success: true }
 }
 
+/**
+ * Notify approvers who already approved this request that it has moved to the next stage.
+ * Used so e.g. Director is informed when Compliance approves. Does not notify the current approver.
+ * @param {number|string} requestId - coi_requests.id
+ * @param {number} currentApproverUserId - User ID of the approver who just acted (excluded from recipients)
+ * @param {string} currentApproverName - Name of the approver who just acted
+ * @param {string} currentApproverRole - Role of the approver who just acted
+ * @param {string} nextStatus - New status after this approval (e.g. 'Pending Partner')
+ */
+export function notifyPreviousApproversOfProgress(requestId, currentApproverUserId, currentApproverName, currentApproverRole, nextStatus) {
+  try {
+    const request = db.prepare(`
+      SELECT request_id, director_approval_by, compliance_reviewed_by, partner_approved_by
+      FROM coi_requests WHERE id = ?
+    `).get(requestId)
+    if (!request) return
+
+    const approverIds = new Set()
+    for (const col of ['director_approval_by', 'compliance_reviewed_by', 'partner_approved_by']) {
+      const id = request[col]
+      if (id != null && id !== currentApproverUserId) approverIds.add(Number(id))
+    }
+
+    for (const userId of approverIds) {
+      try {
+        const user = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(userId)
+        if (!user || !user.email) continue
+        const subject = `COI Request ${request.request_id} - Progress Update`
+        const body = `Dear ${user.name},
+
+A COI request you previously approved has been approved by ${currentApproverName} (${currentApproverRole}) and is now ${nextStatus}.
+
+Request ID: ${request.request_id}
+
+You can view the request in the COI system:
+http://localhost:5173/coi
+
+Best regards,
+COI System`
+        sendEmail(user.email, subject, body, { requestId, nextStatus })
+      } catch (emailErr) {
+        console.error('[notifyPreviousApproversOfProgress] Email failed for user', userId, emailErr?.message)
+      }
+    }
+  } catch (err) {
+    console.error('[notifyPreviousApproversOfProgress] Error:', err?.message)
+  }
+}
+
 export function sendProposalExecutedNotification(requestId, projectId) {
   const request = db.prepare(`
     SELECT r.*, u.name as requester_name, u.email as requester_email
@@ -1085,14 +1135,14 @@ function getNextApprover(department, role, requestId = null) {
     if (request && request.backup_approver_id) {
       const backup = db.prepare('SELECT * FROM users WHERE id = ? AND (COALESCE(active, 1) = 1)').get(request.backup_approver_id)
       if (backup) {
-        console.log(`[Backup] Using backup approver ${backup.name} (${backup.role}) for request ${requestId}`)
+        devLog(`[Backup] Using backup approver ${backup.name} (${backup.role}) for request ${requestId}`)
         return backup
       }
     }
   }
 
   // No active approver found - escalate to Admin
-  console.log(`[Escalation] No active ${role} approvers available${department ? ` for department ${department}` : ''}. Escalating to Admin.`)
+  devLog(`[Escalation] No active ${role} approvers available${department ? ` for department ${department}` : ''}. Escalating to Admin.`)
 
   if (requestId) {
     let unavailableQuery = 'SELECT name, unavailable_reason, unavailable_until FROM users WHERE role = ? AND (COALESCE(active, 1) = 0)'
@@ -1136,11 +1186,11 @@ function getNextApprover(department, role, requestId = null) {
 function sendEscalationNotification(role, department, admins) {
   const message = `No active ${role} approvers available${department ? ` for department ${department}` : ''}. Manual reassignment may be required.`
   
-  console.log(`[Escalation Notification] ${message}`)
+  devLog(`[Escalation Notification] ${message}`)
   
   for (const admin of admins) {
     // Log for now - actual email would be sent here
-    console.log(`[Email] Sending escalation notification to ${admin.email}: ${message}`)
+    devLog(`[Email] Sending escalation notification to ${admin.email}: ${message}`)
   }
 }
 
@@ -1233,7 +1283,7 @@ Please review and take action.`,
     }
   }
   
-  console.log(`[SLA Notification] Warning queued for request ${requestNumber}`)
+  devLog(`[SLA Notification] Warning queued for request ${requestNumber}`)
 }
 
 /**
@@ -1246,7 +1296,7 @@ export function handleSLACritical(event) {
   
   // Send immediately to requester
   queueNotification(requesterId, 'SLA_CRITICAL', {
-    subject: `⚠️ URGENT: Request ${requestNumber} - SLA Critical`,
+    subject: `URGENT: Request ${requestNumber} - SLA Critical`,
     body: `Request ${requestNumber} for ${clientName} is critically close to SLA breach.
     
 Stage: ${workflowStage}
@@ -1263,7 +1313,7 @@ IMMEDIATE ACTION REQUIRED to prevent SLA breach.`,
     const approver = getNextApprover(null, approverRole, requestId || null)
     if (approver) {
       queueNotification(approver.id, 'SLA_CRITICAL', {
-        subject: `⚠️ URGENT: Request ${requestNumber} - SLA Critical`,
+        subject: `URGENT: Request ${requestNumber} - SLA Critical`,
         body: `Request ${requestNumber} for ${clientName} requires immediate action.
         
 Stage: ${workflowStage}
@@ -1275,7 +1325,7 @@ This request is at ${percentUsed}% of its SLA and will breach shortly.`,
     }
   }
   
-  console.log(`[SLA Notification] Critical alert sent for request ${requestNumber ?? payload?.requestNumber ?? event?.requestId ?? 'unknown'}`)
+  devLog(`[SLA Notification] Critical alert sent for request ${requestNumber ?? payload?.requestNumber ?? event?.requestId ?? 'unknown'}`)
 }
 
 /**
@@ -1290,7 +1340,7 @@ export function handleSLABreach(event) {
   
   // Notify requester immediately
   queueNotification(requesterId, 'SLA_BREACH', {
-    subject: `🚨 SLA BREACHED: Request ${requestNumber}`,
+    subject: `SLA BREACHED: Request ${requestNumber}`,
     body: `Request ${requestNumber} for ${clientName} has exceeded its SLA.
     
 Stage: ${workflowStage}
@@ -1308,7 +1358,7 @@ This breach has been logged and escalated to management.`,
     const approver = getNextApprover(null, approverRole, requestId || null)
     if (approver) {
       queueNotification(approver.id, 'SLA_BREACH', {
-        subject: `🚨 SLA BREACHED: Request ${requestNumber}`,
+        subject: `SLA BREACHED: Request ${requestNumber}`,
         body: `Request ${requestNumber} for ${clientName} has breached its SLA.
         
 Stage: ${workflowStage}
@@ -1327,7 +1377,7 @@ Please resolve immediately. This breach has been logged.`,
   
   for (const admin of admins) {
     queueNotification(admin.id, 'SLA_BREACH_ESCALATION', {
-      subject: `🚨 SLA Breach Escalation: Request ${requestNumber}`,
+      subject: `SLA Breach Escalation: Request ${requestNumber}`,
       body: `An SLA breach has occurred and requires management attention.
       
 Request: ${requestNumber}
@@ -1340,7 +1390,7 @@ Please review and take appropriate action.`,
     }, true)
   }
   
-  console.log(`[SLA Notification] Breach alert sent and escalated for request ${requestNumber}`)
+  devLog(`[SLA Notification] Breach alert sent and escalated for request ${requestNumber}`)
 }
 
 /**
@@ -1370,12 +1420,12 @@ export function initSLANotificationHandlers() {
         eventBus.on(SLA_EVENTS.WARNING, handleSLAWarning)
         eventBus.on(SLA_EVENTS.CRITICAL, handleSLACritical)
         eventBus.on(SLA_EVENTS.BREACH, handleSLABreach)
-        console.log('✅ SLA notification handlers initialized')
+        devLog('SLA notification handlers initialized')
       }
     }).catch(err => {
-      console.log('Note: SLA events not available yet')
+      devLog('Note: SLA events not available yet')
     })
   } catch (error) {
-    console.log('Note: SLA notification handlers not initialized (events may not be defined yet)')
+    devLog('Note: SLA notification handlers not initialized (events may not be defined yet)')
   }
 }

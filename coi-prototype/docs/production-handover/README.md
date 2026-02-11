@@ -38,6 +38,7 @@ This folder contains the production handover documentation — the merged, defin
 | File | Description |
 |------|-------------|
 | `COI_Prototype_to_Production_Handover_with_Project_Brief.md` | Full v3.0 handover: 19 sections covering project brief, architecture, API contracts, SQL schemas, integration details, codebase structure, refactoring map, build phases, testing, risks, decision log, deliverables, and sign-off |
+| `Phase_A_A1_to_A6_Before_and_After.md` | Phase A verification (A1–A6): before/after detail, verification steps, check results, and follow-up cleanup in emailService.js for A1 (no emoji) and A2 (devLog) |
 
 ## Related Documentation
 

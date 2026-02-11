@@ -374,11 +374,69 @@ const FieldMappingService = {
     ]
 
     const enhanced = { ...requestData }
-    
-    // Add computed fields
+
+    // Add common fields from getValue
     for (const field of commonFields) {
       if (enhanced[field] === undefined) {
         enhanced[field] = this.getValue(requestData, field)
+      }
+    }
+
+    // --- B11b: Computed fields for rule evaluation (null-safe, with defaults) ---
+
+    // Days since request entered workflow; used by staleness/lapse rules.
+    const submissionTimestamp = requestData.submitted_at || requestData.created_at || requestData.updated_at
+    if (submissionTimestamp != null && submissionTimestamp !== '') {
+      const ts = new Date(submissionTimestamp).getTime()
+      if (!Number.isNaN(ts)) {
+        enhanced.days_since_submission = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24))
+      } else {
+        enhanced.days_since_submission = 0
+      }
+    } else {
+      enhanced.days_since_submission = 0
+    }
+
+    // True if client has a parent company; used for group conflict rules.
+    enhanced.is_group_company = !!(requestData.parent_company_id != null && requestData.parent_company_id !== '')
+
+    // Duration in months for long-duration engagement rules (e.g. > 36 months).
+    const startRaw = requestData.engagement_start_date || requestData.requested_service_period_start
+    const endRaw = requestData.engagement_end_date || requestData.requested_service_period_end
+    if (startRaw != null && endRaw != null && startRaw !== '' && endRaw !== '') {
+      const start = new Date(startRaw).getTime()
+      const end = new Date(endRaw).getTime()
+      if (!Number.isNaN(start) && !Number.isNaN(end)) {
+        enhanced.engagement_duration = Math.round((end - start) / (1000 * 60 * 60 * 24 * 30))
+      } else {
+        enhanced.engagement_duration = 0
+      }
+    } else {
+      enhanced.engagement_duration = 0
+    }
+
+    // Whether this client has another Approved/Active Audit engagement (excludes current request).
+    enhanced.has_active_audit = false
+    const clientId = requestData.client_id != null ? requestData.client_id : null
+    if (clientId != null && clientId !== '') {
+      try {
+        const db = getDatabase()
+        const excludeId = requestData.id != null && requestData.id !== '' ? requestData.id : null
+        const stmt = excludeId != null
+          ? db.prepare(`
+              SELECT COUNT(*) as count FROM coi_requests
+              WHERE client_id = ? AND (service_type LIKE '%Audit%' OR service_type = 'Audit')
+              AND status IN ('Approved', 'Active') AND id != ?
+            `)
+          : db.prepare(`
+              SELECT COUNT(*) as count FROM coi_requests
+              WHERE client_id = ? AND (service_type LIKE '%Audit%' OR service_type = 'Audit')
+              AND status IN ('Approved', 'Active')
+            `)
+        const row = excludeId != null ? stmt.get(clientId, excludeId) : stmt.get(clientId)
+        enhanced.has_active_audit = !!(row && row.count > 0)
+      } catch (err) {
+        console.error('fieldMappingService prepareForRuleEvaluation has_active_audit:', err.message)
       }
     }
 

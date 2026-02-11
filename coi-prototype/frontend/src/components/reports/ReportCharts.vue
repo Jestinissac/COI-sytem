@@ -83,12 +83,60 @@
         />
       </div>
     </div>
+
+    <!-- Line Chart (optional) -->
+    <div v-if="lineData && lineData.labels?.length" class="chart-container mt-8">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-medium text-gray-900">Trend</h3>
+        <button
+          @click="exportChartRef(lineChartRef, 'Trend')"
+          class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5 transition-colors"
+          aria-label="Export line chart"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <span>Export</span>
+        </button>
+      </div>
+      <LineChart
+        ref="lineChartRef"
+        id="lineChart"
+        :data="lineData"
+        :options="defaultLineOptions"
+        aria-label="Line chart"
+      />
+    </div>
+
+    <!-- Doughnut Chart (optional) -->
+    <div v-if="doughnutData && doughnutData.labels?.length" class="chart-container mt-8">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-medium text-gray-900">Breakdown</h3>
+        <button
+          @click="exportChartRef(doughnutChartRef, 'Breakdown')"
+          class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5 transition-colors"
+          aria-label="Export doughnut chart"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <span>Export</span>
+        </button>
+      </div>
+      <DoughnutChart
+        ref="doughnutChartRef"
+        id="doughnutChart"
+        :data="doughnutData"
+        :options="defaultDoughnutOptions"
+        aria-label="Doughnut chart"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Pie as PieChart, Bar as BarChart } from 'vue-chartjs'
+import { ref, computed, type Ref } from 'vue'
+import { Pie as PieChart, Bar as BarChart, Line as LineChart, Doughnut as DoughnutChart } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   ArcElement,
@@ -97,7 +145,10 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
-  Title
+  Title,
+  LineElement,
+  PointElement,
+  Filler
 } from 'chart.js'
 
 // Register Chart.js components
@@ -108,8 +159,23 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
-  Title
+  Title,
+  LineElement,
+  PointElement,
+  Filler
 )
+
+/** Chart data for line: labels + datasets with label and data array */
+interface LineChartData {
+  labels: string[]
+  datasets: Array<{ label: string; data: number[]; backgroundColor?: string; borderColor?: string; fill?: boolean }>
+}
+
+/** Chart data for doughnut: same shape as pie (labels + dataset with data and backgroundColor) */
+interface DoughnutChartData {
+  labels: string[]
+  datasets: Array<{ label?: string; data: number[]; backgroundColor?: string[]; borderColor?: string; borderWidth?: number }>
+}
 
 interface Props {
   summaryData: {
@@ -117,6 +183,10 @@ interface Props {
     byServiceType?: Record<string, number>
     byClient?: Record<string, number>
   }
+  /** Optional line chart data; when set, a line chart is rendered */
+  lineData?: LineChartData | null
+  /** Optional doughnut chart data; when set, a doughnut chart is rendered */
+  doughnutData?: DoughnutChartData | null
   clickable?: boolean
 }
 
@@ -131,6 +201,64 @@ const emit = defineEmits<{
 const statusChart = ref<InstanceType<typeof PieChart> | null>(null)
 const serviceChart = ref<InstanceType<typeof BarChart> | null>(null)
 const clientChart = ref<InstanceType<typeof BarChart> | null>(null)
+const lineChartRef = ref<InstanceType<typeof LineChart> | null>(null)
+const doughnutChartRef = ref<InstanceType<typeof DoughnutChart> | null>(null)
+
+/** Standard options for line charts: responsive, tooltip, legend, category/linear scales */
+const defaultLineOptions = {
+  responsive: true,
+  maintainAspectRatio: true,
+  aspectRatio: 2,
+  plugins: {
+    legend: {
+      position: 'top' as const,
+      labels: { padding: 12, usePointStyle: true }
+    },
+    tooltip: {
+      callbacks: {
+        label: (context: { dataset: { label: string }; parsed: { y: number } }) =>
+          `${context.dataset.label}: ${context.parsed.y}`
+      }
+    }
+  },
+  scales: {
+    x: {
+      type: 'category' as const,
+      grid: { display: false },
+      ticks: { font: { size: 11 }, color: '#6B7280' }
+    },
+    y: {
+      beginAtZero: true,
+      grid: { color: '#F3F4F6' },
+      ticks: { font: { size: 11 }, color: '#6B7280' }
+    }
+  },
+  accessibility: { enabled: true }
+}
+
+/** Standard options for doughnut charts: same as pie with cutout */
+const defaultDoughnutOptions = {
+  responsive: true,
+  maintainAspectRatio: true,
+  aspectRatio: 1.2,
+  cutout: '60%',
+  plugins: {
+    legend: {
+      position: 'right' as const,
+      labels: { padding: 12, usePointStyle: true, pointStyle: 'circle' }
+    },
+    tooltip: {
+      callbacks: {
+        label: (context: { label: string; parsed: number; dataset: { data: number[] } }) => {
+          const total = context.dataset.data.reduce((a, b) => a + b, 0)
+          const pct = total ? ((context.parsed / total) * 100).toFixed(1) : '0'
+          return `${context.label}: ${context.parsed} (${pct}%)`
+        }
+      }
+    }
+  },
+  accessibility: { enabled: true }
+}
 
 // Color palette for charts
 const colors = {
@@ -330,19 +458,33 @@ const barChartOptions = computed(() => ({
   }
 }))
 
-// Export chart function
+// Export chart by ref (for line/doughnut)
+function exportChartRef(
+  chartRef: Ref<InstanceType<typeof LineChart> | InstanceType<typeof DoughnutChart> | null> | null,
+  chartTitle: string
+) {
+  const chart = chartRef?.value
+  if (!chart || !(chart as { chart?: { canvas: HTMLCanvasElement } }).chart) return
+  const canvas = (chart as { chart?: { canvas: HTMLCanvasElement } }).chart?.canvas
+  if (!canvas) return
+  const link = document.createElement('a')
+  link.download = `${chartTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.png`
+  link.href = canvas.toDataURL('image/png')
+  link.click()
+}
+
+// Export chart function (for status, service, client)
 function exportChart(chartRef: string, chartTitle: string) {
   const chart = chartRef === 'statusChart' ? statusChart.value : 
                 chartRef === 'serviceChart' ? serviceChart.value : 
                 clientChart.value
   
-  if (!chart || !chart.chart) return
+  if (!chart || !(chart as { chart?: { canvas: HTMLCanvasElement } })?.chart) return
   
   const canvas = (chart as { chart?: { canvas: HTMLCanvasElement } })?.chart?.canvas
   if (!canvas) return
   const url = canvas.toDataURL('image/png')
   
-  // Create download link
   const link = document.createElement('a')
   link.download = `${chartTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.png`
   link.href = url

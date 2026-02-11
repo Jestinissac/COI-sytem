@@ -106,7 +106,7 @@
                 v-model="userSearch"
                 type="text" 
                 placeholder="Search users..." 
-                class="pl-8 pr-3 py-1.5 text-sm border rounded w-64 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                class="pl-8 pr-3 py-1.5 text-sm border rounded w-64 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
               <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -122,15 +122,39 @@
               <option value="Admin">Admin</option>
               <option value="Super Admin">Super Admin</option>
             </select>
+            <select v-model="departmentFilter" class="text-sm border rounded px-3 py-1.5">
+              <option value="">All Departments</option>
+              <option value="Audit">Audit</option>
+              <option value="Tax">Tax</option>
+              <option value="Advisory">Advisory</option>
+              <option value="Accounting">Accounting</option>
+              <option value="Other">Other</option>
+            </select>
+            <select v-model="activeFilter" class="text-sm border rounded px-3 py-1.5">
+              <option value="">All</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
           </div>
           <button 
             @click="openAddUserModal"
-            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+            class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700"
           >
             + Add User
           </button>
         </div>
 
+        <div v-if="usersLoading" class="py-12 flex justify-center" role="status" aria-live="polite">
+          <LoadingSpinner message="Loading user list..." />
+        </div>
+        <div v-else-if="usersError" class="py-8" role="alert" aria-live="assertive">
+          <EmptyState
+            title="Could not load user list. Please try again."
+            :message="usersError"
+            :action="{ label: 'Retry', onClick: fetchUsers, ariaLabel: 'Retry loading user list' }"
+          />
+        </div>
+        <template v-else>
         <table class="w-full">
           <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
             <tr>
@@ -138,6 +162,7 @@
               <th class="px-4 py-3 text-left font-medium">Email</th>
               <th class="px-4 py-3 text-left font-medium">Role</th>
               <th class="px-4 py-3 text-left font-medium">Department</th>
+              <th class="px-4 py-3 text-left font-medium" title="Line of service">Line of Service</th>
               <th class="px-4 py-3 text-left font-medium">Status</th>
               <th class="px-4 py-3 text-left font-medium">Actions</th>
             </tr>
@@ -148,6 +173,7 @@
               <td class="px-4 py-3 text-sm text-gray-600">{{ user.email }}</td>
               <td class="px-4 py-3 text-sm text-gray-600">{{ user.role }}</td>
               <td class="px-4 py-3 text-sm text-gray-600">{{ user.department }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600">{{ user.line_of_service || '—' }}</td>
               <td class="px-4 py-3">
                 <span :class="user.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'" class="px-2 py-1 text-xs font-medium rounded">
                   {{ user.active ? 'Active' : 'Inactive' }}
@@ -183,6 +209,7 @@
         <div class="flex items-center justify-between px-4 py-3 border-t">
           <div class="text-sm text-gray-500">Showing {{ filteredUsers.length }} of {{ users.length }} users</div>
         </div>
+        </template>
       </div>
 
       <!-- Role Perspectives Tab -->
@@ -195,7 +222,7 @@
               v-for="role in roleOptions"
               :key="role.value"
               @click="selectedPerspective = role.value"
-              :class="selectedPerspective === role.value ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+              :class="selectedPerspective === role.value ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
               class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
             >
               {{ role.label }}
@@ -347,35 +374,35 @@
             <router-link 
               v-if="selectedPerspective === 'Requester'"
               to="/coi/requester"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700"
             >
               Open Requester Dashboard →
             </router-link>
             <router-link 
               v-if="selectedPerspective === 'Director'"
               to="/coi/director"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700"
             >
               Open Director Dashboard →
             </router-link>
             <router-link 
               v-if="selectedPerspective === 'Compliance'"
               to="/coi/compliance"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700"
             >
               Open Compliance Dashboard →
             </router-link>
             <router-link 
               v-if="selectedPerspective === 'Partner'"
               to="/coi/partner"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700"
             >
               Open Partner Dashboard →
             </router-link>
             <router-link 
               v-if="selectedPerspective === 'Finance'"
               to="/coi/finance"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700"
             >
               Open Finance Dashboard →
             </router-link>
@@ -454,6 +481,22 @@
                   </div>
                 </div>
               </router-link>
+              <router-link
+                to="/coi/super-admin/workflow-config"
+                class="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 border border-gray-300 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="font-medium text-sm text-gray-900">Workflow Configuration</div>
+                    <div class="text-xs text-gray-500">Approval stages order and active state (B8)</div>
+                  </div>
+                </div>
+              </router-link>
             </div>
           </div>
 
@@ -465,7 +508,7 @@
                   <div class="font-medium text-sm">Director Approval Required</div>
                   <div class="text-xs text-gray-500">All requests require director sign-off</div>
                 </div>
-                <button class="w-12 h-6 bg-blue-600 rounded-full relative">
+                <button class="w-12 h-6 bg-primary-600 rounded-full relative">
                   <span class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
                 </button>
               </div>
@@ -474,7 +517,7 @@
                   <div class="font-medium text-sm">Compliance Review</div>
                   <div class="text-xs text-gray-500">Enable compliance team review</div>
                 </div>
-                <button class="w-12 h-6 bg-blue-600 rounded-full relative">
+                <button class="w-12 h-6 bg-primary-600 rounded-full relative">
                   <span class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
                 </button>
               </div>
@@ -483,7 +526,7 @@
                   <div class="font-medium text-sm">30-Day Monitoring</div>
                   <div class="text-xs text-gray-500">Enable automatic monitoring period</div>
                 </div>
-                <button class="w-12 h-6 bg-blue-600 rounded-full relative">
+                <button class="w-12 h-6 bg-primary-600 rounded-full relative">
                   <span class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
                 </button>
               </div>
@@ -498,7 +541,7 @@
                   <div class="font-medium text-sm">Email Notifications</div>
                   <div class="text-xs text-gray-500">Send email on status changes</div>
                 </div>
-                <button class="w-12 h-6 bg-blue-600 rounded-full relative">
+                <button class="w-12 h-6 bg-primary-600 rounded-full relative">
                   <span class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
                 </button>
               </div>
@@ -512,6 +555,7 @@
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-medium text-gray-900">System Audit Logs</h3>
           <button 
+            v-if="!loadingLogs && !logsError"
             @click="exportAuditLogs"
             class="flex items-center gap-2 px-3 py-1.5 text-sm border rounded hover:bg-gray-50"
           >
@@ -522,7 +566,17 @@
           </button>
         </div>
 
-        <table class="w-full">
+        <div v-if="loadingLogs" class="py-12 flex justify-center" role="status" aria-live="polite">
+          <LoadingSpinner message="Loading audit logs..." />
+        </div>
+        <div v-else-if="logsError" class="py-8" role="alert" aria-live="assertive">
+          <EmptyState
+            title="Could not load audit logs. Please try again."
+            :message="logsError"
+            :action="{ label: 'Retry', onClick: fetchAuditLogs, ariaLabel: 'Retry loading audit logs' }"
+          />
+        </div>
+        <table v-else class="w-full">
           <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
             <tr>
               <th class="px-4 py-3 text-left font-medium">Timestamp</th>
@@ -562,7 +616,7 @@
             <input 
               v-model="newUser.name"
               type="text" 
-              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
               placeholder="Full name"
             />
           </div>
@@ -571,7 +625,7 @@
             <input 
               v-model="newUser.email"
               type="email" 
-              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
               placeholder="user@company.com"
             />
           </div>
@@ -580,7 +634,7 @@
             <input 
               v-model="newUser.password"
               type="password" 
-              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
               placeholder="Password"
             />
           </div>
@@ -589,7 +643,7 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
               <select 
                 v-model="newUser.role"
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">Select role</option>
                 <option value="Requester">Requester</option>
@@ -605,7 +659,7 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">Department *</label>
               <select 
                 v-model="newUser.department"
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">Select department</option>
                 <option value="Audit">Audit</option>
@@ -616,11 +670,20 @@
               </select>
             </div>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Line of service</label>
+            <input 
+              v-model="newUser.line_of_service"
+              type="text"
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
+              placeholder="e.g. Audit — Financial Services (optional)"
+            />
+          </div>
           <div class="flex gap-2 mt-4">
             <button 
               @click="handleAddUser"
               :disabled="!isNewUserValid || loading"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              class="flex-1 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50"
             >
               {{ loading ? 'Creating...' : 'Create User' }}
             </button>
@@ -647,7 +710,7 @@
             <input 
               v-model="editingUser.name"
               type="text" 
-              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
           <div>
@@ -655,7 +718,7 @@
             <input 
               v-model="editingUser.email"
               type="email" 
-              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
           <div class="grid grid-cols-2 gap-4">
@@ -663,7 +726,7 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
               <select 
                 v-model="editingUser.role"
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="Requester">Requester</option>
                 <option value="Director">Director</option>
@@ -678,7 +741,7 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">Department *</label>
               <select 
                 v-model="editingUser.department"
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="Audit">Audit</option>
                 <option value="Tax">Tax</option>
@@ -688,11 +751,20 @@
               </select>
             </div>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Line of service</label>
+            <input 
+              v-model="editingUser.line_of_service"
+              type="text"
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
+              placeholder="e.g. Audit — Financial Services (optional)"
+            />
+          </div>
           <div class="flex gap-2 mt-4">
             <button 
               @click="handleUpdateUser"
               :disabled="!isEditUserValid || loading"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              class="flex-1 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50"
             >
               {{ loading ? 'Updating...' : 'Update User' }}
             </button>
@@ -734,6 +806,8 @@ import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import GlobalSearch from '@/components/ui/GlobalSearch.vue'
 import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { usePermissions } from '@/composables/usePermissions'
 
@@ -745,6 +819,8 @@ const { hasPermission } = usePermissions()
 const activeTab = ref('users')
 const userSearch = ref('')
 const roleFilter = ref('')
+const departmentFilter = ref('')
+const activeFilter = ref('')
 const loading = ref(false)
 const showAddUserModal = ref(false)
 const showEditUserModal = ref(false)
@@ -762,6 +838,10 @@ const {
 
 const users = ref<any[]>([])
 const auditLogsList = ref<any[]>([])
+const usersLoading = ref(false)
+const usersError = ref<string | null>(null)
+const loadingLogs = ref(false)
+const logsError = ref<string | null>(null)
 
 // Role Perspectives
 const selectedPerspective = ref('Requester')
@@ -830,20 +910,29 @@ const newUser = ref({
   email: '',
   password: '',
   role: '',
-  department: ''
+  department: '',
+  line_of_service: ''
 })
 
 const filteredUsers = computed(() => {
   let result = users.value
   if (userSearch.value) {
     const q = userSearch.value.toLowerCase()
-    result = result.filter(u => 
-      u.name.toLowerCase().includes(q) || 
+    result = result.filter(u =>
+      u.name.toLowerCase().includes(q) ||
       u.email.toLowerCase().includes(q)
     )
   }
   if (roleFilter.value) {
     result = result.filter(u => u.role === roleFilter.value)
+  }
+  if (departmentFilter.value) {
+    result = result.filter(u => u.department === departmentFilter.value)
+  }
+  if (activeFilter.value === 'Active') {
+    result = result.filter(u => u.active)
+  } else if (activeFilter.value === 'Inactive') {
+    result = result.filter(u => !u.active)
   }
   return result
 })
@@ -895,36 +984,48 @@ onMounted(async () => {
 })
 
 async function fetchUsers() {
+  usersError.value = null
+  usersLoading.value = true
   try {
     const response = await api.get('/auth/users')
-    users.value = response.data.map((u: any) => ({ 
-      ...u, 
-      active: u.active !== undefined ? u.active : 1 
+    users.value = response.data.map((u: any) => ({
+      ...u,
+      active: u.active !== undefined ? u.active : 1
     }))
-  } catch (e) {
-    showError('Failed to fetch users')
+  } catch (e: any) {
+    const message = e.response?.data?.error || e.message || 'Failed to fetch users'
+    usersError.value = message
+    showError('Could not load user list. Please try again.')
     console.error(e)
+  } finally {
+    usersLoading.value = false
   }
 }
 
 async function fetchAuditLogs() {
+  logsError.value = null
+  loadingLogs.value = true
   try {
     const response = await api.get('/auth/audit-logs', { params: { limit: 100 } })
     auditLogsList.value = response.data.logs || []
-  } catch (e) {
-    showError('Failed to fetch audit logs')
+  } catch (e: any) {
+    const message = e.response?.data?.error || e.message || 'Failed to fetch audit logs'
+    logsError.value = message
+    showError('Could not load audit logs. Please try again.')
     console.error(e)
+  } finally {
+    loadingLogs.value = false
   }
 }
 
 function openAddUserModal() {
-  newUser.value = { name: '', email: '', password: '', role: '', department: '' }
+  newUser.value = { name: '', email: '', password: '', role: '', department: '', line_of_service: '' }
   showAddUserModal.value = true
 }
 
 function closeAddUserModal() {
   showAddUserModal.value = false
-  newUser.value = { name: '', email: '', password: '', role: '', department: '' }
+  newUser.value = { name: '', email: '', password: '', role: '', department: '', line_of_service: '' }
 }
 
 function openEditUserModal(user: any) {
@@ -962,7 +1063,8 @@ async function handleUpdateUser() {
       name: editingUser.value.name,
       email: editingUser.value.email,
       role: editingUser.value.role,
-      department: editingUser.value.department
+      department: editingUser.value.department,
+      line_of_service: editingUser.value.line_of_service ?? null
     })
     success('User updated successfully')
     closeEditUserModal()

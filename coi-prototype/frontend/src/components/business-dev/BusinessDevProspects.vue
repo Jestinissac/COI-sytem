@@ -8,7 +8,7 @@
       </div>
       <button
         @click="showCreateModal = true"
-        class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+        class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors flex items-center gap-2"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -27,7 +27,7 @@
             v-model="filters.search"
             type="text"
             placeholder="Search prospects..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
         </div>
 
@@ -36,7 +36,7 @@
           <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Status</label>
           <select
             v-model="filters.status"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
             <option value="">All Statuses</option>
             <option value="Active">Active</option>
@@ -50,7 +50,7 @@
           <label class="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Existing Client</label>
           <select
             v-model="filters.prmsSynced"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
             <option value="">All</option>
             <option value="synced">Existing Client</option>
@@ -66,7 +66,7 @@
               <input
                 type="checkbox"
                 v-model="filters.prospectsOnly"
-                class="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                class="w-3.5 h-3.5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
               />
               <span class="text-xs text-gray-700">Prospects Only</span>
             </label>
@@ -116,7 +116,7 @@
               {{ formatDate(prospect.created_at) }}
             </td>
             <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
-              <button @click="viewProspect(prospect)" class="text-blue-600 hover:text-blue-900">View</button>
+              <button @click="viewProspect(prospect)" class="text-primary-600 hover:text-blue-900">View</button>
               <button v-if="prospect.status === 'Active'" @click="startCOIRequest(prospect)" class="text-green-600 hover:text-green-900">COI Request</button>
             </td>
           </tr>
@@ -140,7 +140,7 @@
         <p class="text-xs text-gray-500">Active</p>
       </div>
       <div class="bg-blue-50 rounded-lg p-3 text-center">
-        <p class="text-2xl font-bold text-blue-600">{{ convertedCount }}</p>
+        <p class="text-2xl font-bold text-primary-600">{{ convertedCount }}</p>
         <p class="text-xs text-gray-500">Converted</p>
       </div>
       <div class="bg-gray-100 rounded-lg p-3 text-center">
@@ -192,7 +192,7 @@
               <button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
                 Cancel
               </button>
-              <button type="submit" :disabled="creating" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50">
+              <button type="submit" :disabled="creating" class="px-4 py-2 text-sm text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50">
                 {{ creating ? 'Creating...' : 'Create Prospect' }}
               </button>
             </div>

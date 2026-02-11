@@ -86,7 +86,7 @@
               <button
                 v-if="generatedCode"
                 @click="copyToClipboard"
-                class="ml-auto text-xs text-blue-600 hover:text-blue-800 bg-white border border-blue-200 px-2 py-1 rounded hover:bg-blue-50 flex items-center gap-1 transition-colors"
+                class="ml-auto text-xs text-primary-600 hover:text-primary-700 bg-white border border-blue-200 px-2 py-1 rounded hover:bg-blue-50 flex items-center gap-1 transition-colors"
                 :class="copySuccess ? 'bg-green-50 border-green-300 text-green-700' : ''"
                 title="Copy to clipboard"
               >
@@ -115,7 +115,7 @@
                 <select
                   v-model="financialParams.credit_terms"
                   required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
                   <option value="">Select credit terms...</option>
                   <option value="Net 15">Net 15</option>
@@ -135,7 +135,7 @@
                 <select
                   v-model="financialParams.currency"
                   required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
                   <option value="">Select currency...</option>
                   <option value="KWD">KWD - Kuwaiti Dinar</option>
@@ -157,7 +157,7 @@
                 <select
                   v-model="financialParams.risk_assessment"
                   required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
                   <option value="">Select risk level...</option>
                   <option value="Low">Low</option>
@@ -178,7 +178,7 @@
                   step="0.01"
                   min="0"
                   placeholder="0.00"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
             </div>
@@ -192,7 +192,7 @@
                 v-model="financialParams.notes"
                 rows="3"
                 placeholder="Additional financial notes or comments..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               ></textarea>
             </div>
 
@@ -260,7 +260,7 @@
               <button
                 type="button"
                 @click="closeModal"
-                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
               >
                 Cancel
               </button>
@@ -300,7 +300,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from '@/composables/useToast'
 import api from '@/services/api'
+
+const toast = useToast()
 
 interface Props {
   show: boolean
@@ -470,6 +473,7 @@ const generateCode = async () => {
       console.log('[CodeGenerationModal] Code generated successfully:', engagementCode)
       generatedCode.value = engagementCode
       generating.value = false
+      toast.success('Engagement code ' + engagementCode + ' generated successfully.')
       // Wait a moment to show the generated code, then emit success
       setTimeout(() => {
         emit('success', engagementCode)

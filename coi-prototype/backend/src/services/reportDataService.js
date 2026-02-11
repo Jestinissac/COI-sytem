@@ -771,6 +771,245 @@ export function getProspectConversionReport(userId, filters = {}) {
 
 /**
  * ============================================
+ * PHASE C: TOP 5 REPORTS (Approval Workflow, SLA, Department, Conflict, Active Engagements)
+ * ============================================
+ */
+
+/**
+ * Approval Workflow Report — counts by workflow status (stacked bar)
+ * Admin / Super Admin only. Handles empty data and invalid filters.
+ */
+export function getApprovalWorkflowReport(userId, filters = {}) {
+  try {
+    const user = getUserById(userId)
+    if (!user || !['Admin', 'Super Admin'].includes(user.role)) {
+      return { summary: { byStage: {}, totalRequests: 0 }, requests: [] }
+    }
+    const dateFrom = filters.dateFrom || null
+    const dateTo = filters.dateTo || null
+    let where = 'WHERE 1=1'
+    const params = []
+    if (dateFrom) {
+      where += ' AND created_at >= ?'
+      params.push(dateFrom)
+    }
+    if (dateTo) {
+      where += ' AND created_at <= ?'
+      params.push(dateTo + ' 23:59:59')
+    }
+    if (isProduction()) {
+      where += ' AND request_id NOT LIKE ?'
+      params.push('LOAD-TEST-%')
+    }
+    const rows = db.prepare(`
+      SELECT status, COUNT(*) as count
+      FROM coi_requests
+      ${where}
+      GROUP BY status
+    `).all(...params)
+    const byStage = {}
+    let totalRequests = 0
+    rows.forEach(row => {
+      byStage[row.status || 'Unknown'] = row.count
+      totalRequests += row.count
+    })
+    return { summary: { byStage, totalRequests }, requests: [] }
+  } catch (err) {
+    return { summary: { byStage: {}, totalRequests: 0 }, requests: [] }
+  }
+}
+
+/**
+ * SLA Compliance Report — breach counts and on-time; by department/workflow_stage
+ * Admin / Super Admin only. Handles empty data.
+ */
+export function getSLAComplianceReport(userId, filters = {}) {
+  try {
+    const user = getUserById(userId)
+    if (!user || !['Admin', 'Super Admin'].includes(user.role)) {
+      return { summary: { breached: 0, onTime: 0, byDepartment: {}, byWorkflowStage: {} }, requests: [] }
+    }
+    const breachRows = db.prepare(`
+      SELECT b.breach_type, b.workflow_stage, b.coi_request_id, r.department
+      FROM sla_breach_log b
+      INNER JOIN coi_requests r ON r.id = b.coi_request_id
+    `).all()
+    let breached = 0
+    const byDepartment = {}
+    const byWorkflowStage = {}
+    breachRows.forEach(row => {
+      breached += 1
+      const dept = row.department || 'Unknown'
+      byDepartment[dept] = (byDepartment[dept] || 0) + 1
+      const stage = row.workflow_stage || 'Unknown'
+      byWorkflowStage[stage] = (byWorkflowStage[stage] || 0) + 1
+    })
+    const totalInScope = db.prepare(`
+      SELECT COUNT(*) as c FROM coi_requests WHERE status NOT IN ('Draft', 'Rejected', 'Lapsed')
+    `).get()?.c || 0
+    const onTime = Math.max(0, totalInScope - breached)
+    return {
+      summary: { breached, onTime, byDepartment, byWorkflowStage },
+      requests: breachRows.map(r => ({ coi_request_id: r.coi_request_id, workflow_stage: r.workflow_stage, breach_type: r.breach_type, department: r.department }))
+    }
+  } catch (err) {
+    return { summary: { breached: 0, onTime: 0, byDepartment: {}, byWorkflowStage: {} }, requests: [] }
+  }
+}
+
+/**
+ * Department Performance Report — by department: count, approval rate, avg processing time
+ * Admin / Super Admin only. Handles empty data.
+ */
+export function getDepartmentPerformanceReport(userId, filters = {}) {
+  try {
+    const user = getUserById(userId)
+    if (!user || !['Admin', 'Super Admin'].includes(user.role)) {
+      return { summary: { byDepartment: [] }, requests: [] }
+    }
+    const dateFrom = filters.dateFrom || null
+    const dateTo = filters.dateTo || null
+    let where = 'WHERE 1=1'
+    const params = []
+    if (dateFrom) {
+      where += ' AND r.created_at >= ?'
+      params.push(dateFrom)
+    }
+    if (dateTo) {
+      where += ' AND r.created_at <= ?'
+      params.push(dateTo + ' 23:59:59')
+    }
+    if (isProduction()) {
+      where += ' AND r.request_id NOT LIKE ?'
+      params.push('LOAD-TEST-%')
+    }
+    const deptRows = db.prepare(`
+      SELECT r.department,
+        COUNT(*) as count,
+        SUM(CASE WHEN r.status = 'Approved' OR r.status = 'Active' THEN 1 ELSE 0 END) as approved
+      FROM coi_requests r
+      ${where}
+      GROUP BY r.department
+    `).all(...params)
+    const byDepartment = deptRows.map(row => {
+      const count = row.count || 0
+      const approved = row.approved || 0
+      return {
+        name: row.department || 'Unknown',
+        count,
+        approvalRate: count > 0 ? ((approved / count) * 100).toFixed(1) : '0',
+        avgDays: '-' // optional: compute from director_approval_date/partner_approval_date if needed
+      }
+    })
+    return { summary: { byDepartment }, requests: [] }
+  } catch (err) {
+    return { summary: { byDepartment: [] }, requests: [] }
+  }
+}
+
+/**
+ * Conflict Analysis Report — conflicts and duplications; Compliance (no commercial fields) and Admin
+ * Handles empty data. Compliance role: do not include financial_parameters, engagement_code, etc.
+ */
+export function getConflictAnalysisReport(userId, filters = {}) {
+  try {
+    const user = getUserById(userId)
+    if (!user || !['Compliance', 'Admin', 'Super Admin'].includes(user.role)) {
+      return { summary: { totalConflicts: 0, resolved: 0, unresolved: 0, byType: {} }, conflicts: [], duplications: [] }
+    }
+    let where = 'WHERE (group_conflicts_detected IS NOT NULL AND group_conflicts_detected != "" AND group_conflicts_detected != "[]") OR (duplication_matches IS NOT NULL AND duplication_matches != "" AND duplication_matches != "[]")'
+    const params = []
+    if (filters.dateFrom) {
+      where += ' AND r.created_at >= ?'
+      params.push(filters.dateFrom)
+    }
+    if (filters.dateTo) {
+      where += ' AND r.created_at <= ?'
+      params.push(filters.dateTo + ' 23:59:59')
+    }
+    const rows = db.prepare(`
+      SELECT r.id, r.request_id, r.status, r.compliance_review_status, r.group_conflicts_detected, r.duplication_matches, r.department
+      FROM coi_requests r
+      ${where}
+    `).all(...params)
+    let totalConflicts = 0
+    let resolved = 0
+    let unresolved = 0
+    const byType = { group: 0, duplication: 0 }
+    const conflicts = []
+    const duplications = []
+    rows.forEach(row => {
+      const hasGroup = row.group_conflicts_detected && String(row.group_conflicts_detected).trim() !== '' && String(row.group_conflicts_detected) !== '[]'
+      const hasDup = row.duplication_matches && String(row.duplication_matches).trim() !== '' && String(row.duplication_matches) !== '[]'
+      if (hasGroup) {
+        byType.group = (byType.group || 0) + 1
+        conflicts.push({ request_id: row.request_id, type: 'group', compliance_review_status: row.compliance_review_status })
+      }
+      if (hasDup) {
+        byType.duplication = (byType.duplication || 0) + 1
+        duplications.push({ request_id: row.request_id, compliance_review_status: row.compliance_review_status })
+      }
+    })
+    totalConflicts = rows.length
+    resolved = rows.filter(r => r.compliance_review_status === 'Approved' || r.compliance_review_status === 'Approved with Restrictions').length
+    unresolved = totalConflicts - resolved
+    return {
+      summary: { totalConflicts, resolved, unresolved, byType },
+      conflicts,
+      duplications
+    }
+  } catch (err) {
+    return { summary: { totalConflicts: 0, resolved: 0, unresolved: 0, byType: {} }, conflicts: [], duplications: [] }
+  }
+}
+
+/**
+ * Active Engagements Report — approved requests with engagement code; Partner and Admin
+ * Handles empty data.
+ */
+export function getActiveEngagementsReport(userId, filters = {}) {
+  try {
+    const user = getUserById(userId)
+    if (!user || !['Partner', 'Admin', 'Super Admin'].includes(user.role)) {
+      return { summary: { total: 0, byServiceType: {} }, requests: [] }
+    }
+    let where = "WHERE (r.status = 'Approved' OR r.status = 'Active') AND r.engagement_code IS NOT NULL AND r.engagement_code != ''"
+    const params = []
+    if (filters.dateFrom) {
+      where += ' AND r.created_at >= ?'
+      params.push(filters.dateFrom)
+    }
+    if (filters.dateTo) {
+      where += ' AND r.created_at <= ?'
+      params.push(filters.dateTo + ' 23:59:59')
+    }
+    if (isProduction()) {
+      where += ' AND r.request_id NOT LIKE ?'
+      params.push('LOAD-TEST-%')
+    }
+    const requests = db.prepare(`
+      SELECT r.request_id, r.engagement_code, r.service_type, r.status, r.requested_service_period_start, r.requested_service_period_end, c.client_name
+      FROM coi_requests r
+      INNER JOIN clients c ON r.client_id = c.id
+      ${where}
+      ORDER BY r.requested_service_period_end DESC
+    `).all(...params)
+    const byServiceType = {}
+    requests.forEach(row => {
+      const st = row.service_type || 'Unknown'
+      byServiceType[st] = (byServiceType[st] || 0) + 1
+    })
+    return {
+      summary: { total: requests.length, byServiceType },
+      requests
+    }
+  } catch (err) {
+    return { summary: { total: 0, byServiceType: {} }, requests: [] }
+  }
+}
+
+/**
+ * ============================================
  * PHASE 2: CRM ATTRIBUTION REPORTS
  * ============================================
  */

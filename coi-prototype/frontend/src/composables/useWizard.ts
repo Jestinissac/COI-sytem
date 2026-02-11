@@ -14,6 +14,7 @@ export interface WizardFormData {
   
   // Client Information
   client_id: number | null
+  client_name?: string
   parent_company: string
   client_location: string
   relationship_with_client: string

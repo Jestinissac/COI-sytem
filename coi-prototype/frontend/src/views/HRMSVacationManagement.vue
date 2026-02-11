@@ -15,7 +15,7 @@
                 :disabled="syncing"
                 :aria-label="syncing ? 'Syncing with HRMS' : 'Sync with HRMS'"
                 :aria-busy="syncing"
-                class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <svg v-if="syncing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -53,7 +53,7 @@
           <nav class="flex -mb-px">
             <button
               @click="activeTab = 'approvers'"
-              :class="activeTab === 'approvers' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              :class="activeTab === 'approvers' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
               class="px-6 py-4 text-sm font-medium border-b-2 transition-colors"
             >
               Approvers on Vacation
@@ -63,7 +63,7 @@
             </button>
             <button
               @click="activeTab = 'affected'"
-              :class="activeTab === 'affected' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              :class="activeTab === 'affected' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
               class="px-6 py-4 text-sm font-medium border-b-2 transition-colors"
             >
               Affected Requests
@@ -73,7 +73,7 @@
             </button>
             <button
               @click="activeTab = 'sync'"
-              :class="activeTab === 'sync' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              :class="activeTab === 'sync' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
               class="px-6 py-4 text-sm font-medium border-b-2 transition-colors"
             >
               HRMS Sync Log
@@ -93,7 +93,7 @@
                 v-model="approverSearch"
                 type="text"
                 placeholder="Search approvers..."
-                class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -239,7 +239,7 @@
                   </div>
                 </div>
                 <div class="flex flex-col gap-2 ml-4">
-                  <button @click="viewRequest(request)" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+                  <button @click="viewRequest(request)" class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700">
                     View Request
                   </button>
                   <button @click="notifyRequester(request)" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200">

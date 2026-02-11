@@ -18,30 +18,33 @@
 
         <!-- Right Side - User Info -->
         <div class="flex items-center gap-4">
-          <!-- Notifications -->
-          <button 
-            class="p-2 hover:bg-blue-800 rounded-lg"
-            aria-label="Notifications"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-            </svg>
-          </button>
-          
+          <!-- Notification bell hidden for customer demo (A5) -->
+          <template v-if="false">
+            <!-- Notifications -->
+            <button 
+              class="p-2 hover:bg-blue-800 rounded-lg"
+              aria-label="Notifications"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              </svg>
+            </button>
+          </template>
+
           <!-- User -->
           <div class="flex items-center gap-3">
             <div class="text-right">
               <div class="text-sm font-medium">{{ authStore.user?.name }}</div>
               <div class="text-xs text-blue-200">{{ authStore.user?.role }}</div>
             </div>
-            <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
+            <div class="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-sm font-medium">
               {{ getInitials(authStore.user?.name) }}
             </div>
           </div>
 
           <button 
             @click="handleLogout" 
-            class="px-3 py-1.5 text-sm bg-blue-700 hover:bg-blue-600 rounded-lg"
+            class="px-3 py-1.5 text-sm bg-primary-700 hover:bg-primary-600 rounded-lg"
             aria-label="Logout"
           >
             Logout
@@ -145,7 +148,7 @@ const allTabs = computed(() => {
     baseTabs.push({ path: '/coi/finance', label: 'Finance', icon: ApprovalIcon })
   }
   
-  // Note: Business Intelligence is now integrated into the Business Development tab
+  // Note: Business Intelligence is now integrated into the Prospect CRM tab
   // in each role's dashboard (RequesterDashboard, DirectorDashboard, etc.)
   // The separate top-nav BI link has been removed to avoid fragmentation
   

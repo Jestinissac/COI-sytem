@@ -8,6 +8,7 @@ import {
   revokeRefreshToken,
   revokeAllUserTokens
 } from '../utils/tokenUtils.js'
+import { devLog } from '../config/environment.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'prototype-secret'
 
@@ -94,7 +95,7 @@ export async function getCurrentUser(req, res) {
 
 export async function getAllUsers(req, res) {
   const db = getDatabase()
-  // Use COALESCE to default to 1 (active) if column doesn't exist yet
+  // COALESCE(active, 1): default to active when column is missing (backward compatibility)
   const users = db.prepare(`
     SELECT 
       id, 
@@ -102,6 +103,7 @@ export async function getAllUsers(req, res) {
       email, 
       role, 
       department, 
+      line_of_service, 
       COALESCE(active, 1) as active 
     FROM users 
     ORDER BY name
@@ -438,7 +440,7 @@ export async function updateUserAvailability(req, res) {
       req.ip
     )
     
-    console.log(`[Availability] User ${user.name} (${user.role}) marked as ${is_active ? 'available' : 'unavailable'} by admin ${adminId}`)
+    devLog(`[Availability] User ${user.name} (${user.role}) marked as ${is_active ? 'available' : 'unavailable'} by admin ${adminId}`)
     
     res.json({
       success: true,

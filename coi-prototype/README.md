@@ -95,11 +95,11 @@ Use this checklist to verify the prototype before client sign-off.
 
 1. Frontend: `cd frontend && npm run build` (must complete with no errors). Then `npm run dev`.
 2. Backend: `cd backend && npm ci && npm run dev`. Wait for "Server running on http://localhost:3000".
-3. API: `curl -s http://localhost:3000/api/health` returns `"status":"ok"`. With a valid auth token, `GET /api/config/client-intelligence/status` returns `enabled: true` so CRM/Business Development is available.
+3. API: `curl -s http://localhost:3000/api/health` returns `"status":"ok"`. With a valid auth token, `GET /api/config/client-intelligence/status` returns `enabled: true` so CRM/Prospect CRM is available.
 
 **CRM/BI present (Client Intelligence enabled)**
 
-- As Requester, Director, or Partner: "Business Development" tab is visible in the dashboard sidebar.
+- As Requester, Director, or Partner: "Prospect CRM" tab is visible in the dashboard sidebar.
 - As Partner: CRM Insights cards are visible.
 - In Reports: "Insights to Conversion" and other CRM reports appear and run.
 

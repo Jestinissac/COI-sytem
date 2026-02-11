@@ -14,8 +14,8 @@
       <router-link
         v-if="action.to"
         :to="action.to"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        :aria-label="action.label"
+        class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+        :aria-label="action.ariaLabel ?? action.label"
       >
         <svg v-if="action.showIcon !== false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -25,8 +25,8 @@
       <button
         v-else-if="action.onClick"
         @click="action.onClick"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        :aria-label="action.label"
+        class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+        :aria-label="action.ariaLabel ?? action.label"
       >
         <svg v-if="action.showIcon !== false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -40,7 +40,7 @@
       <button
         v-if="secondaryAction.onClick"
         @click="secondaryAction.onClick"
-        class="text-sm text-gray-500 hover:text-gray-700 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+        class="text-sm text-gray-500 hover:text-gray-700 underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
         :aria-label="secondaryAction.label"
       >
         {{ secondaryAction.label }}
@@ -48,7 +48,7 @@
       <router-link
         v-else-if="secondaryAction.to"
         :to="secondaryAction.to"
-        class="text-sm text-gray-500 hover:text-gray-700 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+        class="text-sm text-gray-500 hover:text-gray-700 underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
         :aria-label="secondaryAction.label"
       >
         {{ secondaryAction.label }}
@@ -67,6 +67,8 @@ defineProps<{
     to?: string
     onClick?: () => void
     showIcon?: boolean
+    /** When set, used as the button/link aria-label (e.g. "Retry loading requests"); otherwise action.label is used. */
+    ariaLabel?: string
   }
   secondaryAction?: {
     label: string

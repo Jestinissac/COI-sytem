@@ -82,7 +82,7 @@ const closeButtonClasses = computed(() => {
     case 'warning':
       return 'focus:ring-yellow-500'
     case 'info':
-      return 'focus:ring-blue-500'
+      return 'focus:ring-primary-500'
     default:
       return 'focus:ring-gray-500'
   }

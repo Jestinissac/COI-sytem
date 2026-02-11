@@ -169,7 +169,7 @@
                       v-model="searchQuery"
                       type="text" 
                       placeholder="Search by ID, client..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -179,7 +179,7 @@
                   <!-- Service Type Filter -->
                   <select 
                     v-model="pendingServiceFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
@@ -188,7 +188,7 @@
                   <!-- Department Filter -->
                   <select 
                     v-model="pendingDepartmentFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Departments</option>
                     <option v-for="dept in uniqueDepartments" :key="dept" :value="dept">{{ dept }}</option>
@@ -197,7 +197,7 @@
                   <!-- Code Status Filter -->
                   <select 
                     v-model="pendingCodeStatusFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All</option>
                     <option value="needs_code">Needs Code</option>
@@ -248,7 +248,7 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-if="loading">
+                    <tr v-if="loading" role="status" aria-live="polite">
                       <td colspan="6" class="px-6 py-8 text-center text-gray-500">
                         <div class="flex items-center justify-center">
                           <svg class="animate-spin h-5 w-5 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24">
@@ -260,10 +260,12 @@
                       </td>
                     </tr>
                     <tr v-else-if="coiStore.error && !loading">
-                      <td colspan="6" class="px-6 py-8 text-center">
-                        <p class="text-red-600 font-medium">Could not load requests</p>
-                        <p class="text-sm text-gray-600 mt-1">{{ coiStore.error }}</p>
-                        <button type="button" @click="coiStore.fetchRequests()" class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">Retry</button>
+                      <td colspan="6" class="px-6 py-8" role="alert" aria-live="assertive">
+                        <EmptyState
+                          title="Could not load finance queue"
+                          :message="coiStore.error"
+                          :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests(), ariaLabel: 'Retry loading finance queue' }"
+                        />
                       </td>
                     </tr>
                     <tr v-else-if="enhancedFilteredRequests.length === 0">
@@ -341,7 +343,7 @@
                       v-model="codeSearchQuery"
                       type="text" 
                       placeholder="Search by code, client..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -351,7 +353,7 @@
                   <!-- Status Filter -->
                   <select 
                     v-model="codeStatusFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Statuses</option>
                     <option value="Approved">Approved</option>
@@ -361,7 +363,7 @@
                   <!-- Service Type Filter -->
                   <select 
                     v-model="codeServiceFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
@@ -370,7 +372,7 @@
                   <!-- Risk Filter -->
                   <select 
                     v-model="codeRiskFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Risk Levels</option>
                     <option value="Low">Low</option>
@@ -537,7 +539,7 @@
                 <div class="text-center py-4">
                   <button
                     type="button"
-                    class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 mr-2"
+                    class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded hover:bg-primary-700 mr-2"
                     @click="openPrmsFetchModal"
                   >
                     Fetch PRMS data
@@ -601,6 +603,7 @@ import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import GlobalSearch from '@/components/ui/GlobalSearch.vue'
 import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 const router = useRouter()

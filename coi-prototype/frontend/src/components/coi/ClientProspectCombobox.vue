@@ -1,7 +1,7 @@
 <template>
   <div class="relative flex-1" ref="rootRef">
     <div
-      class="flex w-full rounded-md border border-gray-300 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500"
+      class="flex w-full rounded-md border border-gray-300 bg-white shadow-sm focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500"
     >
       <input
         ref="inputRef"
@@ -51,7 +51,7 @@
           :class="[
             'cursor-pointer px-3 py-2 text-sm',
             focusedIndex === getClientOptionIndex(idx)
-              ? 'bg-blue-600 text-white'
+              ? 'bg-primary-600 text-white'
               : 'text-gray-900 hover:bg-gray-100'
           ]"
           @click="select('client', String(opt.id))"
@@ -70,7 +70,7 @@
           :class="[
             'cursor-pointer px-3 py-2 text-sm',
             focusedIndex === getProspectOptionIndex(idx)
-              ? 'bg-blue-600 text-white'
+              ? 'bg-primary-600 text-white'
               : 'text-gray-900 hover:bg-gray-100'
           ]"
           @click="select('prospect', String(opt.id))"
@@ -86,7 +86,7 @@
           :aria-selected="focusedIndex === newOptionIndex"
           :class="[
             'cursor-pointer px-3 py-2 text-sm',
-            focusedIndex === newOptionIndex ? 'bg-blue-600 text-white' : 'text-gray-900 hover:bg-gray-100'
+            focusedIndex === newOptionIndex ? 'bg-primary-600 text-white' : 'text-gray-900 hover:bg-gray-100'
           ]"
           @click="select('new', 'prospect')"
           @mouseenter="focusedIndex = newOptionIndex"

@@ -30,7 +30,7 @@
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-6">
             <nav class="py-2">
               <template v-for="tab in tabs" :key="tab.id">
-                <!-- Divider before Business Development tab -->
+                <!-- Divider before Prospect CRM tab -->
                 <div v-if="tab.divider" class="my-2 mx-4 border-t border-gray-200"></div>
                 <a
                   href="#"
@@ -136,7 +136,7 @@
                     <span :class="getStatusClass(request.status)" class="px-2 py-1 text-xs font-medium rounded">
                       {{ getStatusLabel(request.status) }}
                     </span>
-                    <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm">
+                    <button @click="viewDetails(request)" class="text-primary-600 hover:text-primary-700 text-sm">
                       View →
                     </button>
                   </div>
@@ -236,7 +236,7 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-if="loading">
+                    <tr v-if="loading" role="status" aria-live="polite">
                       <td colspan="7" class="px-4 py-8 text-center text-gray-500">
                         <div class="flex items-center justify-center">
                           <svg class="animate-spin h-5 w-5 text-purple-600 mr-2" fill="none" viewBox="0 0 24 24">
@@ -245,6 +245,15 @@
                           </svg>
                           Loading...
                         </div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="coiStore.error && !loading">
+                      <td colspan="7" class="px-4 py-8" role="alert" aria-live="assertive">
+                        <EmptyState
+                          title="Could not load partner approvals"
+                          :message="coiStore.error"
+                          :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests(), ariaLabel: 'Retry loading partner approvals' }"
+                        />
                       </td>
                     </tr>
                     <tr v-for="request in enhancedFilteredPending" :key="request.id" class="hover:bg-gray-50">
@@ -374,7 +383,7 @@
                         <span class="text-sm text-gray-600 font-mono">{{ request.engagement_code || '-' }}</span>
                       </td>
                       <td class="px-6 py-4">
-                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <button @click="viewDetails(request)" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
                           View →
                         </button>
                       </td>
@@ -481,7 +490,7 @@
                       </td>
                       <td class="px-6 py-4">
                         <div class="flex items-center gap-2">
-                          <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                          <button @click="viewDetails(request)" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
                             View →
                           </button>
                           <button
@@ -525,7 +534,7 @@
                     v-model="decisionsSearchQuery"
                     type="text" 
                     placeholder="Search client or request..." 
-                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   />
                   <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -533,7 +542,7 @@
                 </div>
 
                 <!-- Decision Filter -->
-                <select v-model="decisionFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select v-model="decisionFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
                   <option value="all">All Decisions</option>
                   <option value="Approved">Approved</option>
                   <option value="Approved with Restrictions">With Restrictions</option>
@@ -542,7 +551,7 @@
                 </select>
 
                 <!-- Service Type Filter -->
-                <select v-model="decisionsServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select v-model="decisionsServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
                   <option value="all">All Services</option>
                   <option v-for="serviceType in uniqueServiceTypes" :key="serviceType" :value="serviceType">
                     {{ serviceType }}
@@ -553,7 +562,7 @@
                 <input 
                   v-model="decisionsDateFilter" 
                   type="date" 
-                  class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   title="From date"
                 />
 
@@ -649,7 +658,7 @@
                         <span class="text-xs text-gray-500">{{ formatDate(request.partner_approval_date || request.compliance_approval_date || request.updated_at) }}</span>
                       </td>
                       <td class="px-4 py-3">
-                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-xs font-medium">
+                        <button @click="viewDetails(request)" class="text-primary-600 hover:text-primary-700 text-xs font-medium">
                           View →
                         </button>
                       </td>
@@ -663,7 +672,7 @@
                         <button 
                           v-if="hasActiveDecisionFilters"
                           @click="clearDecisionFilters" 
-                          class="mt-3 text-sm text-blue-600 hover:text-blue-800"
+                          class="mt-3 text-sm text-primary-600 hover:text-primary-700"
                         >
                           Clear all filters
                         </button>
@@ -686,7 +695,7 @@
                     v-model="lettersSearchQuery"
                     type="text" 
                     placeholder="Search client or request..." 
-                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   />
                   <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -694,7 +703,7 @@
                 </div>
 
                 <!-- Letter Status Filter -->
-                <select v-model="lettersStatusFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select v-model="lettersStatusFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
                   <option value="all">All Status</option>
                   <option value="awaiting">Awaiting Response</option>
                   <option value="signed">Signed</option>
@@ -703,7 +712,7 @@
                 </select>
 
                 <!-- Service Type Filter -->
-                <select v-model="lettersServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select v-model="lettersServiceFilter" class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
                   <option value="all">All Services</option>
                   <option v-for="serviceType in uniqueServiceTypes" :key="serviceType" :value="serviceType">
                     {{ serviceType }}
@@ -806,7 +815,7 @@
                         <span class="text-xs text-gray-600 font-mono">{{ request.engagement_code || '-' }}</span>
                       </td>
                       <td class="px-4 py-3">
-                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-xs font-medium">
+                        <button @click="viewDetails(request)" class="text-primary-600 hover:text-primary-700 text-xs font-medium">
                           View →
                         </button>
                       </td>
@@ -820,7 +829,7 @@
                         <button 
                           v-if="hasActiveLetterFilters"
                           @click="clearLetterFilters" 
-                          class="mt-3 text-sm text-blue-600 hover:text-blue-800"
+                          class="mt-3 text-sm text-primary-600 hover:text-primary-700"
                         >
                           Clear all filters
                         </button>
@@ -981,7 +990,7 @@
                     v-model="groupSearchQuery"
                     type="text" 
                     placeholder="Search client or request..." 
-                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   />
                   <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -991,7 +1000,7 @@
                 <!-- Status Filter -->
                 <select 
                   v-model="groupStatusFilter" 
-                  class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="all">All Status</option>
                   <option value="Active">Active</option>
@@ -1007,7 +1016,7 @@
                 <!-- Service Type Filter -->
                 <select 
                   v-model="groupServiceFilter" 
-                  class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="all">All Services</option>
                   <option v-for="serviceType in uniqueServiceTypes" :key="serviceType" :value="serviceType">
@@ -1138,7 +1147,7 @@
                           <td class="px-4 py-2">
                             <button 
                               @click="viewDetails(service)" 
-                              class="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                              class="text-primary-600 hover:text-primary-700 text-xs font-medium"
                             >
                               View →
                             </button>
@@ -1158,7 +1167,7 @@
                   <button 
                     v-if="hasActiveGroupFilters"
                     @click="clearGroupFilters" 
-                    class="mt-3 text-sm text-blue-600 hover:text-blue-800"
+                    class="mt-3 text-sm text-primary-600 hover:text-primary-700"
                   >
                     Clear all filters
                   </button>
@@ -1346,7 +1355,7 @@
             </div>
           </div>
 
-          <!-- Business Development Tab -->
+          <!-- Prospect CRM Tab -->
           <div v-if="activeTab === 'business-dev'" class="space-y-6">
             <!-- Sub-tab Navigation -->
             <div class="bg-white rounded border border-gray-200">
@@ -1358,7 +1367,7 @@
                     @click="activeBDSubTab = subTab.id"
                     class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
                     :class="activeBDSubTab === subTab.id 
-                      ? 'border-blue-500 text-blue-600' 
+                      ? 'border-primary-500 text-primary-600' 
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                   >
                     {{ subTab.label }}
@@ -1396,6 +1405,7 @@ import BusinessDevPipelineAnalytics from '@/components/business-dev/BusinessDevP
 import BusinessDevAIInsights from '@/components/business-dev/BusinessDevAIInsights.vue'
 import GlobalSearch from '@/components/ui/GlobalSearch.vue'
 import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 const router = useRouter()
@@ -1568,10 +1578,10 @@ const tabs = computed(() => [
   { id: 'status', label: 'Engagement Status', icon: StatusIcon, count: approvedByMe.value.length, alertColor: 'bg-blue-100 text-blue-700', divider: false },
   { id: 'engagements', label: 'All History', icon: EngagementsIcon, count: allRequestsHistory.value.length, alertColor: 'bg-gray-100 text-gray-600', divider: false },
   { id: 'expiring', label: 'Expiring Soon', icon: ExpiringIcon, count: expiringSoon.value.length, alertColor: 'bg-orange-100 text-orange-700', divider: false },
-  { id: 'business-dev', label: 'Business Development', icon: BusinessDevIcon, count: 0, alertColor: '', divider: true }
+  { id: 'business-dev', label: 'Prospect CRM', icon: BusinessDevIcon, count: 0, alertColor: '', divider: true }
 ])
 
-// Business Development sub-tabs
+// Prospect CRM sub-tabs
 const activeBDSubTab = ref('prospects')
 const bdSubTabs = [
   { id: 'prospects', label: 'Prospects' },

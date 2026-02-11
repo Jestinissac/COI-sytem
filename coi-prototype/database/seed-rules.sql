@@ -1,0 +1,34 @@
+-- B11a: Default CMA/IESBA rules for COI Rule Builder
+-- Run from init.js after business_rules_config and applies_to_cma column exist.
+-- Idempotency: init runs this only when COUNT of CMA/IESBA rules is below threshold.
+
+-- CMA Red Lines (Kuwait): non-audit services to audit clients prohibited
+INSERT INTO business_rules_config (rule_name, rule_type, condition_field, condition_operator, condition_value, action_type, action_value, is_active, approval_status, created_by, rule_category, regulation_reference, applies_to_cma, applies_to_pie, confidence_level, can_override, guidance_text) VALUES
+('CMA: Audit + Bookkeeping Prohibited', 'conflict', 'service_type', 'contains', 'Bookkeeping', 'block', 'CMA regulation prohibits providing bookkeeping services to audit clients', 1, 'Approved', 1, 'CMA', 'CMA Corporate Governance Rules', 1, 0, 'CRITICAL', 0, 'Bookkeeping for audit clients creates self-review threat. Hard prohibition under CMA.'),
+('CMA: Audit + Management Consulting Prohibited', 'conflict', 'service_type', 'contains', 'Management Consulting', 'block', 'CMA prohibits management consulting for audit clients', 1, 'Approved', 1, 'CMA', 'CMA Corporate Governance Rules', 1, 0, 'CRITICAL', 0, 'Management consulting for audit clients is prohibited under CMA rules.');
+
+-- IESBA Red Lines (Global): absolute prohibitions
+INSERT INTO business_rules_config (rule_name, rule_type, condition_field, condition_operator, condition_value, action_type, action_value, is_active, approval_status, created_by, rule_category, regulation_reference, applies_to_cma, applies_to_pie, confidence_level, can_override, guidance_text) VALUES
+('IESBA Red Line: Management Responsibility', 'conflict', 'service_type', 'contains', 'Management Functions', 'recommend_reject', 'IESBA 290.104: Assuming management responsibility creates self-review threat', 1, 'Approved', 1, 'IESBA', 'IESBA Code Section 290.104', 0, 0, 'CRITICAL', 0, 'Management responsibility involves making decisions on behalf of the client. This is an absolute prohibition under IESBA.'),
+('IESBA Red Line: Advocacy Threat', 'conflict', 'service_type', 'contains', 'Tax Advocacy', 'recommend_reject', 'IESBA 290.105: Acting as advocate creates advocacy threat to independence', 1, 'Approved', 1, 'IESBA', 'IESBA Code Section 290.105', 0, 0, 'CRITICAL', 0, 'Advocacy involves promoting or defending a client position to the extent it compromises objectivity.'),
+('IESBA Red Line: Contingent Fees for Audit', 'conflict', 'service_type', 'contains', 'Contingent Fee', 'recommend_reject', 'IESBA 290.106: Contingent fees for audit clients create self-interest threat', 1, 'Approved', 1, 'IESBA', 'IESBA Code Section 290.106', 0, 0, 'CRITICAL', 0, 'Contingent fees create a direct financial interest in the outcome.');
+
+-- IESBA PIE-Specific: tax and safeguards for public interest entities
+INSERT INTO business_rules_config (rule_name, rule_type, condition_field, condition_operator, condition_value, action_type, action_value, is_active, approval_status, created_by, rule_category, regulation_reference, applies_to_cma, applies_to_pie, confidence_level, can_override, guidance_text) VALUES
+('IESBA: PIE Tax Planning Prohibited', 'conflict', 'pie_status', 'equals', 'Yes', 'recommend_reject', 'IESBA 290.212: Tax planning services prohibited for PIE audit clients', 1, 'Approved', 1, 'IESBA', 'IESBA Code Section 290.212', 0, 1, 'HIGH', 0, 'Tax planning for PIE audit clients creates self-review threat. Hard prohibition under IESBA.'),
+('IESBA: PIE Tax Compliance Review Required', 'conflict', 'pie_status', 'equals', 'Yes', 'recommend_flag', 'IESBA 290.212: Tax compliance for PIE requires safeguards review', 1, 'Approved', 1, 'IESBA', 'IESBA Code Section 290.212', 0, 1, 'MEDIUM', 1, 'Tax compliance for PIE is permitted with appropriate safeguards. Document safeguards applied.');
+
+-- Independence: advisory and high-value / long-duration review
+INSERT INTO business_rules_config (rule_name, rule_type, condition_field, condition_operator, condition_value, action_type, action_value, is_active, approval_status, created_by, rule_category, regulation_reference, applies_to_cma, applies_to_pie, confidence_level, can_override, guidance_text) VALUES
+('Independence: Advisory to Audit Client', 'conflict', 'service_type', 'contains', 'Advisory', 'recommend_flag', 'Providing advisory services to an existing audit client requires independence review', 1, 'Approved', 1, 'IESBA', 'IESBA Code Section 290.150', 0, 0, 'HIGH', 1, 'Review whether the advisory engagement could impair audit independence.'),
+('Independence: High-Value Engagement Review', 'validation', 'total_fees', 'greater_than', '100000', 'recommend_flag', 'High-value engagements (>100K) require additional partner review', 1, 'Approved', 1, 'Custom', '', 0, 0, 'MEDIUM', 1, 'Engagements above 100K require additional scrutiny per firm policy.'),
+('Independence: Long-Duration Engagement', 'validation', 'engagement_duration', 'greater_than', '36', 'recommend_flag', 'Engagements exceeding 3 years require rotation review', 1, 'Approved', 1, 'IESBA', 'IESBA Code Section 290.151', 0, 0, 'MEDIUM', 1, 'Extended engagements may create familiarity threat. Review rotation requirements.');
+
+-- Workflow: expedited low-risk path
+INSERT INTO business_rules_config (rule_name, rule_type, condition_field, condition_operator, condition_value, action_type, action_value, is_active, approval_status, created_by, rule_category, regulation_reference, applies_to_cma, applies_to_pie, confidence_level, can_override, guidance_text) VALUES
+('Approval: Expedited Low-Risk', 'workflow', 'total_fees', 'less_than', '10000', 'recommend_approve', 'Low-value engagement eligible for expedited approval', 1, 'Approved', 1, 'Custom', '', 0, 0, 'LOW', 1, 'Engagements below 10K may qualify for simplified approval path.');
+
+-- Group and international: parent company and cross-border conflict check
+INSERT INTO business_rules_config (rule_name, rule_type, condition_field, condition_operator, condition_value, action_type, action_value, is_active, approval_status, created_by, rule_category, regulation_reference, applies_to_cma, applies_to_pie, confidence_level, can_override, guidance_text) VALUES
+('Group: Parent Company Conflict Check', 'conflict', 'parent_company_id', 'is_not_empty', '', 'recommend_flag', 'Client has parent company — check for group-level independence conflicts', 1, 'Approved', 1, 'IESBA', 'IESBA Code Section 290.13', 0, 0, 'HIGH', 1, 'When a client is part of a group, independence requirements extend to the entire group structure.'),
+('International: Cross-Border Operations', 'conflict', 'international_operations', 'equals', 'true', 'recommend_flag', 'Client has international operations — check foreign entity conflicts', 1, 'Approved', 1, 'IESBA', 'IESBA Code Section 290.25', 0, 0, 'MEDIUM', 1, 'International operations require checking conflicts in all jurisdictions.');

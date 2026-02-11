@@ -47,7 +47,7 @@
               </div>
               <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div 
-                  class="h-full bg-blue-600 transition-all duration-300"
+                  class="h-full bg-primary-600 transition-all duration-300"
                   :style="{ width: `${(completedSectionsCount / totalSteps) * 100}%` }"
                 ></div>
               </div>
@@ -70,7 +70,7 @@
                   :class="isSectionComplete(section.id) 
                     ? 'bg-green-500 text-white' 
                     : activeSection === section.id 
-                      ? 'bg-blue-600 text-white' 
+                      ? 'bg-primary-600 text-white' 
                       : 'bg-gray-200 text-gray-600'"
                 >
                   <svg v-if="isSectionComplete(section.id)" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -102,7 +102,7 @@
                 :disabled="loading || !isFormValid"
                 :aria-disabled="loading || !isFormValid"
                 class="w-full px-4 py-2.5 rounded-md text-sm font-medium text-white transition-colors"
-                :class="isFormValid ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'"
+                :class="isFormValid ? 'bg-primary-600 hover:bg-primary-700' : 'bg-gray-300 cursor-not-allowed'"
               >
                 <span v-if="loading">Submitting...</span>
                 <span v-else>Submit Request</span>
@@ -163,7 +163,7 @@
           <section id="section-1" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">1</span>
+                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">1</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Requestor Information</h2>
                 </div>
@@ -194,7 +194,7 @@
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Designation <span class="text-red-500">*</span></label>
                   <select 
                     v-model="formData.designation"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     aria-required="true"
                   >
                     <option value="">Select designation...</option>
@@ -213,7 +213,7 @@
                     id="form_entity"
                     v-model="formData.entity"
                     @change="onEntityChange"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     aria-required="true"
                   >
                     <option value="">Select entity...</option>
@@ -230,7 +230,7 @@
           <section id="section-2" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">2</span>
+                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">2</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Document Type</h2>
                 </div>
@@ -295,7 +295,7 @@
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Language</label>
                   <select 
                     v-model="formData.language"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option>English</option>
                     <option>Arabic</option>
@@ -308,7 +308,7 @@
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Lead Source</label>
                   <select 
                     v-model="formData.lead_source_id"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option :value="null">Select lead source...</option>
                     <optgroup label="Referrals">
@@ -357,7 +357,7 @@
           <section id="section-3" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">3</span>
+                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">3</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Client Details</h2>
                 </div>
@@ -386,7 +386,7 @@
                       <button
                         type="button"
                         @click="fetchClients"
-                        class="font-medium text-blue-600 hover:text-blue-800 underline"
+                        class="font-medium text-primary-600 hover:text-primary-700 underline"
                       >
                         Retry
                       </button>
@@ -395,7 +395,7 @@
                       <p v-if="selectedEntityType === 'prospect'" class="text-xs text-gray-500">Prospect from CRM.</p>
                       <p v-else-if="selectedEntityType === 'client'" class="text-xs text-gray-500">
                         <span v-if="formData.client_id">Existing client from PRMS.</span>
-                        <button type="button" class="font-medium text-blue-600 hover:text-blue-800 underline ml-1" @click="showPrmsModal = true">Load from PRMS</button>
+                        <button type="button" class="font-medium text-primary-600 hover:text-primary-700 underline ml-1" @click="showPrmsModal = true">Load from PRMS</button>
                       </p>
                     </template>
                   </div>
@@ -419,7 +419,7 @@
                     <select
                       id="client_type"
                       v-model="formData.client_type"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option value="">Select...</option>
                       <option v-for="ct in CLIENT_TYPES" :key="ct" :value="ct">{{ ct }}</option>
@@ -430,7 +430,7 @@
                     <select
                       id="regulated_body"
                       v-model="formData.regulated_body"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option value="">Select...</option>
                       <option v-for="rb in REGULATED_BODIES" :key="rb" :value="rb">{{ rb }}</option>
@@ -444,7 +444,7 @@
                     <select
                       id="client_status"
                       v-model="formData.client_status"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option value="">Select...</option>
                       <option>N/A</option>
@@ -460,7 +460,7 @@
                     <select
                       id="client_location"
                       v-model="locationCountryCode"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option value="">Select...</option>
                       <option
@@ -477,7 +477,7 @@
                     <select
                       id="relationship_with_client"
                       v-model="formData.relationship_with_client"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option value="">Select...</option>
                       <option>New Client</option>
@@ -489,14 +489,27 @@
 
                 <h4 class="text-xs font-medium text-gray-500 uppercase tracking-wide mt-6 mb-2">PIE & structure</h4>
                 <div role="group" aria-labelledby="pie_status_label">
-                  <span id="pie_status_label" class="block text-sm font-medium text-gray-700 mb-2">PIE Status</span>
+                  <div class="flex items-center gap-2 mb-2">
+                    <span id="pie_status_label" class="text-sm font-medium text-gray-700">PIE Status</span>
+                    <span
+                      class="inline-flex items-center justify-center w-5 h-5 rounded-full text-gray-500 bg-gray-200 cursor-help focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      :title="pieTooltipText"
+                      tabindex="0"
+                      role="img"
+                      aria-label="Information about Public Interest Entity"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                      </svg>
+                    </span>
+                  </div>
                   <div class="flex items-center space-x-6">
                     <label for="pie_status_yes" class="flex items-center">
-                      <input id="pie_status_yes" type="radio" v-model="formData.pie_status" value="Yes" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="pie_status"/>
+                      <input id="pie_status_yes" type="radio" v-model="formData.pie_status" value="Yes" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500" name="pie_status"/>
                       <span class="ml-2 text-sm text-gray-700">Yes - PIE</span>
                     </label>
                     <label for="pie_status_no" class="flex items-center">
-                      <input id="pie_status_no" type="radio" v-model="formData.pie_status" value="No" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="pie_status"/>
+                      <input id="pie_status_no" type="radio" v-model="formData.pie_status" value="No" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500" name="pie_status"/>
                       <span class="ml-2 text-sm text-gray-700">No</span>
                     </label>
                   </div>
@@ -514,7 +527,7 @@
                       <label for="group_structure_standalone" class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
                              :class="formData.group_structure === 'standalone' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
                         <input id="group_structure_standalone" type="radio" v-model="formData.group_structure" value="standalone" 
-                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="group_structure"/>
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500" name="group_structure"/>
                         <div class="ml-3">
                           <span class="text-sm font-medium text-gray-900">Standalone Entity</span>
                         </div>
@@ -523,7 +536,7 @@
                       <label for="group_structure_has_parent" class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
                              :class="formData.group_structure === 'has_parent' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
                         <input id="group_structure_has_parent" type="radio" v-model="formData.group_structure" value="has_parent" 
-                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="group_structure"/>
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500" name="group_structure"/>
                         <div class="ml-3">
                           <span class="text-sm font-medium text-gray-900">Part of Corporate Group</span>
                         </div>
@@ -532,7 +545,7 @@
                       <label for="group_structure_research_required" class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
                              :class="formData.group_structure === 'research_required' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
                         <input id="group_structure_research_required" type="radio" v-model="formData.group_structure" value="research_required" 
-                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="group_structure"/>
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500" name="group_structure"/>
                         <div class="ml-3 flex-1">
                           <span class="text-sm font-medium text-gray-900">Not Sure</span>
                         </div>
@@ -549,12 +562,14 @@
                         id="parent_company_group"
                         v-model="formData.parent_company"
                         type="text"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        :class="touchedFields.parent_company && parentCompanyError ? 'border-red-500' : 'border-gray-300'"
                         placeholder="e.g., ABC Holdings, XYZ Group Ltd..."
                         required
                         aria-required="true"
+                        @blur="setTouched('parent_company')"
                       />
-                      <p v-if="formData.group_structure === 'has_parent' && parentCompanyError" class="text-xs text-red-500 mt-1" role="alert">{{ parentCompanyError }}</p>
+                      <p v-if="formData.group_structure === 'has_parent' && touchedFields.parent_company && parentCompanyError" class="text-xs text-red-500 mt-1" role="alert">{{ parentCompanyError }}</p>
                     </div>
                   </div>
                 </div>
@@ -567,7 +582,7 @@
                     <select
                       id="company_type"
                       v-model="formData.company_type"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                       @change="onCompanyTypeChange"
                     >
                       <option value="">Select company type...</option>
@@ -589,12 +604,14 @@
                       id="parent_company"
                       v-model="formData.parent_company"
                       type="text"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      :class="touchedFields.parent_company && parentCompanyError ? 'border-red-500' : 'border-gray-300'"
                       placeholder="Enter parent company name..."
                       :required="formData.company_type !== 'Standalone'"
                       :aria-required="formData.company_type !== 'Standalone' && formData.company_type !== 'Parent'"
+                      @blur="setTouched('parent_company')"
                     />
-                    <p v-if="(formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate' || formData.company_type === 'Sister') && parentCompanyError" class="text-xs text-red-500 mt-1" role="alert">{{ parentCompanyError }}</p>
+                    <p v-if="(formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate' || formData.company_type === 'Sister') && touchedFields.parent_company && parentCompanyError" class="text-xs text-red-500 mt-1" role="alert">{{ parentCompanyError }}</p>
                   </div>
 
                   <!-- Ownership Percentage (for Subsidiary/Affiliate) -->
@@ -607,16 +624,18 @@
                       min="0"
                       max="100"
                       step="0.01"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      :class="touchedFields.ownership_percentage && ownershipPercentageError ? 'border-red-500' : 'border-gray-300'"
                       placeholder="e.g., 75.5"
                       :required="formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate'"
                       :aria-required="formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate'"
+                      @blur="setTouched('ownership_percentage')"
                     />
                     <p class="text-xs text-gray-500 mt-1">
                       <span v-if="formData.company_type === 'Subsidiary'">Subsidiary: 50–100%.</span>
                       <span v-else-if="formData.company_type === 'Affiliate'">Affiliate: 20–49%.</span>
                     </p>
-                    <p v-if="ownershipPercentageError" class="text-xs text-red-500 mt-1" role="alert">{{ ownershipPercentageError }}</p>
+                    <p v-if="touchedFields.ownership_percentage && ownershipPercentageError" class="text-xs text-red-500 mt-1" role="alert">{{ ownershipPercentageError }}</p>
                   </div>
                 </div>
               </div>
@@ -627,7 +646,7 @@
           <section id="section-4" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">4</span>
+                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">4</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Service Information</h2>
                 </div>
@@ -642,7 +661,7 @@
                     type="checkbox" 
                     v-model="formData.international_operations"
                     :disabled="!isInternationalOperationsAllowed"
-                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <span class="ml-2 text-sm font-medium text-gray-700">Client has international operations</span>
                 </label>
@@ -658,7 +677,7 @@
                     v-model="formData.service_category"
                     @change="onServiceCategoryChange"
                     :disabled="loadingServices || !formData.entity"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
                     aria-required="true"
                   >
                     <option value="">{{ loadingServices ? 'Loading services...' : (formData.entity ? 'Select line of service...' : 'Select entity first') }}</option>
@@ -677,7 +696,7 @@
                     v-model="formData.service_type"
                     @change="onServiceTypeChange"
                     :disabled="loadingServices || !formData.entity || !formData.service_category"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
                     aria-required="true"
                   >
                     <option value="">{{ formData.service_category ? 'Select specific service type...' : 'Select line of service first' }}</option>
@@ -700,7 +719,7 @@
                     v-model="formData.global_service_category"
                     @change="onGlobalServiceCategoryChange"
                     :disabled="loadingGlobalServices || !formData.entity"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
                   >
                     <option value="">{{ loadingGlobalServices ? 'Loading...' : (formData.entity ? 'Select BDO Global line of service...' : 'Select entity first') }}</option>
                     <option 
@@ -717,7 +736,7 @@
                   <select 
                     v-model="formData.global_service_type"
                     :disabled="loadingGlobalServices || !formData.entity || !formData.global_service_category"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
                   >
                     <option value="">{{ formData.global_service_category ? 'Select BDO Global service type...' : 'Select line of service first' }}</option>
                     <option 
@@ -745,7 +764,7 @@
                       type="radio"
                       :value="subCat"
                       v-model="formData.service_sub_category"
-                      class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500"
                     />
                     <span class="ml-2 text-sm text-gray-700 font-medium">{{ subCat }}</span>
                   </label>
@@ -758,12 +777,14 @@
                   v-model="formData.service_description"
                   rows="4"
                   maxlength="2000"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  :class="touchedFields.service_description && serviceDescriptionError ? 'border-red-500' : 'border-gray-300'"
                   placeholder="Describe the services to be provided..."
                   aria-required="true"
+                  @blur="setTouched('service_description')"
                 ></textarea>
                 <div class="flex items-center justify-between mt-1">
-                  <p v-if="serviceDescriptionError" class="text-xs text-red-500" role="alert">{{ serviceDescriptionError }}</p>
+                  <p v-if="touchedFields.service_description && serviceDescriptionError" class="text-xs text-red-500" role="alert">{{ serviceDescriptionError }}</p>
                   <span v-else></span>
                   <span class="text-xs text-gray-400">{{ (formData.service_description || '').length }} / 2000</span>
                 </div>
@@ -775,7 +796,7 @@
                   <input
                     v-model="formData.requested_service_period_start"
                     type="date"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
                 <div>
@@ -784,8 +805,11 @@
                     v-model="formData.requested_service_period_end"
                     type="date"
                     :min="formData.requested_service_period_start || undefined"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    :class="servicePeriodEndError ? 'border-red-500' : 'border-gray-300'"
+                    @blur="setTouched('requested_service_period_end')"
                   />
+                  <p v-if="servicePeriodEndError" class="text-xs text-red-500 mt-1" role="alert">{{ servicePeriodEndError }}</p>
                 </div>
               </div>
 
@@ -799,14 +823,14 @@
                       v-model="formData.external_deadline"
                       type="date"
                       :min="todayIso"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Reason for Deadline</label>
                     <select
                       v-model="formData.deadline_reason"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option v-for="dr in DEADLINE_REASONS" :key="dr.value || 'none'" :value="dr.value">{{ dr.label }}</option>
                     </select>
@@ -830,7 +854,7 @@
           <section v-if="!formData.international_operations" id="section-5" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">5</span>
+                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">5</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Ownership Structure</h2>
                 </div>
@@ -856,7 +880,7 @@
                             <input
                               v-model="row.name"
                               type="text"
-                              class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                               placeholder="Entity or shareholder"
                             />
                           </td>
@@ -867,7 +891,7 @@
                               min="0"
                               max="100"
                               step="0.01"
-                              class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                               placeholder="0–100"
                             />
                           </td>
@@ -890,7 +914,7 @@
                       <button
                         type="button"
                         @click="addOwnershipRow"
-                        class="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        class="text-sm font-medium text-primary-600 hover:text-primary-700"
                       >
                         + Add row
                       </button>
@@ -914,7 +938,7 @@
                     <button
                       type="button"
                       @click="ownershipRows = []"
-                      class="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      class="text-xs text-primary-600 hover:text-primary-700 font-medium"
                     >
                       Clear rows
                     </button>
@@ -924,7 +948,7 @@
                     rows="4"
                     :readonly="ownershipRows.length > 0"
                     :class="[
-                      'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                      'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500',
                       ownershipRows.length > 0 ? 'bg-gray-50 cursor-not-allowed' : ''
                     ]"
                     :placeholder="ownershipRows.length > 0 ? 'Populated from rows above' : 'Or describe the ownership structure in your own words (shareholders and percentages)...'"
@@ -937,7 +961,7 @@
                 <textarea
                   v-model="formData.related_affiliated_entities"
                   rows="3"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="List any related or affiliated entities..."
                 ></textarea>
               </div>
@@ -948,7 +972,7 @@
           <section id="section-6" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">6</span>
+                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">6</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Signatories</h2>
                 </div>
@@ -968,7 +992,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Backup approver (optional)</label>
                 <select
                   v-model="formData.backup_approver_id"
-                  class="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
                   <option value="">None — use default escalation</option>
                   <option
@@ -987,7 +1011,7 @@
           <section v-if="isTeamMember" id="section-7" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
+                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Director Approval Document</h2>
                 </div>
@@ -1068,6 +1092,54 @@
     />
   </div>
 
+  <!-- Success confirmation after submit (B5) -->
+  <div
+    v-if="showSuccessModal"
+    class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+  >
+    <div
+      ref="successModalRef"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="success-modal-title"
+      aria-describedby="success-modal-description"
+      class="bg-white rounded-xl shadow-sm border border-gray-200 w-full max-w-md p-6 focus:outline-none"
+      tabindex="-1"
+      @keydown.escape="closeSuccessModalAndGoToDashboard"
+    >
+      <h2 id="success-modal-title" class="text-xl font-semibold text-gray-900 mb-4">Request submitted</h2>
+      <div id="success-modal-description" class="space-y-2 mb-4">
+        <p v-if="submittedRequestCode" class="text-sm text-gray-700">Request ID: <span class="font-medium text-gray-900">{{ submittedRequestCode }}</span></p>
+        <p v-else class="text-sm text-gray-700">Request submitted successfully!</p>
+        <p class="text-sm text-gray-600">It will be reviewed by a Director in your department, then by Compliance and other approvers as needed.</p>
+        <p v-if="submittedFlagged" class="text-sm text-amber-700 mt-2">Request submitted but flagged for Compliance review due to potential group conflicts.</p>
+      </div>
+      <div class="flex flex-wrap gap-2 justify-end">
+        <button
+          type="button"
+          @click="viewSubmittedRequest"
+          class="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+        >
+          View Request
+        </button>
+        <button
+          type="button"
+          @click="createAnotherRequest"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+        >
+          Create Another
+        </button>
+        <button
+          type="button"
+          @click="goToDashboardFromSuccess"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+        >
+          Go to Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Unsaved changes leave confirmation -->
   <div v-if="showLeaveConfirm" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 max-w-sm w-full p-6">
@@ -1082,7 +1154,7 @@
         </button>
         <button
           @click="confirmLeave(true)"
-          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+          class="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg"
         >
           Leave
         </button>
@@ -1114,6 +1186,8 @@ const route = useRoute()
 const coiStore = useCOIRequestsStore()
 const authStore = useAuthStore()
 const { success, error: showError, warning, info } = useToast()
+
+const pieTooltipText = 'Public Interest Entity (PIE): an entity of significant public interest (e.g. listed companies, banks, insurers) that may be subject to stricter independence requirements under IESBA standards.'
 
 const loading = ref(false)
 const showConfirmModal = ref(false)
@@ -1463,6 +1537,20 @@ const serviceDescriptionError = computed(() => {
   if (!val || !String(val).trim()) return 'Service description is required.'
   return ''
 })
+
+const servicePeriodEndError = computed(() => {
+  const start = formData.value.requested_service_period_start
+  const end = formData.value.requested_service_period_end
+  if (!start || !end) return ''
+  if (new Date(end) < new Date(start)) return 'End date must be on or after start date.'
+  return ''
+})
+
+// B3: touched fields for inline validation (show error after blur)
+const touchedFields = ref<Record<string, boolean>>({})
+function setTouched(field: string) {
+  touchedFields.value = { ...touchedFields.value, [field]: true }
+}
 
 // Check if a section is complete
 function isSectionComplete(sectionId: string): boolean {
@@ -2155,6 +2243,13 @@ const duplicateJustification = ref('')
 const detectedDuplicates = ref<any[]>([])
 const pendingRequestId = ref<number | null>(null)
 
+// B5: Success confirmation modal state
+const showSuccessModal = ref(false)
+const submittedRequestId = ref<number | null>(null)
+const submittedRequestCode = ref('')
+const submittedFlagged = ref(false)
+const successModalRef = ref<HTMLElement | null>(null)
+
 // Handle submit
 async function handleSubmit() {
   showConfirmModal.value = false
@@ -2198,25 +2293,19 @@ async function handleSubmit() {
     
     if (hasDuplicates) {
       showError('Duplication detected! Please review.')
-    } else if (submitResult?.flagged) {
-      // Request was flagged for group conflicts - show warning but still success
-      warning('Request submitted but flagged for Compliance review due to potential group conflicts. You will be notified once the review is complete.')
-      clearLocalStorage()
-      stopAutoSave()
-      duplicateJustification.value = ''
-      
-      setTimeout(() => {
-        router.push('/coi/requester')
-      }, 2000)
     } else {
-      success('Request submitted successfully!')
       clearLocalStorage()
       stopAutoSave()
       duplicateJustification.value = ''
-      
-      setTimeout(() => {
-        router.push('/coi/requester')
-      }, 1500)
+      const fallbackCode = `COI-${new Date().getFullYear()}-${String(requestId).padStart(3, '0')}`
+      submittedRequestId.value = submitResult?.id ?? requestId
+      submittedRequestCode.value = submitResult?.request_id ?? fallbackCode
+      submittedFlagged.value = !!submitResult?.flagged
+      showSuccessModal.value = true
+      if (submitResult?.flagged) {
+        warning('Request submitted but flagged for Compliance review due to potential group conflicts. You will be notified once the review is complete.')
+      }
+      nextTick(() => successModalRef.value?.focus())
     }
   } catch (err: any) {
     // Check if this is a duplicate blocking error
@@ -2249,23 +2338,52 @@ async function submitWithJustification() {
   
   try {
     const submitResult = await coiStore.submitRequest(
-      pendingRequestId.value!, 
+      pendingRequestId.value!,
       { duplicate_justification: duplicateJustification.value }
     )
-    
-    success('Request submitted with justification!')
     clearLocalStorage()
     stopAutoSave()
     duplicateJustification.value = ''
-    
-    setTimeout(() => {
-      router.push('/coi/requester')
-    }, 1500)
+    const rid = pendingRequestId.value!
+    const fallbackCode = `COI-${new Date().getFullYear()}-${String(rid).padStart(3, '0')}`
+    submittedRequestId.value = submitResult?.id ?? rid
+    submittedRequestCode.value = submitResult?.request_id ?? fallbackCode
+    submittedFlagged.value = !!submitResult?.flagged
+    showSuccessModal.value = true
+    nextTick(() => successModalRef.value?.focus())
   } catch (err: any) {
     showError(err.response?.data?.error || err.message || 'Failed to submit request')
   } finally {
     loading.value = false
   }
+}
+
+// B5: Success modal actions
+function closeSuccessModalAndReset() {
+  showSuccessModal.value = false
+  submittedRequestId.value = null
+  submittedRequestCode.value = ''
+  submittedFlagged.value = false
+}
+
+function viewSubmittedRequest() {
+  const id = submittedRequestId.value
+  closeSuccessModalAndReset()
+  if (id != null) router.push(`/coi/request/${id}`)
+}
+
+function createAnotherRequest() {
+  closeSuccessModalAndReset()
+  router.push('/coi/request/new')
+}
+
+function goToDashboardFromSuccess() {
+  closeSuccessModalAndReset()
+  router.push('/coi/requester')
+}
+
+function closeSuccessModalAndGoToDashboard() {
+  goToDashboardFromSuccess()
 }
 
 // Intersection Observer for active section tracking

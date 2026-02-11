@@ -17,7 +17,7 @@
         <div class="flex items-center gap-2">
           <button
             @click="showCreateModal = true"
-            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 flex items-center gap-2"
+            class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 flex items-center gap-2"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -56,7 +56,7 @@
                 v-model="searchQuery"
                 type="text"
                 placeholder="Search rules..."
-                class="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md w-64 focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -68,7 +68,7 @@
 
       <div class="p-6">
         <div v-if="loading" class="flex items-center justify-center py-8">
-          <svg class="animate-spin h-5 w-5 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24">
+          <svg class="animate-spin h-5 w-5 text-primary-600 mr-2" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
@@ -169,7 +169,7 @@
                   <div class="text-sm text-gray-700">
                     <span class="font-medium">IF</span>
                     <span v-if="rule.condition_field" class="mx-1">
-                      <span class="text-blue-600">{{ rule.condition_field }}</span>
+                      <span class="text-primary-600">{{ rule.condition_field }}</span>
                       <span class="mx-1">{{ getOperatorLabel(rule.condition_operator) }}</span>
                       <span class="text-green-600">{{ rule.condition_value }}</span>
                     </span>
@@ -293,7 +293,7 @@
                 </button>
                 <button
                   @click.stop="editRule(rule)"
-                  class="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
+                  class="px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded hover:bg-primary-700"
                 >
                   Edit
                 </button>
@@ -335,7 +335,7 @@
               v-model="ruleForm.rule_name"
               type="text"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               placeholder="e.g., Block Audit + Advisory Conflict"
             />
           </div>
@@ -348,7 +348,7 @@
             <select
               v-model="ruleForm.rule_type"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
               <option value="">Select type...</option>
               <option value="validation">Validation</option>
@@ -363,7 +363,7 @@
             <select
               v-model="selectedTemplate"
               @change="loadTemplate"
-              class="w-full px-3 py-2 border border-blue-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-blue-300 rounded-md bg-white focus:ring-2 focus:ring-primary-500"
             >
               <option value="">Select IESBA template...</option>
               <option value="red_line_management">Red Line: Management Responsibility</option>
@@ -384,7 +384,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">Rule Category</label>
             <select
               v-model="ruleForm.rule_category"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
             >
               <option value="CMA">CMA</option>
               <option value="IESBA">IESBA</option>
@@ -396,7 +396,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">Regulation Reference</label>
             <select
               v-model="ruleForm.regulation_reference"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
             >
               <option value="">Select regulation...</option>
               <optgroup label="IESBA">
@@ -426,7 +426,7 @@
                 <input
                   type="checkbox"
                   v-model="ruleForm.applies_to_pie"
-                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                 />
                 <span class="text-sm font-medium text-gray-700">Applies to PIE clients only</span>
               </label>
@@ -436,7 +436,7 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">Tax Sub-Type (if applicable)</label>
               <select
                 v-model="ruleForm.tax_sub_type"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">Not applicable</option>
                 <option value="TAX_COMPLIANCE">Tax Compliance</option>
@@ -452,7 +452,7 @@
               type="checkbox"
               id="applies_to_cma"
               v-model="ruleForm.applies_to_cma"
-              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             />
             <label for="applies_to_cma" class="text-sm font-medium text-gray-700 cursor-pointer">
               Applies to CMA-Regulated Clients Only
@@ -468,9 +468,9 @@
                 <input
                   type="checkbox"
                   v-model="useAdvancedConditions"
-                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                 />
-                <span class="text-sm text-gray-600">Advanced (AND/OR groups) <span class="text-xs text-blue-600">(Pro)</span></span>
+                <span class="text-sm text-gray-600">Advanced (AND/OR groups) <span class="text-xs text-primary-600">(Pro)</span></span>
               </label>
             </div>
             
@@ -480,7 +480,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">Field</label>
                 <select
                   v-model="ruleForm.condition_field"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   :disabled="loadingFields"
                 >
                   <option value="">Select field...</option>
@@ -506,7 +506,7 @@
                 <select
                   v-model="ruleForm.condition_operator"
                   :disabled="!ruleForm.condition_field"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100"
                 >
                   <option value="">Select operator...</option>
                   <template v-if="ruleForm.condition_field && getOperatorsForField(ruleForm.condition_field).length > 0">
@@ -536,7 +536,7 @@
                   v-if="fieldHasOptions(ruleForm.condition_field)"
                   v-model="ruleForm.condition_value"
                   :disabled="!ruleForm.condition_operator"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100"
                 >
                   <option value="">Select value...</option>
                   <option v-for="opt in getFieldOptions(ruleForm.condition_field)" :key="opt" :value="opt">
@@ -549,7 +549,7 @@
                   v-model="ruleForm.condition_value"
                   type="text"
                   :disabled="!ruleForm.condition_operator"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100"
                   placeholder="Enter value..."
                 />
               </div>
@@ -577,7 +577,7 @@
                 <select
                   v-model="ruleForm.action_type"
                   required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Select action...</option>
                   <option value="recommend_reject">Recommend Reject</option>
@@ -597,7 +597,7 @@
                 <input
                   v-model="ruleForm.action_value"
                   type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="Optional: e.g., status name, message..."
                 />
               </div>
@@ -613,7 +613,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">Confidence Level</label>
                 <select
                   v-model="ruleForm.confidence_level"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="CRITICAL">CRITICAL</option>
                   <option value="HIGH">HIGH</option>
@@ -628,7 +628,7 @@
                   <input
                     type="checkbox"
                     v-model="ruleForm.can_override"
-                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
                   <span class="text-sm font-medium text-gray-700">Can be overridden</span>
                 </label>
@@ -641,7 +641,7 @@
               <textarea
                 v-model="ruleForm.guidance_text"
                 rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 placeholder="Provide guidance for Compliance officers reviewing this recommendation..."
               ></textarea>
               <p class="text-xs text-gray-500 mt-1">Additional context for Compliance review</p>
@@ -652,7 +652,7 @@
               <textarea
                 v-model="ruleForm.override_guidance"
                 rows="2"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 placeholder="Instructions for when and how to override this recommendation..."
               ></textarea>
               <p class="text-xs text-gray-500 mt-1">Guidance shown when override is attempted</p>
@@ -676,7 +676,7 @@
                    class="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
               </svg>
-              <svg v-else class="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg v-else class="w-5 h-5 text-primary-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
               <div class="flex-1">
@@ -737,7 +737,7 @@
           <!-- Test Rule Panel -->
           <div class="border-t border-gray-200 pt-4">
             <div class="flex items-center justify-between mb-3">
-              <h4 class="text-sm font-semibold text-gray-900">Test Rule <span class="text-xs text-blue-600">(Pro)</span></h4>
+              <h4 class="text-sm font-semibold text-gray-900">Test Rule <span class="text-xs text-primary-600">(Pro)</span></h4>
               <button
                 type="button"
                 @click="testRuleNow"
@@ -848,7 +848,7 @@
               v-model="ruleForm.is_active"
               type="checkbox"
               id="is_active"
-              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             />
             <label for="is_active" class="ml-2 text-sm text-gray-700">
               Rule is active
@@ -867,7 +867,7 @@
             <button
               type="submit"
               :disabled="saving"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 disabled:opacity-50"
             >
               {{ saving ? 'Saving...' : (editingRule ? 'Update Rule' : 'Create Rule') }}
             </button>

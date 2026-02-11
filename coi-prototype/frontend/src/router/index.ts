@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-// Note: Client Intelligence is now integrated into Business Development tab in dashboards
+// Note: Client Intelligence is now integrated into Prospect CRM tab in dashboards
 
 const router = createRouter({
   history: createWebHistory(),
@@ -79,6 +79,12 @@ const router = createRouter({
           path: 'super-admin',
           name: 'SuperAdminDashboard',
           component: () => import('@/views/SuperAdminDashboard.vue'),
+          meta: { roles: ['Super Admin'] }
+        },
+        {
+          path: 'super-admin/workflow-config',
+          name: 'WorkflowConfig',
+          component: () => import('@/views/WorkflowConfig.vue'),
           meta: { roles: ['Super Admin'] }
         },
         {
@@ -163,6 +169,17 @@ const router = createRouter({
           meta: { requiresAuth: true }
         },
         {
+          path: 'reports/analytics',
+          name: 'ReportingDashboard',
+          component: () => import('@/views/ReportingDashboard.vue'),
+          meta: { requiresAuth: true, roles: ['Admin', 'Super Admin', 'Compliance'] }
+        },
+        {
+          path: 'reports-old',
+          redirect: { path: '/coi/reports/analytics' },
+          meta: { requiresAuth: true }
+        },
+        {
           // Redirect old client-intelligence route to dashboard with business-dev tab
           path: 'client-intelligence',
           name: 'ClientIntelligence',
@@ -175,12 +192,6 @@ const router = createRouter({
             requiresAuth: true,
             roles: ['Requester', 'Director', 'Partner', 'Admin', 'Super Admin']
           }
-        },
-        {
-          path: 'reports-old',
-          name: 'ReportingDashboard',
-          component: () => import('@/views/ReportingDashboard.vue'),
-          meta: { roles: ['Admin', 'Super Admin', 'Compliance'] }
         },
         {
           path: 'prospects',

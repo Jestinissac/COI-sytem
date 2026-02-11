@@ -10,7 +10,7 @@
           </div>
           <button
             @click="showCreateModal = true"
-            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 flex items-center gap-2"
+            class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 flex items-center gap-2"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -78,7 +78,7 @@
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
                     @click="editEntity(entity)"
-                    class="text-blue-600 hover:text-blue-900 mr-4"
+                    class="text-primary-600 hover:text-blue-900 mr-4"
                   >
                     Edit
                   </button>
@@ -119,7 +119,7 @@
               required
               :readonly="showEditModal"
               :class="showEditModal ? 'bg-gray-50' : ''"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               placeholder="BDO_AL_NISF"
             />
             <p class="mt-1 text-xs text-gray-500">Unique code (cannot be changed after creation)</p>
@@ -131,7 +131,7 @@
               v-model="formData.entity_name"
               type="text"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               placeholder="BDO Al Nisf & Partners"
             />
           </div>
@@ -141,7 +141,7 @@
             <input
               v-model="formData.entity_display_name"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               placeholder="BDO Al Nisf & Partners"
             />
           </div>
@@ -150,7 +150,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Catalog Mode</label>
             <select
               v-model="formData.catalog_mode"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
               <option value="independent">Independent</option>
               <option value="inherit">Inherit from Global</option>
@@ -162,7 +162,7 @@
               v-model="formData.is_default"
               type="checkbox"
               id="is_default"
-              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             />
             <label for="is_default" class="ml-2 text-sm text-gray-700">Set as default entity</label>
           </div>
@@ -178,7 +178,7 @@
             <button
               type="submit"
               :disabled="saving"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 disabled:opacity-50"
             >
               {{ saving ? 'Saving...' : 'Save' }}
             </button>

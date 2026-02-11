@@ -6,6 +6,11 @@ import {
   getEngagementCodeSummaryReport,
   getSystemOverviewReport,
   getProspectConversionReport,
+  getApprovalWorkflowReport,
+  getSLAComplianceReport,
+  getDepartmentPerformanceReport,
+  getConflictAnalysisReport,
+  getActiveEngagementsReport,
   // Phase 2: CRM Attribution Reports
   getLeadSourceEffectivenessReport,
   getFunnelPerformanceReport,
@@ -21,6 +26,18 @@ import { generatePDFReport } from '../services/pdfExportService.js'
 import { generateReportExcel } from '../services/excelExportService.js'
 import { logAuditTrail } from '../services/auditTrailService.js'
 import { getCachedReportData, cacheReportData } from '../services/reportCacheService.js'
+
+/** Single map for all 8 CRM report types: reportType -> { getter, title }. Used by exportReportPDF and exportReportExcel. */
+const CRM_REPORT_SPEC = Object.freeze({
+  'lead-source-effectiveness': { getter: getLeadSourceEffectivenessReport, title: 'Lead Source Effectiveness' },
+  'funnel-performance': { getter: getFunnelPerformanceReport, title: 'Funnel Performance' },
+  'insights-to-conversion': { getter: getInsightsToConversionReport, title: 'Insights to Conversion' },
+  'attribution-by-user': { getter: getAttributionByUserReport, title: 'Attribution by User' },
+  'pipeline-forecast': { getter: getPipelineForecastReport, title: 'Pipeline Forecast' },
+  'conversion-trends': { getter: getConversionTrendsReport, title: 'Conversion Trends' },
+  'period-comparison': { getter: getPeriodComparisonReport, title: 'Period Comparison' },
+  'lost-prospect-analysis': { getter: getLostProspectAnalysisReport, title: 'Lost Prospect Analysis' }
+})
 
 /**
  * Get report data (no export)
@@ -91,6 +108,8 @@ export async function getReportData(req, res) {
       case 'compliance':
         if (reportType === 'review-summary') {
           reportData = getComplianceSummaryReport(userId, filters)
+        } else if (reportType === 'conflict-analysis') {
+          reportData = getConflictAnalysisReport(userId, filters)
         } else {
           return res.status(400).json({ error: 'Invalid report type for Compliance' })
         }
@@ -99,6 +118,8 @@ export async function getReportData(req, res) {
       case 'partner':
         if (reportType === 'pending-approvals') {
           reportData = getPartnerPendingApprovalsReport(userId, filters)
+        } else if (reportType === 'active-engagements') {
+          reportData = getActiveEngagementsReport(userId, filters)
         } else if (reportType === 'lead-source-effectiveness') {
           reportData = getLeadSourceEffectivenessReport(userId, filters)
         } else if (reportType === 'funnel-performance') {
@@ -134,6 +155,16 @@ export async function getReportData(req, res) {
           reportData = getSystemOverviewReport(userId, filters)
         } else if (reportType === 'prospect-conversion') {
           reportData = getProspectConversionReport(userId, filters)
+        } else if (reportType === 'approval-workflow') {
+          reportData = getApprovalWorkflowReport(userId, filters)
+        } else if (reportType === 'sla-compliance') {
+          reportData = getSLAComplianceReport(userId, filters)
+        } else if (reportType === 'department-performance') {
+          reportData = getDepartmentPerformanceReport(userId, filters)
+        } else if (reportType === 'conflict-analysis') {
+          reportData = getConflictAnalysisReport(userId, filters)
+        } else if (reportType === 'active-engagements') {
+          reportData = getActiveEngagementsReport(userId, filters)
         } else if (reportType === 'lead-source-effectiveness') {
           reportData = getLeadSourceEffectivenessReport(userId, filters)
         } else if (reportType === 'funnel-performance') {
@@ -222,20 +253,28 @@ export async function exportReportPDF(req, res) {
         if (reportType === 'my-requests-summary') {
           reportData = getRequesterSummaryReport(userId, filters)
           reportTitle = 'My Requests Summary Report'
+        } else if (CRM_REPORT_SPEC[reportType]) {
+          const spec = CRM_REPORT_SPEC[reportType]
+          reportData = spec.getter(userId, filters)
+          reportTitle = spec.title
         } else {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       case 'director':
         if (reportType === 'department-overview') {
           reportData = getDirectorOverviewReport(userId, filters)
           reportTitle = 'Department Requests Overview'
+        } else if (CRM_REPORT_SPEC[reportType]) {
+          const spec = CRM_REPORT_SPEC[reportType]
+          reportData = spec.getter(userId, filters)
+          reportTitle = spec.title
         } else {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       case 'compliance':
         if (reportType === 'review-summary') {
           reportData = getComplianceSummaryReport(userId, filters)
@@ -244,16 +283,20 @@ export async function exportReportPDF(req, res) {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       case 'partner':
         if (reportType === 'pending-approvals') {
           reportData = getPartnerPendingApprovalsReport(userId, filters)
           reportTitle = 'Pending Partner Approvals'
+        } else if (CRM_REPORT_SPEC[reportType]) {
+          const spec = CRM_REPORT_SPEC[reportType]
+          reportData = spec.getter(userId, filters)
+          reportTitle = spec.title
         } else {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       case 'finance':
         if (reportType === 'engagement-code-summary') {
           reportData = getEngagementCodeSummaryReport(userId, filters)
@@ -262,7 +305,7 @@ export async function exportReportPDF(req, res) {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       case 'admin':
         if (reportType === 'system-overview') {
           reportData = getSystemOverviewReport(userId, filters)
@@ -270,15 +313,19 @@ export async function exportReportPDF(req, res) {
         } else if (reportType === 'prospect-conversion') {
           reportData = getProspectConversionReport(userId, filters)
           reportTitle = 'Prospect Conversion Report'
+        } else if (CRM_REPORT_SPEC[reportType]) {
+          const spec = CRM_REPORT_SPEC[reportType]
+          reportData = spec.getter(userId, filters)
+          reportTitle = spec.title
         } else {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       default:
         return res.status(400).json({ error: 'Invalid role' })
     }
-    
+
     // Generate PDF
     const buffer = await generatePDFReport(reportData, reportType, reportTitle, filters)
     const fileSize = buffer.length
@@ -344,20 +391,28 @@ export async function exportReportExcel(req, res) {
         if (reportType === 'my-requests-summary') {
           reportData = getRequesterSummaryReport(userId, filters)
           reportTitle = 'My Requests Summary Report'
+        } else if (CRM_REPORT_SPEC[reportType]) {
+          const spec = CRM_REPORT_SPEC[reportType]
+          reportData = spec.getter(userId, filters)
+          reportTitle = spec.title
         } else {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       case 'director':
         if (reportType === 'department-overview') {
           reportData = getDirectorOverviewReport(userId, filters)
           reportTitle = 'Department Requests Overview'
+        } else if (CRM_REPORT_SPEC[reportType]) {
+          const spec = CRM_REPORT_SPEC[reportType]
+          reportData = spec.getter(userId, filters)
+          reportTitle = spec.title
         } else {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       case 'compliance':
         if (reportType === 'review-summary') {
           reportData = getComplianceSummaryReport(userId, filters)
@@ -366,16 +421,20 @@ export async function exportReportExcel(req, res) {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       case 'partner':
         if (reportType === 'pending-approvals') {
           reportData = getPartnerPendingApprovalsReport(userId, filters)
           reportTitle = 'Pending Partner Approvals'
+        } else if (CRM_REPORT_SPEC[reportType]) {
+          const spec = CRM_REPORT_SPEC[reportType]
+          reportData = spec.getter(userId, filters)
+          reportTitle = spec.title
         } else {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       case 'finance':
         if (reportType === 'engagement-code-summary') {
           reportData = getEngagementCodeSummaryReport(userId, filters)
@@ -384,7 +443,7 @@ export async function exportReportExcel(req, res) {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       case 'admin':
         if (reportType === 'system-overview') {
           reportData = getSystemOverviewReport(userId, filters)
@@ -392,15 +451,19 @@ export async function exportReportExcel(req, res) {
         } else if (reportType === 'prospect-conversion') {
           reportData = getProspectConversionReport(userId, filters)
           reportTitle = 'Prospect Conversion Report'
+        } else if (CRM_REPORT_SPEC[reportType]) {
+          const spec = CRM_REPORT_SPEC[reportType]
+          reportData = spec.getter(userId, filters)
+          reportTitle = spec.title
         } else {
           return res.status(400).json({ error: 'Invalid report type' })
         }
         break
-        
+
       default:
         return res.status(400).json({ error: 'Invalid role' })
     }
-    
+
     // Generate Excel
     const { buffer, filename } = await generateReportExcel(reportData, reportType, reportTitle, filters)
     const fileSize = buffer.length

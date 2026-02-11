@@ -6,9 +6,9 @@ const TEST_USER = {
   password: 'password123'
 }
 
-test.describe('Business Development Tab Integration', () => {
+test.describe('Prospect CRM Tab Integration', () => {
   test.beforeEach(async ({ page }) => {
-    // Login as Director (has access to Business Development)
+    // Login as Director (has access to Prospect CRM)
     await page.goto('/login')
     await page.fill('input[type="email"]', TEST_USER.email)
     await page.fill('input[type="password"]', TEST_USER.password)
@@ -19,15 +19,15 @@ test.describe('Business Development Tab Integration', () => {
     await page.waitForTimeout(1000)
   })
 
-  test('should display Business Development tab in sidebar', async ({ page }) => {
-    // Check that Business Development tab exists
-    const bdTab = page.locator('button', { hasText: 'Business Development' })
+  test('should display Prospect CRM tab in sidebar', async ({ page }) => {
+    // Check that Prospect CRM tab exists
+    const bdTab = page.locator('button', { hasText: 'Prospect CRM' })
     await expect(bdTab).toBeVisible()
   })
 
-  test('should show sub-tabs when Business Development is clicked', async ({ page }) => {
-    // Click on Business Development tab
-    await page.click('button:has-text("Business Development")')
+  test('should show sub-tabs when Prospect CRM is clicked', async ({ page }) => {
+    // Click on Prospect CRM tab
+    await page.click('button:has-text("Prospect CRM")')
     await page.waitForTimeout(500)
 
     // Check for sub-tabs
@@ -38,8 +38,8 @@ test.describe('Business Development Tab Integration', () => {
   })
 
   test('should display Prospects sub-tab content', async ({ page }) => {
-    // Navigate to Business Development > Prospects
-    await page.click('button:has-text("Business Development")')
+    // Navigate to Prospect CRM > Prospects
+    await page.click('button:has-text("Prospect CRM")')
     await page.waitForTimeout(500)
     
     // Prospects should be default sub-tab
@@ -48,8 +48,8 @@ test.describe('Business Development Tab Integration', () => {
   })
 
   test('should display Pipeline sub-tab content', async ({ page }) => {
-    // Navigate to Business Development > Pipeline
-    await page.click('button:has-text("Business Development")')
+    // Navigate to Prospect CRM > Pipeline
+    await page.click('button:has-text("Prospect CRM")')
     await page.waitForTimeout(500)
     await page.click('button:has-text("Pipeline")')
     await page.waitForTimeout(500)
@@ -60,8 +60,8 @@ test.describe('Business Development Tab Integration', () => {
   })
 
   test('should display AI Insights sub-tab content', async ({ page }) => {
-    // Navigate to Business Development > AI Insights
-    await page.click('button:has-text("Business Development")')
+    // Navigate to Prospect CRM > AI Insights
+    await page.click('button:has-text("Prospect CRM")')
     await page.waitForTimeout(500)
     await page.click('button:has-text("AI Insights")')
     await page.waitForTimeout(500)
@@ -72,8 +72,8 @@ test.describe('Business Development Tab Integration', () => {
   })
 
   test('should display Analytics sub-tab content', async ({ page }) => {
-    // Navigate to Business Development > Analytics
-    await page.click('button:has-text("Business Development")')
+    // Navigate to Prospect CRM > Analytics
+    await page.click('button:has-text("Prospect CRM")')
     await page.waitForTimeout(500)
     await page.click('button:has-text("Analytics")')
     await page.waitForTimeout(500)
@@ -112,7 +112,7 @@ test.describe('Action Dropdown Modal', () => {
 
   test('should show action options when Take Action is clicked', async ({ page }) => {
     // Navigate to AI Insights
-    await page.click('button:has-text("Business Development")')
+    await page.click('button:has-text("Prospect CRM")')
     await page.waitForTimeout(500)
     await page.click('button:has-text("AI Insights")')
     await page.waitForTimeout(1000)

@@ -78,12 +78,14 @@
             :value="formData.requested_service_period_end"
             @input="handleUpdate('requested_service_period_end', ($event.target as HTMLInputElement).value)"
             type="date"
-            class="w-full rounded-xl px-5 py-4 bg-white text-gray-800 text-base font-medium"
-            style="border: 2px solid #E5E7EB;"
+            :min="formData.requested_service_period_start || undefined"
+            class="w-full rounded-xl px-5 py-4 bg-white text-gray-800 text-base font-medium border-2"
+            :class="servicePeriodEndError ? 'border-red-500' : 'border-[#E5E7EB]'"
             required
             @focus="onInputFocus"
-            @blur="onInputBlur"
+            @blur="touchedServicePeriodEnd = true; onEndDateBlur($event)"
           />
+          <p v-if="servicePeriodEndError" class="text-xs text-red-500 mt-1" role="alert">{{ servicePeriodEndError }}</p>
         </div>
       </div>
     </div>
@@ -91,6 +93,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import type { WizardFormData } from '@/composables/useWizard'
 
 const props = defineProps<{
@@ -100,6 +103,18 @@ const props = defineProps<{
 const emit = defineEmits<{
   update: [data: Partial<WizardFormData>]
 }>()
+
+const touchedServicePeriodEnd = ref(false)
+
+const servicePeriodEndError = computed(() => {
+  const start = props.formData?.requested_service_period_start
+  const end = props.formData?.requested_service_period_end
+  if (!start || !end) return ''
+  if (new Date(end) < new Date(start)) {
+    return 'End date must be on or after start date.'
+  }
+  return ''
+})
 
 function handleUpdate(field: keyof WizardFormData, value: any) {
   emit('update', { [field]: value })
@@ -118,6 +133,14 @@ function onInputBlur(e: Event) {
   if (el) {
     el.style.borderColor = '#E5E7EB'
     el.style.boxShadow = 'none'
+  }
+}
+
+function onEndDateBlur(e: Event) {
+  const el = e.target as HTMLElement
+  if (el) {
+    el.style.boxShadow = 'none'
+    el.style.borderColor = servicePeriodEndError.value ? '#ef4444' : '#E5E7EB'
   }
 }
 </script>

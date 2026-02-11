@@ -103,7 +103,7 @@
             <button
               @click="confirmSwitch"
               :disabled="switching"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 disabled:opacity-50"
             >
               {{ switching ? 'Switching...' : 'Confirm Switch' }}
             </button>

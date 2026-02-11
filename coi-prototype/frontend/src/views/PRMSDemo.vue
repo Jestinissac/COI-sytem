@@ -32,14 +32,14 @@
               type="text"
               v-model="validationCode"
               placeholder="e.g., ENG-2026-AUD-00001"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
             />
           </div>
           
           <button
             @click="validateCode"
             :disabled="validating"
-            class="w-full px-4 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            class="w-full px-4 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
           >
             {{ validating ? 'Validating...' : 'Validate Code' }}
           </button>

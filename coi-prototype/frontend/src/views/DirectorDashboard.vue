@@ -10,7 +10,7 @@
           </div>
           <router-link 
             to="/coi/request/new" 
-            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+            class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors"
           >
             + New Request
           </router-link>
@@ -173,7 +173,7 @@
                       <span :class="getStatusClass(request.status)" class="px-2 py-1 text-xs font-medium rounded">
                         {{ getStatusLabel(request.status) }}
                       </span>
-                      <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm">
+                      <button @click="viewDetails(request)" class="text-primary-600 hover:text-primary-700 text-sm">
                         View →
                       </button>
                     </div>
@@ -200,7 +200,7 @@
                       v-model="searchQuery"
                       type="text" 
                       placeholder="Search by ID, client, requester..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -210,7 +210,7 @@
                   <!-- Service Type Filter -->
                   <select 
                     v-model="pendingServiceFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
@@ -219,7 +219,7 @@
                   <!-- Department Filter -->
                   <select 
                     v-model="pendingDepartmentFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Departments</option>
                     <option v-for="dept in uniqueDepartments" :key="dept" :value="dept">{{ dept }}</option>
@@ -228,7 +228,7 @@
                   <!-- Risk Filter -->
                   <select 
                     v-model="pendingRiskFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Risk Levels</option>
                     <option value="high">High Risk (Conflicts)</option>
@@ -280,7 +280,7 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <tr v-if="loading">
+                    <tr v-if="loading" role="status" aria-live="polite">
                       <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                         <div class="flex items-center justify-center">
                           <svg class="animate-spin h-5 w-5 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24">
@@ -292,10 +292,12 @@
                       </td>
                     </tr>
                     <tr v-else-if="coiStore.error && !coiStore.loading">
-                      <td colspan="7" class="px-6 py-8 text-center">
-                        <p class="text-red-600 font-medium">Could not load requests</p>
-                        <p class="text-sm text-gray-600 mt-1">{{ coiStore.error }}</p>
-                        <button type="button" @click="coiStore.fetchRequests()" class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">Retry</button>
+                      <td colspan="7" class="px-6 py-8" role="alert" aria-live="assertive">
+                        <EmptyState
+                          title="Could not load team requests"
+                          :message="coiStore.error"
+                          :action="{ label: 'Retry', onClick: () => coiStore.fetchRequests(), ariaLabel: 'Retry loading team requests' }"
+                        />
                       </td>
                     </tr>
                     <tr v-else-if="enhancedFilteredPending.length === 0">
@@ -335,7 +337,7 @@
                       <td class="px-6 py-4">
                         <button 
                           @click="viewDetails(request)" 
-                          class="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
+                          class="px-3 py-1.5 bg-primary-600 text-white text-sm font-medium rounded hover:bg-primary-700 transition-colors"
                         >
                           Review
                         </button>
@@ -354,7 +356,7 @@
                   <button class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50" disabled>
                     Previous
                   </button>
-                  <span class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded">1</span>
+                  <span class="px-3 py-1.5 text-sm bg-primary-600 text-white rounded">1</span>
                   <button class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50" disabled>
                     Next
                   </button>
@@ -385,7 +387,7 @@
                       v-model="teamSearchQuery"
                       type="text" 
                       placeholder="Search by ID, client, requester..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -395,7 +397,7 @@
                   <!-- Status Filter -->
                   <select 
                     v-model="teamStatusFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Statuses</option>
                     <option value="Draft">Draft</option>
@@ -411,7 +413,7 @@
                   <!-- Service Type Filter -->
                   <select 
                     v-model="teamServiceFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
@@ -480,7 +482,7 @@
                         <span class="text-sm text-gray-500">{{ formatDate(request.created_at || '') }}</span>
                       </td>
                       <td class="px-6 py-4">
-                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <button @click="viewDetails(request)" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
                           View →
                         </button>
                       </td>
@@ -521,7 +523,7 @@
                       v-model="approvedSearchQuery"
                       type="text" 
                       placeholder="Search by ID, client..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -531,7 +533,7 @@
                   <!-- Status Filter -->
                   <select 
                     v-model="approvedStatusFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Statuses</option>
                     <option value="Approved">Approved</option>
@@ -541,7 +543,7 @@
                   <!-- Service Type Filter -->
                   <select 
                     v-model="approvedServiceFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
@@ -606,7 +608,7 @@
                         <span class="text-sm text-gray-500">{{ formatDate(request.director_approval_date || request.updated_at) }}</span>
                       </td>
                       <td class="px-6 py-4">
-                        <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <button @click="viewDetails(request)" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
                           View →
                         </button>
                       </td>
@@ -669,7 +671,7 @@
                       v-model="trackingSearchQuery"
                       type="text" 
                       placeholder="Search by ID, client, requester..." 
-                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -679,7 +681,7 @@
                   <!-- Service Type Filter -->
                   <select 
                     v-model="trackingServiceFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Services</option>
                     <option v-for="service in uniqueServiceTypes" :key="service" :value="service">{{ service }}</option>
@@ -689,7 +691,7 @@
                   <select 
                     v-if="trackingPhase === 'proposal'"
                     v-model="trackingResponseFilter"
-                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="all">All Responses</option>
                     <option value="Awaiting">Awaiting Response</option>
@@ -703,7 +705,7 @@
                     <input 
                       type="checkbox" 
                       v-model="trackingMyRequestsOnly"
-                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-primary-500"
                     />
                     My requests only
                   </label>
@@ -820,7 +822,7 @@
                             <button 
                               v-if="!request.proposal_sent_date && request.status === 'Approved'"
                               @click="openSendProposalModal(request)"
-                              class="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
+                              class="px-2 py-1 bg-primary-600 text-white text-xs font-medium rounded hover:bg-primary-700"
                             >
                               Send Proposal
                             </button>
@@ -839,7 +841,7 @@
                               Record Response
                             </button>
                           </template>
-                          <button @click="viewDetails(request)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                          <button @click="viewDetails(request)" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
                             View →
                           </button>
                         </div>
@@ -881,7 +883,7 @@
               <input 
                 v-model="proposalEmail"
                 type="email"
-                class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                 placeholder="client@company.com"
               />
             </div>
@@ -897,7 +899,7 @@
             <button 
               @click="sendProposal"
               :disabled="!proposalEmail || sendingProposal"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50"
             >
               {{ sendingProposal ? 'Sending...' : 'Send Proposal' }}
             </button>
@@ -929,7 +931,7 @@
               <textarea 
                 v-model="followUpNotes"
                 rows="3"
-                class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                 placeholder="Details of the follow-up..."
               ></textarea>
             </div>
@@ -978,7 +980,7 @@
               <textarea 
                 v-model="responseNotes"
                 rows="3"
-                class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                 placeholder="Additional notes..."
               ></textarea>
             </div>
@@ -996,7 +998,7 @@
             </button>
           </div>
 
-          <!-- Business Development Tab -->
+          <!-- Prospect CRM Tab -->
           <div v-if="activeTab === 'business-dev'" class="space-y-6">
             <!-- Sub-tab Navigation -->
             <div class="bg-white rounded border border-gray-200">
@@ -1008,7 +1010,7 @@
                     @click="activeBDSubTab = subTab.id"
                     class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
                     :class="activeBDSubTab === subTab.id 
-                      ? 'border-blue-500 text-blue-600' 
+                      ? 'border-primary-500 text-primary-600' 
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                   >
                     {{ subTab.label }}
@@ -1085,6 +1087,7 @@ import ToastContainer from '@/components/ui/ToastContainer.vue'
 import ChartDataModal from '@/components/dashboard/ChartDataModal.vue'
 import GlobalSearch from '@/components/ui/GlobalSearch.vue'
 import KeyboardShortcutsModal from '@/components/ui/KeyboardShortcutsModal.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 const router = useRouter()
@@ -1217,10 +1220,10 @@ const tabs = computed(() => [
   { id: 'team', label: 'Team Requests', icon: TeamIcon, count: teamRequests.value.length, divider: false },
   { id: 'tracking', label: 'Team Tracking', icon: TrackingIcon, count: trackableRequests.value.length, divider: false },
   { id: 'approved', label: 'Approved', icon: ApprovedIcon, count: approvedRequests.value.length, divider: false },
-  { id: 'business-dev', label: 'Business Development', icon: BusinessDevIcon, count: 0, divider: true }
+  { id: 'business-dev', label: 'Prospect CRM', icon: BusinessDevIcon, count: 0, divider: true }
 ])
 
-// Business Development sub-tabs
+// Prospect CRM sub-tabs
 const activeBDSubTab = ref('prospects')
 const bdSubTabs = [
   { id: 'prospects', label: 'Prospects' },

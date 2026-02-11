@@ -85,22 +85,40 @@
       </div>
     </div>
   </div>
+
+  <CreateProspectModal
+    :open="showCreateProspectModal"
+    :prospect="newProspect"
+    @update:prospect="newProspect = $event"
+    :creating="creatingProspect"
+    @cancel="showCreateProspectModal = false"
+    @confirm="createAndSelectProspect"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import type { WizardFormData } from '@/composables/useWizard'
 import api from '@/services/api'
+import CreateProspectModal from '@/components/coi/CreateProspectModal.vue'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{
   formData: WizardFormData
+  onProspectCreated?: (prospect: any) => void
 }>()
 
 const emit = defineEmits<{
   update: [data: Partial<WizardFormData>]
+  'prospect-created': [prospect: any]
 }>()
 
+const { error, success } = useToast()
+
 const clients = ref<any[]>([])
+const showCreateProspectModal = ref(false)
+const newProspect = ref({ prospect_name: '', industry: '', commercial_registration: '' })
+const creatingProspect = ref(false)
 
 const showParentCompany = computed(() => {
   return props.formData.relationship_with_client === 'Potential Client' ||
@@ -122,7 +140,45 @@ function handleUpdate(field: keyof WizardFormData, value: any) {
 }
 
 function requestNewClient() {
-  info('Client request feature - coming soon')
+  showCreateProspectModal.value = true
+  newProspect.value = { prospect_name: '', industry: '', commercial_registration: '' }
+}
+
+async function createAndSelectProspect() {
+  if (!newProspect.value.prospect_name.trim()) {
+    error('Prospect name is required.')
+    return
+  }
+
+  creatingProspect.value = true
+
+  try {
+    const response = await api.post('/prospects', {
+      prospect_name: newProspect.value.prospect_name.trim(),
+      industry: newProspect.value.industry || null,
+      commercial_registration: newProspect.value.commercial_registration || null,
+      status: 'Active',
+      lead_source_id: null
+    })
+
+    const createdProspect = response.data
+
+    emit('update', { client_id: null, client_name: createdProspect.prospect_name })
+    emit('prospect-created', createdProspect)
+    if (props.onProspectCreated) {
+      props.onProspectCreated(createdProspect)
+    }
+
+    success('Prospect created and selected')
+
+    showCreateProspectModal.value = false
+    newProspect.value = { prospect_name: '', industry: '', commercial_registration: '' }
+  } catch (err) {
+    console.error('Failed to create prospect:', err)
+    error((err as any)?.response?.data?.error || 'Failed to create prospect. Please try again.')
+  } finally {
+    creatingProspect.value = false
+  }
 }
 
 function onInputFocus(e: Event) {
@@ -140,11 +196,6 @@ function onInputBlur(e: Event) {
     el.style.boxShadow = 'none'
   }
 }
-
-// Import useToast
-import { useToast } from '@/composables/useToast'
-const { info: showInfo } = useToast()
-const info = showInfo
 
 onMounted(() => {
   loadClients()

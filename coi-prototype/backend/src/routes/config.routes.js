@@ -8,6 +8,9 @@ import {
   deleteFormField,
   getWorkflowConfig,
   saveWorkflowConfig,
+  getWorkflowStages,
+  updateWorkflowStage,
+  reorderWorkflowStages,
   getBusinessRules,
   saveBusinessRule,
   updateBusinessRule,
@@ -45,9 +48,14 @@ router.get('/form-fields/:id', getFormField)
 router.put('/form-fields/:id', requireRole('Admin', 'Super Admin'), updateFormField)
 router.delete('/form-fields/:id', requireRole('Admin', 'Super Admin'), deleteFormField)
 
-// Workflow Configuration (Admin only)
+// Workflow Configuration (Admin only) — form workflow steps
 router.get('/workflow', getWorkflowConfig)
 router.post('/workflow', requireRole('Admin', 'Super Admin'), saveWorkflowConfig)
+
+// B8: Approval workflow stages (Super Admin only)
+router.get('/workflow-stages', requireRole('Super Admin'), getWorkflowStages)
+router.put('/workflow-stages', requireRole('Super Admin'), updateWorkflowStage)
+router.put('/workflow-stages/reorder', requireRole('Super Admin'), reorderWorkflowStages)
 
 // Business Rules Configuration (Admin only)
 router.get('/business-rules', getBusinessRules)

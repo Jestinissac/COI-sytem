@@ -6,7 +6,7 @@
         <input 
           type="checkbox" 
           v-model="internationalOperations"
-          class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
         />
         <span class="ml-2 text-sm font-medium text-gray-700">Client has international operations</span>
       </label>
@@ -18,7 +18,7 @@
       <button
         type="button"
         @click="addCountry"
-        class="flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+        class="flex items-center px-4 py-2 text-sm font-medium text-primary-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
       >
         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -67,7 +67,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-1.5">Country <span class="text-red-500">*</span></label>
             <select
               v-model="country.country_code"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
               <option value="">Select country...</option>
               <option value="KWT">Kuwait</option>
@@ -81,7 +81,7 @@
           <!-- Context Banner -->
           <div class="p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-400 rounded">
             <div class="flex items-start">
-              <svg class="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-5 h-5 text-primary-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
               <div class="text-sm">
@@ -105,7 +105,7 @@
               <button
                 type="button"
                 @click="addEntity(countryIndex)"
-                class="flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+                class="flex items-center px-3 py-1.5 text-xs font-medium text-primary-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
               >
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -123,7 +123,7 @@
                   <label class="block text-xs font-medium text-gray-700 mb-1">Relationship Type <span class="text-red-500">*</span></label>
                   <select
                     v-model="entity.relationship_type"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                   >
                     <option value="">Select relationship...</option>
                     <option value="parent">Parent Company</option>
@@ -143,7 +143,7 @@
                     v-model="entity.name"
                     type="text"
                     :placeholder="getEntityPlaceholder(entity.relationship_type)"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                   />
                 </div>
                 
@@ -153,7 +153,7 @@
                     v-model="entity.details"
                     rows="2"
                     placeholder="Additional details (optional)..."
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                   />
                 </div>
                 
@@ -197,7 +197,7 @@
       <label class="block text-sm font-medium text-gray-700 mb-1.5">Global Clearance Status</label>
       <select 
         v-model="globalClearanceStatus"
-        class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
       >
         <option>Not Required</option>
         <option>Pending</option>

@@ -12,6 +12,7 @@ import {
   disableClientIntelligence,
   getClientIntelligenceStatus
 } from '../services/configService.js'
+import { devLog } from '../config/environment.js'
 
 const db = getDatabase()
 
@@ -70,7 +71,7 @@ function flagAffectedRequests(ruleId, ruleName) {
     }
     
     if (updateCount > 0) {
-      console.log(`Flagged ${updateCount} pending request(s) as stale due to rule change`)
+      devLog(`Flagged ${updateCount} pending request(s) as stale due to rule change`)
     }
     
     return updateCount
@@ -407,6 +408,85 @@ export async function saveWorkflowConfig(req, res) {
   }
 }
 
+// B8: Approval workflow stages (Director -> Compliance -> Partner -> Finance)
+export async function getWorkflowStages(req, res) {
+  try {
+    const stages = db.prepare(`
+      SELECT * FROM workflow_stages ORDER BY stage_order
+    `).all()
+    res.json(stages)
+  } catch (error) {
+    console.error('getWorkflowStages:', error.message)
+    res.status(500).json({ error: error.message || 'Failed to load workflow stages' })
+  }
+}
+
+export async function updateWorkflowStage(req, res) {
+  try {
+    const { id, is_active, can_skip, skip_condition } = req.body
+    if (id == null || id === '') {
+      return res.status(400).json({ error: 'Stage id is required' })
+    }
+    const row = db.prepare('SELECT id, status_name, is_required FROM workflow_stages WHERE id = ?').get(id)
+    if (!row) {
+      return res.status(404).json({ error: 'Workflow stage not found' })
+    }
+    if (row.is_required === 1 && is_active === 0) {
+      return res.status(400).json({ error: 'Compliance stage cannot be deactivated (is_required)' })
+    }
+    const updates = []
+    const params = []
+    if (typeof is_active === 'boolean') {
+      updates.push('is_active = ?')
+      params.push(is_active ? 1 : 0)
+    }
+    if (typeof can_skip === 'boolean') {
+      updates.push('can_skip = ?')
+      params.push(can_skip ? 1 : 0)
+    }
+    if (skip_condition !== undefined) {
+      updates.push('skip_condition = ?')
+      params.push(skip_condition === null || skip_condition === '' ? null : String(skip_condition))
+    }
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' })
+    }
+    params.push(id)
+    db.prepare(`UPDATE workflow_stages SET ${updates.join(', ')} WHERE id = ?`).run(...params)
+    res.json({ success: true, message: 'Workflow stage updated' })
+  } catch (error) {
+    console.error('updateWorkflowStage:', error.message)
+    res.status(500).json({ error: error.message || 'Failed to update workflow stage' })
+  }
+}
+
+export async function reorderWorkflowStages(req, res) {
+  try {
+    const body = req.body
+    if (!Array.isArray(body) || body.length === 0) {
+      return res.status(400).json({ error: 'Body must be a non-empty array of { id, stage_order }' })
+    }
+    const orderedIds = body.map((item) => item.id).filter((id) => id != null)
+    if (orderedIds.length !== body.length) {
+      return res.status(400).json({ error: 'Each item must have an id' })
+    }
+    const transaction = db.transaction(() => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        db.prepare('UPDATE workflow_stages SET stage_order = ? WHERE id = ?').run(i + 1, orderedIds[i])
+      }
+      for (let i = 0; i < orderedIds.length - 1; i++) {
+        db.prepare('UPDATE workflow_stages SET next_stage_id = ? WHERE id = ?').run(orderedIds[i + 1], orderedIds[i])
+      }
+      db.prepare('UPDATE workflow_stages SET next_stage_id = NULL WHERE id = ?').run(orderedIds[orderedIds.length - 1])
+    })
+    transaction()
+    res.json({ success: true, message: 'Workflow stages reordered' })
+  } catch (error) {
+    console.error('reorderWorkflowStages:', error.message)
+    res.status(500).json({ error: error.message || 'Failed to reorder workflow stages' })
+  }
+}
+
 // Helper function to normalize values for comparison (handles text variations)
 // IMPORTANT: Only normalizes for signature comparison - original rule values are preserved
 function normalizeValue(value) {
@@ -527,8 +607,8 @@ export async function getBusinessRules(req, res) {
     const userRole = user?.role || ''
     const isSuperAdmin = userRole === 'Super Admin'
     
-    console.log('[getBusinessRules] User ID:', userId, 'Role:', userRole, 'Is Super Admin:', isSuperAdmin)
-    console.log('[getBusinessRules] Query params:', { ruleType, includePending })
+    devLog('[getBusinessRules] User ID:', userId, 'Role:', userRole, 'Is Super Admin:', isSuperAdmin)
+    devLog('[getBusinessRules] Query params:', { ruleType, includePending })
     
     // Check if table exists, if not return empty array
     try {
@@ -575,15 +655,15 @@ export async function getBusinessRules(req, res) {
     
     query += ' ORDER BY r.created_at DESC'
     
-    console.log('[getBusinessRules] Executing query:', query)
-    console.log('[getBusinessRules] With params:', params)
+    devLog('[getBusinessRules] Executing query:', query)
+    devLog('[getBusinessRules] With params:', params)
     
     rules = db.prepare(query).all(...params)
     
     // Deduplicate rules
     const deduplicatedRules = identifyDuplicates(rules)
     
-    console.log('[getBusinessRules] Found', rules.length, 'rules,', deduplicatedRules.length, 'unique')
+    devLog('[getBusinessRules] Found', rules.length, 'rules,', deduplicatedRules.length, 'unique')
     
     res.json({ rules: deduplicatedRules })
   } catch (error) {
@@ -1293,15 +1373,15 @@ export async function deleteFormTemplate(req, res) {
 export async function loadFormTemplate(req, res) {
   try {
     const { id } = req.params
-    console.log('Loading template with ID:', id)
+    devLog('Loading template with ID:', id)
     
     const template = db.prepare('SELECT * FROM form_templates WHERE id = ?').get(id)
     if (!template) {
-      console.log('Template not found for ID:', id)
+      devLog('Template not found for ID:', id)
       return res.status(404).json({ error: 'Template not found' })
     }
     
-    console.log('Found template:', template.template_name)
+    devLog('Found template:', template.template_name)
     
     const fields = db.prepare(`
       SELECT * FROM form_template_fields 
@@ -1309,7 +1389,7 @@ export async function loadFormTemplate(req, res) {
       ORDER BY section_id, display_order
     `).all(id)
     
-    console.log('Template has', fields.length, 'fields')
+    devLog('Template has', fields.length, 'fields')
     
     if (fields.length === 0) {
       return res.status(400).json({ error: 'Template has no fields' })
@@ -1317,7 +1397,7 @@ export async function loadFormTemplate(req, res) {
     
     // Copy template fields to active form configuration
     db.prepare('DELETE FROM form_fields_config').run()
-    console.log('Cleared existing form_fields_config')
+    devLog('Cleared existing form_fields_config')
     
     const stmt = db.prepare(`
       INSERT INTO form_fields_config (
@@ -1349,7 +1429,7 @@ export async function loadFormTemplate(req, res) {
     })
     
     transaction(fields)
-    console.log('Copied', fields.length, 'fields to form_fields_config')
+    devLog('Copied', fields.length, 'fields to form_fields_config')
     
     // Fetch the loaded fields with IDs from form_fields_config
     const loadedFields = db.prepare(`
@@ -1376,7 +1456,7 @@ export async function loadFormTemplate(req, res) {
       source_field: field.source_field || null
     }))
     
-    console.log('Formatted', formattedFields.length, 'fields for response')
+    devLog('Formatted', formattedFields.length, 'fields for response')
     
     res.json({ 
       success: true, 

@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer'
 import { getDatabase } from '../database/init.js'
+import { devLog } from '../config/environment.js'
 
 /**
  * Email Service
@@ -154,14 +155,14 @@ const EMAIL_TEMPLATES = {
           
           {{#if has_conflicts}}
           <div style="background: #ffebee; padding: 10px; border-left: 4px solid #f44336; margin: 15px 0;">
-            <strong style="color: #c62828;">⚠️ Conflicts Detected:</strong>
+            <strong style="color: #c62828;">Conflicts Detected:</strong>
             <p style="margin: 5px 0;">{{conflict_summary}}</p>
           </div>
           {{/if}}
           
           {{#if has_duplicates}}
           <div style="background: #fff3e0; padding: 10px; border-left: 4px solid #ff9800; margin: 15px 0;">
-            <strong style="color: #e65100;">⚠️ Potential Duplicates:</strong>
+            <strong style="color: #e65100;">Potential Duplicates:</strong>
             <p style="margin: 5px 0;">{{duplicate_summary}}</p>
           </div>
           {{/if}}
@@ -185,11 +186,11 @@ const EMAIL_TEMPLATES = {
   },
   
   REQUEST_APPROVED: {
-    subject: '✅ COI Request Approved - {{request_id}}',
+    subject: 'COI Request Approved - {{request_id}}',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #4caf50; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">✅ Request Approved</h1>
+          <h1 style="margin: 0;">Request Approved</h1>
         </div>
         <div style="padding: 20px; background: #f5f5f5;">
           <p>Hello {{recipient_name}},</p>
@@ -220,11 +221,11 @@ const EMAIL_TEMPLATES = {
   },
   
   REQUEST_REJECTED: {
-    subject: '❌ COI Request Rejected - {{request_id}}',
+    subject: 'COI Request Rejected - {{request_id}}',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #f44336; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">❌ Request Rejected</h1>
+          <h1 style="margin: 0;">Request Rejected</h1>
         </div>
         <div style="padding: 20px; background: #f5f5f5;">
           <p>Hello {{recipient_name}},</p>
@@ -251,11 +252,11 @@ const EMAIL_TEMPLATES = {
   },
   
   STALE_REQUEST_ALERT: {
-    subject: '⚠️ Stale Request Alert - {{request_id}}',
+    subject: 'Stale Request Alert - {{request_id}}',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #ff9800; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">⚠️ Re-Evaluation Required</h1>
+          <h1 style="margin: 0;">Re-Evaluation Required</h1>
         </div>
         <div style="padding: 20px; background: #f5f5f5;">
           <p>Hello {{recipient_name}},</p>
@@ -316,11 +317,11 @@ const EMAIL_TEMPLATES = {
   },
   
   PROPOSAL_MONITORING_ALERT: {
-    subject: '⏰ Proposal Monitoring Alert - {{request_id}} ({{days_elapsed}}/30 days)',
+    subject: 'Proposal Monitoring Alert - {{request_id}} ({{days_elapsed}}/30 days)',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #ff9800; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">⏰ Proposal Monitoring Alert</h1>
+          <h1 style="margin: 0;">Proposal Monitoring Alert</h1>
         </div>
         <div style="padding: 20px; background: #f5f5f5;">
           <p>Hello {{recipient_name}},</p>
@@ -339,7 +340,7 @@ const EMAIL_TEMPLATES = {
           </div>
           
           <div style="background: #fff3e0; padding: 10px; border-left: 4px solid #ff9800; margin: 15px 0;">
-            <strong>⚠️ Action Required:</strong>
+            <strong>Action Required:</strong>
             <p style="margin: 5px 0;">This proposal will automatically lapse if no client response is received within {{days_remaining}} days. Please follow up with the client.</p>
           </div>
           
@@ -352,11 +353,11 @@ const EMAIL_TEMPLATES = {
   },
   
   PROPOSAL_LAPSED: {
-    subject: '❌ Proposal Lapsed - {{request_id}}',
+    subject: 'Proposal Lapsed - {{request_id}}',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #f44336; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">❌ Proposal Lapsed</h1>
+          <h1 style="margin: 0;">Proposal Lapsed</h1>
         </div>
         <div style="padding: 20px; background: #f5f5f5;">
           <p>Hello {{recipient_name}},</p>
@@ -390,11 +391,11 @@ const EMAIL_TEMPLATES = {
   },
   
   CLIENT_ACCEPTED_PROPOSAL: {
-    subject: '✅ Client Accepted Proposal - {{request_id}}',
+    subject: 'Client Accepted Proposal - {{request_id}}',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #4caf50; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">✅ Proposal Accepted</h1>
+          <h1 style="margin: 0;">Proposal Accepted</h1>
         </div>
         <div style="padding: 20px; background: #f5f5f5;">
           <p>Hello {{recipient_name}},</p>
@@ -425,11 +426,11 @@ const EMAIL_TEMPLATES = {
   },
   
   CLIENT_REJECTED_PROPOSAL: {
-    subject: '❌ Client Rejected Proposal - {{request_id}}',
+    subject: 'Client Rejected Proposal - {{request_id}}',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #f44336; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">❌ Proposal Rejected</h1>
+          <h1 style="margin: 0;">Proposal Rejected</h1>
         </div>
         <div style="padding: 20px; background: #f5f5f5;">
           <p>Hello {{recipient_name}},</p>
@@ -510,10 +511,7 @@ export async function sendEmail(templateName, to, variables) {
   const config = getEmailConfig()
   
   if (!EMAIL_ENABLED && !isEmailEnabled()) {
-    console.log('📧 [EMAIL MOCK] Would send email:')
-    console.log(`   To: ${to}`)
-    console.log(`   Subject: ${subject}`)
-    console.log(`   Template: ${templateName}`)
+    devLog('[EMAIL MOCK] Would send email:', { to, subject, templateName })
     return { success: true, mock: true }
   }
   
@@ -527,7 +525,7 @@ export async function sendEmail(templateName, to, variables) {
       html
     })
     
-    console.log(`📧 Email sent to ${to}: ${subject}`)
+    devLog('Email sent to', to, subject)
     return { success: true, messageId: result.messageId }
   } catch (error) {
     console.error('Failed to send email:', error)
@@ -634,7 +632,7 @@ export async function notifyGroupConflictFlagged(request, complianceOfficers, co
   // Send to all compliance officers
   for (const officer of complianceOfficers) {
     try {
-      console.log(`[Email] Sending group conflict notification to ${officer.email} for request ${request.request_id}`)
+      devLog('[Email] Sending group conflict notification to', officer.email, 'for request', request.request_id)
       
       // Using direct email since template might not exist yet
       const subject = `COI Request ${request.request_id} - Group Conflict Flagged`
@@ -653,7 +651,7 @@ Please review this request in the COI system: ${variables.action_url}
       `.trim()
       
       // Log for now since email sending may not be configured
-      console.log(`[Email] To: ${officer.email}\nSubject: ${subject}\nBody: ${body}`)
+      devLog('[Email] To:', officer.email, 'Subject:', subject, 'Body:', body)
     } catch (error) {
       console.error(`Error sending notification to ${officer.email}:`, error)
     }

@@ -61,12 +61,16 @@
       >
         + Add Signatory
       </button>
+
+      <p v-if="loadingUsers" class="text-sm text-gray-500 mt-4">Loading signatories...</p>
+      <p v-if="usersError" class="text-sm text-red-600 mt-4">Failed to load signatories. Please try again later.</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import api from '@/services/api'
 import type { WizardFormData } from '@/composables/useWizard'
 
 const props = defineProps<{
@@ -77,11 +81,24 @@ const emit = defineEmits<{
   update: [data: Partial<WizardFormData>]
 }>()
 
-const employees = ref<any[]>([
-  { id: 1, name: 'John Smith' },
-  { id: 2, name: 'Sarah Johnson' },
-  { id: 3, name: 'Michael Brown' }
-])
+const employees = ref<{ id: number; name: string }[]>([])
+const loadingUsers = ref(true)
+const usersError = ref(false)
+
+onMounted(async () => {
+  try {
+    const response = await api.get('/auth/users')
+    const raw = response?.data
+    const data = Array.isArray(raw) ? raw : (raw?.data ?? [])
+    employees.value = data
+      .filter((user: { active?: unknown }) => user.active)
+      .map((user: { id: number; name: string }) => ({ id: user.id, name: user.name }))
+  } catch {
+    usersError.value = true
+  } finally {
+    loadingUsers.value = false
+  }
+})
 
 function addSignatory() {
   const newSignatories = [...props.formData.signatories, { signatory_id: null, position: '' }]

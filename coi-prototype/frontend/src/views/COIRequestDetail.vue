@@ -42,7 +42,7 @@
             <button 
               v-if="request?.status === 'Draft'"
               @click="editDraft"
-              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors"
             >
               Edit Draft
             </button>
@@ -399,7 +399,7 @@
               <div v-if="showViewPrmsData" class="px-4 py-3">
                 <button
                   type="button"
-                  class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-1 -mx-1"
+                  class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded px-1 -mx-1"
                   @click="openPrmsModal"
                 >
                   View PRMS data
@@ -605,7 +605,7 @@
               <button
                 v-if="canUploadAttachment"
                 @click="showUploadModal = true"
-                class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                class="px-3 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700"
               >
                 + Upload
               </button>
@@ -642,7 +642,7 @@
                   <div class="flex items-center gap-2 ml-3">
                     <button
                       @click="downloadAttachment(attachment.id)"
-                      class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                      class="px-3 py-1.5 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors"
                     >
                       Download
                     </button>
@@ -705,6 +705,12 @@
                   </div>
                 </div>
 
+                <!-- Need More Info: Director comments when request was returned to requester -->
+                <div v-if="effectiveDirectorApprovalStatus === 'Need More Info'" class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p class="text-sm font-medium text-blue-800 mb-1">Director requested more information</p>
+                  <p class="text-sm text-blue-900 whitespace-pre-wrap">{{ request.director_approval_notes || 'No additional details provided.' }}</p>
+                </div>
+
                 <!-- Pending Status - Only show if actually pending director approval -->
                 <div v-if="request.status === 'Pending Director Approval' && effectiveDirectorApprovalStatus === 'Pending' && !hasDirectorApprovalDocument" class="text-sm text-gray-600">
                   Waiting for director approval. Director can approve in-system or you can upload an approval document.
@@ -755,7 +761,7 @@
               <div v-for="step in workflowSteps" :key="step.name" class="flex items-center gap-3">
                 <div 
                   class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium"
-                  :class="step.completed ? 'bg-green-500 text-white' : step.current ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'"
+                  :class="step.completed ? 'bg-green-500 text-white' : step.current ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-500'"
                 >
                   <span v-if="step.completed">✓</span>
                   <span v-else>{{ step.index }}</span>
@@ -845,14 +851,14 @@
               <textarea 
                 v-model="replyToCommentText" 
                 rows="3" 
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
                 :placeholder="request.approval_comment_replied_at ? 'Add or replace your reply (optional)' : 'Your reply (optional)'"
               ></textarea>
               <div class="flex gap-2">
                 <button 
                   @click="sendBackToCurrentApprover" 
                   :disabled="actionLoading"
-                  class="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  class="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                 >
                   Send back to {{ request.approval_comment_from_role }}
                 </button>
@@ -875,7 +881,7 @@
               <textarea 
                 v-model="approvalComments" 
                 rows="2" 
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="Comments (optional)"
               ></textarea>
               
@@ -909,31 +915,31 @@
                 </button>
               </div>
               
-              <!-- Enhanced Options (Compliance/Partner Only, NOT Directors) -->
-              <div v-if="(userRole === 'Compliance' && request.status === 'Pending Compliance') || (userRole === 'Partner' && request.status === 'Pending Partner')" class="border-t pt-3 mt-3">
+              <!-- Need More Info: Director, Compliance, Partner (B2) -->
+              <div v-if="(userRole === 'Director' && request.status === 'Pending Director Approval') || (userRole === 'Compliance' && request.status === 'Pending Compliance') || (userRole === 'Partner' && request.status === 'Pending Partner')" class="border-t pt-3 mt-3">
                 <p class="text-xs text-gray-500 mb-2">Additional Options:</p>
-                <div class="flex gap-2">
-                  <button 
-                    @click="showRestrictionsModal = true" 
-                    :disabled="actionLoading"
-                    class="flex-1 px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
-                  >
-                    Approve with Restrictions
-                  </button>
-                  <button 
-                    @click="showInfoModal = true" 
-                    :disabled="actionLoading"
-                    class="flex-1 px-3 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-                  >
-                    Need More Info
-                  </button>
-                </div>
+                <button
+                  @click="showInfoModal = true"
+                  :disabled="actionLoading"
+                  class="w-full px-3 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                >
+                  Need More Info
+                </button>
               </div>
-              
-              <!-- Director Tooltip (Directors see only Approve/Reject) -->
+              <!-- Approve with Restrictions: Compliance and Partner only (B2) -->
+              <div v-if="(userRole === 'Compliance' && request.status === 'Pending Compliance') || (userRole === 'Partner' && request.status === 'Pending Partner')" class="border-t pt-3 mt-3">
+                <button
+                  @click="showRestrictionsModal = true"
+                  :disabled="actionLoading"
+                  class="w-full px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
+                >
+                  Approve with Restrictions
+                </button>
+              </div>
+              <!-- Director: note that Approval with restrictions is at Compliance level (B2) -->
               <div v-if="userRole === 'Director' && request.status === 'Pending Director Approval'" class="border-t pt-3 mt-3">
                 <p class="text-xs text-gray-500 italic">
-                  Note: Additional approval options (Restrictions, More Info) are available at Compliance level.
+                  Approval with restrictions is available at Compliance level.
                 </p>
               </div>
             </div>
@@ -998,6 +1004,8 @@
               placeholder="Provide detailed reason for rejection (required)"
             ></textarea>
           </div>
+
+          <p class="text-sm text-gray-600 mt-2">The requester will be notified of this rejection.</p>
           
           <div class="flex gap-2 pt-2">
             <button 
@@ -1088,14 +1096,14 @@
           <textarea 
             v-model="infoRequired" 
             rows="4" 
-            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
             placeholder="Enter required information (required). E.g.:&#10;- Please provide ownership structure details&#10;- Clarify the relationship with parent company&#10;- Attach supporting documents for PIE status"
           ></textarea>
           <div class="flex gap-2 mt-3">
             <button 
               @click="requestMoreInfo" 
               :disabled="!infoRequired.trim()"
-              class="flex-1 px-3 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+              class="flex-1 px-3 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
             >
               Request Information
             </button>
@@ -1121,7 +1129,7 @@
           <textarea 
             v-model="commentToPreviousText" 
             rows="4" 
-            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
             placeholder="Enter your comment or question for the previous approver (required)"
           ></textarea>
           <div class="flex gap-2 mt-3">
@@ -1699,6 +1707,9 @@ const shouldShowDirectorApprovalStatus = computed(() => {
   // Always show if status is "Pending Director Approval"
   if (status === 'Pending Director Approval') return true
   
+  // Show when director returned request for more info (requester needs to see comments)
+  if (directorStatus === 'Need More Info') return true
+  
   // Show if director has explicitly approved (has status or document)
   if (directorStatus === 'Approved' || directorStatus === 'Approved with Restrictions' || hasDocument) return true
   
@@ -1825,14 +1836,17 @@ async function resubmitRequest() {
 async function approveRequest(approvalType: string = 'Approved') {
   actionLoading.value = true
   try {
-    await api.post(`/coi/requests/${request.value.id}/approve`, { 
+    const response = await api.post(`/coi/requests/${request.value.id}/approve`, {
       approval_type: approvalType,
-      comments: approvalComments.value 
+      comments: approvalComments.value
     })
     await loadRequest()
+    const nextStage = response.data?.nextStatus || request.value?.status || 'next stage'
+    toast.success('Request approved. Moved to ' + nextStage + '.')
     approvalComments.value = ''
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to approve:', error)
+    toast.error(error?.response?.data?.error || 'Failed to approve.')
   } finally {
     actionLoading.value = false
   }
@@ -1841,16 +1855,19 @@ async function approveRequest(approvalType: string = 'Approved') {
 async function approveWithRestrictions() {
   actionLoading.value = true
   try {
-    await api.post(`/coi/requests/${request.value.id}/approve`, { 
+    const response = await api.post(`/coi/requests/${request.value.id}/approve`, {
       approval_type: 'Approved with Restrictions',
       restrictions: restrictions.value,
-      comments: approvalComments.value 
+      comments: approvalComments.value
     })
     showRestrictionsModal.value = false
     restrictions.value = ''
     await loadRequest()
-  } catch (error) {
+    const nextStage = response.data?.nextStatus || request.value?.status || 'next stage'
+    toast.success('Request approved. Moved to ' + nextStage + '.')
+  } catch (error: any) {
     console.error('Failed to approve with restrictions:', error)
+    toast.error(error?.response?.data?.error || 'Failed to approve.')
   } finally {
     actionLoading.value = false
   }
@@ -1859,15 +1876,17 @@ async function approveWithRestrictions() {
 async function requestMoreInfo() {
   actionLoading.value = true
   try {
-    await api.post(`/coi/requests/${request.value.id}/need-more-info`, { 
+    await api.post(`/coi/requests/${request.value.id}/need-more-info`, {
       info_required: infoRequired.value,
-      comments: approvalComments.value 
+      comments: approvalComments.value
     })
     showInfoModal.value = false
     infoRequired.value = ''
     await loadRequest()
-  } catch (error) {
+    toast.success('Information request sent to requester.')
+  } catch (error: any) {
     console.error('Failed to request more info:', error)
+    toast.error(error?.response?.data?.error || 'Failed to send information request.')
   } finally {
     actionLoading.value = false
   }
@@ -1926,7 +1945,7 @@ async function rejectRequest() {
 async function rejectRequestWithType() {
   actionLoading.value = true
   try {
-    await api.post(`/coi/requests/${request.value.id}/reject`, { 
+    await api.post(`/coi/requests/${request.value.id}/reject`, {
       reason: rejectionReason.value,
       rejection_type: rejectionType.value
     })
@@ -1934,8 +1953,10 @@ async function rejectRequestWithType() {
     await loadRequest()
     rejectionReason.value = ''
     rejectionType.value = 'fixable' // Reset to default
-  } catch (error) {
+    toast.success('Request rejected. Requester has been notified.')
+  } catch (error: any) {
     console.error('Failed to reject:', error)
+    toast.error(error?.response?.data?.error || 'Failed to reject.')
   } finally {
     actionLoading.value = false
   }

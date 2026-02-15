@@ -47,7 +47,7 @@
               </div>
               <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div 
-                  class="h-full bg-primary-600 transition-all duration-300"
+                  class="h-full bg-blue-600 transition-all duration-300"
                   :style="{ width: `${(completedSectionsCount / totalSteps) * 100}%` }"
                 ></div>
               </div>
@@ -70,7 +70,7 @@
                   :class="isSectionComplete(section.id) 
                     ? 'bg-green-500 text-white' 
                     : activeSection === section.id 
-                      ? 'bg-primary-600 text-white' 
+                      ? 'bg-blue-600 text-white' 
                       : 'bg-gray-200 text-gray-600'"
                 >
                   <svg v-if="isSectionComplete(section.id)" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -93,7 +93,7 @@
               <button
                 @click="handleSaveDraft"
                 :disabled="loading"
-                class="w-full px-4 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                class="w-full px-4 py-2.5 border-2 border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
               >
                 Save Draft
               </button>
@@ -101,10 +101,13 @@
                 @click="showConfirmModal = true"
                 :disabled="loading || !isFormValid"
                 :aria-disabled="loading || !isFormValid"
-                class="w-full px-4 py-2.5 rounded-md text-sm font-medium text-white transition-colors"
-                :class="isFormValid ? 'bg-primary-600 hover:bg-primary-700' : 'bg-gray-300 cursor-not-allowed'"
+                class="w-full px-4 py-2.5 rounded-md text-sm font-medium transition-colors"
+                :class="isFormValid ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
               >
-                <span v-if="loading">Submitting...</span>
+                <span v-if="loading" class="flex items-center justify-center gap-2">
+                  <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  Submitting...
+                </span>
                 <span v-else>Submit Request</span>
               </button>
             </div>
@@ -163,7 +166,7 @@
           <section id="section-1" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">1</span>
+                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">1</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Requestor Information</h2>
                 </div>
@@ -194,7 +197,7 @@
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Designation <span class="text-red-500">*</span></label>
                   <select 
                     v-model="formData.designation"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     aria-required="true"
                   >
                     <option value="">Select designation...</option>
@@ -213,7 +216,7 @@
                     id="form_entity"
                     v-model="formData.entity"
                     @change="onEntityChange"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     aria-required="true"
                   >
                     <option value="">Select entity...</option>
@@ -230,7 +233,7 @@
           <section id="section-2" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">2</span>
+                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">2</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Document Type</h2>
                 </div>
@@ -295,7 +298,7 @@
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Language</label>
                   <select 
                     v-model="formData.language"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option>English</option>
                     <option>Arabic</option>
@@ -308,7 +311,7 @@
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Lead Source</label>
                   <select 
                     v-model="formData.lead_source_id"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option :value="null">Select lead source...</option>
                     <optgroup label="Referrals">
@@ -357,7 +360,7 @@
           <section id="section-3" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">3</span>
+                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">3</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Client Details</h2>
                 </div>
@@ -386,7 +389,7 @@
                       <button
                         type="button"
                         @click="fetchClients"
-                        class="font-medium text-primary-600 hover:text-primary-700 underline"
+                        class="font-medium text-blue-600 hover:text-blue-700 underline"
                       >
                         Retry
                       </button>
@@ -395,7 +398,7 @@
                       <p v-if="selectedEntityType === 'prospect'" class="text-xs text-gray-500">Prospect from CRM.</p>
                       <p v-else-if="selectedEntityType === 'client'" class="text-xs text-gray-500">
                         <span v-if="formData.client_id">Existing client from PRMS.</span>
-                        <button type="button" class="font-medium text-primary-600 hover:text-primary-700 underline ml-1" @click="showPrmsModal = true">Load from PRMS</button>
+                        <button type="button" class="font-medium text-blue-600 hover:text-blue-700 underline ml-1" @click="showPrmsModal = true">Load from PRMS</button>
                       </p>
                     </template>
                   </div>
@@ -419,7 +422,7 @@
                     <select
                       id="client_type"
                       v-model="formData.client_type"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select...</option>
                       <option v-for="ct in CLIENT_TYPES" :key="ct" :value="ct">{{ ct }}</option>
@@ -430,7 +433,7 @@
                     <select
                       id="regulated_body"
                       v-model="formData.regulated_body"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select...</option>
                       <option v-for="rb in REGULATED_BODIES" :key="rb" :value="rb">{{ rb }}</option>
@@ -444,7 +447,7 @@
                     <select
                       id="client_status"
                       v-model="formData.client_status"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select...</option>
                       <option>N/A</option>
@@ -460,7 +463,7 @@
                     <select
                       id="client_location"
                       v-model="locationCountryCode"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select...</option>
                       <option
@@ -477,7 +480,7 @@
                     <select
                       id="relationship_with_client"
                       v-model="formData.relationship_with_client"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select...</option>
                       <option>New Client</option>
@@ -492,7 +495,7 @@
                   <div class="flex items-center gap-2 mb-2">
                     <span id="pie_status_label" class="text-sm font-medium text-gray-700">PIE Status</span>
                     <span
-                      class="inline-flex items-center justify-center w-5 h-5 rounded-full text-gray-500 bg-gray-200 cursor-help focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      class="inline-flex items-center justify-center w-5 h-5 rounded-full text-gray-500 bg-gray-200 cursor-help focus:outline-none focus:ring-2 focus:ring-blue-500"
                       :title="pieTooltipText"
                       tabindex="0"
                       role="img"
@@ -505,11 +508,11 @@
                   </div>
                   <div class="flex items-center space-x-6">
                     <label for="pie_status_yes" class="flex items-center">
-                      <input id="pie_status_yes" type="radio" v-model="formData.pie_status" value="Yes" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500" name="pie_status"/>
+                      <input id="pie_status_yes" type="radio" v-model="formData.pie_status" value="Yes" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="pie_status"/>
                       <span class="ml-2 text-sm text-gray-700">Yes - PIE</span>
                     </label>
                     <label for="pie_status_no" class="flex items-center">
-                      <input id="pie_status_no" type="radio" v-model="formData.pie_status" value="No" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500" name="pie_status"/>
+                      <input id="pie_status_no" type="radio" v-model="formData.pie_status" value="No" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="pie_status"/>
                       <span class="ml-2 text-sm text-gray-700">No</span>
                     </label>
                   </div>
@@ -527,7 +530,7 @@
                       <label for="group_structure_standalone" class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
                              :class="formData.group_structure === 'standalone' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
                         <input id="group_structure_standalone" type="radio" v-model="formData.group_structure" value="standalone" 
-                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500" name="group_structure"/>
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="group_structure"/>
                         <div class="ml-3">
                           <span class="text-sm font-medium text-gray-900">Standalone Entity</span>
                         </div>
@@ -536,7 +539,7 @@
                       <label for="group_structure_has_parent" class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
                              :class="formData.group_structure === 'has_parent' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
                         <input id="group_structure_has_parent" type="radio" v-model="formData.group_structure" value="has_parent" 
-                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500" name="group_structure"/>
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="group_structure"/>
                         <div class="ml-3">
                           <span class="text-sm font-medium text-gray-900">Part of Corporate Group</span>
                         </div>
@@ -545,7 +548,7 @@
                       <label for="group_structure_research_required" class="flex items-center p-3 bg-white border rounded cursor-pointer transition-colors"
                              :class="formData.group_structure === 'research_required' ? 'border-gray-300 bg-gray-50' : 'border-gray-200 hover:border-gray-300'">
                         <input id="group_structure_research_required" type="radio" v-model="formData.group_structure" value="research_required" 
-                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500" name="group_structure"/>
+                               class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" name="group_structure"/>
                         <div class="ml-3 flex-1">
                           <span class="text-sm font-medium text-gray-900">Not Sure</span>
                         </div>
@@ -562,7 +565,7 @@
                         id="parent_company_group"
                         v-model="formData.parent_company"
                         type="text"
-                        class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         :class="touchedFields.parent_company && parentCompanyError ? 'border-red-500' : 'border-gray-300'"
                         placeholder="e.g., ABC Holdings, XYZ Group Ltd..."
                         required
@@ -582,7 +585,7 @@
                     <select
                       id="company_type"
                       v-model="formData.company_type"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       @change="onCompanyTypeChange"
                     >
                       <option value="">Select company type...</option>
@@ -604,7 +607,7 @@
                       id="parent_company"
                       v-model="formData.parent_company"
                       type="text"
-                      class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       :class="touchedFields.parent_company && parentCompanyError ? 'border-red-500' : 'border-gray-300'"
                       placeholder="Enter parent company name..."
                       :required="formData.company_type !== 'Standalone'"
@@ -624,7 +627,7 @@
                       min="0"
                       max="100"
                       step="0.01"
-                      class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       :class="touchedFields.ownership_percentage && ownershipPercentageError ? 'border-red-500' : 'border-gray-300'"
                       placeholder="e.g., 75.5"
                       :required="formData.company_type === 'Subsidiary' || formData.company_type === 'Affiliate'"
@@ -646,7 +649,7 @@
           <section id="section-4" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">4</span>
+                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">4</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Service Information</h2>
                 </div>
@@ -661,7 +664,7 @@
                     type="checkbox" 
                     v-model="formData.international_operations"
                     :disabled="!isInternationalOperationsAllowed"
-                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <span class="ml-2 text-sm font-medium text-gray-700">Client has international operations</span>
                 </label>
@@ -677,7 +680,7 @@
                     v-model="formData.service_category"
                     @change="onServiceCategoryChange"
                     :disabled="loadingServices || !formData.entity"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                     aria-required="true"
                   >
                     <option value="">{{ loadingServices ? 'Loading services...' : (formData.entity ? 'Select line of service...' : 'Select entity first') }}</option>
@@ -696,7 +699,7 @@
                     v-model="formData.service_type"
                     @change="onServiceTypeChange"
                     :disabled="loadingServices || !formData.entity || !formData.service_category"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                     aria-required="true"
                   >
                     <option value="">{{ formData.service_category ? 'Select specific service type...' : 'Select line of service first' }}</option>
@@ -719,7 +722,7 @@
                     v-model="formData.global_service_category"
                     @change="onGlobalServiceCategoryChange"
                     :disabled="loadingGlobalServices || !formData.entity"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                   >
                     <option value="">{{ loadingGlobalServices ? 'Loading...' : (formData.entity ? 'Select BDO Global line of service...' : 'Select entity first') }}</option>
                     <option 
@@ -736,7 +739,7 @@
                   <select 
                     v-model="formData.global_service_type"
                     :disabled="loadingGlobalServices || !formData.entity || !formData.global_service_category"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                   >
                     <option value="">{{ formData.global_service_category ? 'Select BDO Global service type...' : 'Select line of service first' }}</option>
                     <option 
@@ -764,7 +767,7 @@
                       type="radio"
                       :value="subCat"
                       v-model="formData.service_sub_category"
-                      class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-primary-500"
+                      class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
                     <span class="ml-2 text-sm text-gray-700 font-medium">{{ subCat }}</span>
                   </label>
@@ -777,7 +780,7 @@
                   v-model="formData.service_description"
                   rows="4"
                   maxlength="2000"
-                  class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   :class="touchedFields.service_description && serviceDescriptionError ? 'border-red-500' : 'border-gray-300'"
                   placeholder="Describe the services to be provided..."
                   aria-required="true"
@@ -796,7 +799,7 @@
                   <input
                     v-model="formData.requested_service_period_start"
                     type="date"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -805,7 +808,7 @@
                     v-model="formData.requested_service_period_end"
                     type="date"
                     :min="formData.requested_service_period_start || undefined"
-                    class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    class="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     :class="servicePeriodEndError ? 'border-red-500' : 'border-gray-300'"
                     @blur="setTouched('requested_service_period_end')"
                   />
@@ -823,14 +826,14 @@
                       v-model="formData.external_deadline"
                       type="date"
                       :min="todayIso"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Reason for Deadline</label>
                     <select
                       v-model="formData.deadline_reason"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option v-for="dr in DEADLINE_REASONS" :key="dr.value || 'none'" :value="dr.value">{{ dr.label }}</option>
                     </select>
@@ -854,7 +857,7 @@
           <section v-if="!formData.international_operations" id="section-5" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">5</span>
+                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">5</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Ownership Structure</h2>
                 </div>
@@ -880,7 +883,7 @@
                             <input
                               v-model="row.name"
                               type="text"
-                              class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                              class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               placeholder="Entity or shareholder"
                             />
                           </td>
@@ -891,7 +894,7 @@
                               min="0"
                               max="100"
                               step="0.01"
-                              class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                              class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               placeholder="0–100"
                             />
                           </td>
@@ -914,7 +917,7 @@
                       <button
                         type="button"
                         @click="addOwnershipRow"
-                        class="text-sm font-medium text-primary-600 hover:text-primary-700"
+                        class="text-sm font-medium text-blue-600 hover:text-blue-700"
                       >
                         + Add row
                       </button>
@@ -938,7 +941,7 @@
                     <button
                       type="button"
                       @click="ownershipRows = []"
-                      class="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                      class="text-xs text-blue-600 hover:text-blue-700 font-medium"
                     >
                       Clear rows
                     </button>
@@ -948,7 +951,7 @@
                     rows="4"
                     :readonly="ownershipRows.length > 0"
                     :class="[
-                      'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500',
+                      'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
                       ownershipRows.length > 0 ? 'bg-gray-50 cursor-not-allowed' : ''
                     ]"
                     :placeholder="ownershipRows.length > 0 ? 'Populated from rows above' : 'Or describe the ownership structure in your own words (shareholders and percentages)...'"
@@ -961,7 +964,7 @@
                 <textarea
                   v-model="formData.related_affiliated_entities"
                   rows="3"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="List any related or affiliated entities..."
                 ></textarea>
               </div>
@@ -972,7 +975,7 @@
           <section id="section-6" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">6</span>
+                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">6</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Signatories</h2>
                 </div>
@@ -992,7 +995,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Backup approver (optional)</label>
                 <select
                   v-model="formData.backup_approver_id"
-                  class="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">None — use default escalation</option>
                   <option
@@ -1011,7 +1014,7 @@
           <section v-if="isTeamMember" id="section-7" class="bg-white rounded-lg shadow-sm border border-gray-200 scroll-mt-6">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center">
-                <span class="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
+                <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium mr-3">7</span>
                 <div>
                   <h2 class="text-base font-semibold text-gray-900">Director Approval Document</h2>
                 </div>
@@ -1054,15 +1057,6 @@
       @close="showConfirmModal = false"
     />
     
-    <DuplicateJustificationModal
-      :open="showJustificationModal"
-      :justification="duplicateJustification"
-      @update:justification="duplicateJustification = $event"
-      :duplicates="Array.isArray(detectedDuplicates) ? detectedDuplicates : []"
-      :loading="loading"
-      @cancel="showJustificationModal = false; duplicateJustification = ''"
-      @confirm="submitWithJustification"
-    />
 
     <ClarificationModal
       :show="showClarificationModal"
@@ -1112,13 +1106,13 @@
         <p v-if="submittedRequestCode" class="text-sm text-gray-700">Request ID: <span class="font-medium text-gray-900">{{ submittedRequestCode }}</span></p>
         <p v-else class="text-sm text-gray-700">Request submitted successfully!</p>
         <p class="text-sm text-gray-600">It will be reviewed by a Director in your department, then by Compliance and other approvers as needed.</p>
-        <p v-if="submittedFlagged" class="text-sm text-amber-700 mt-2">Request submitted but flagged for Compliance review due to potential group conflicts.</p>
+        <p v-if="submittedHasSimilarRequests" class="text-sm text-blue-700 mt-2">Note: A similar request exists for this client. Compliance will review and follow up if needed.</p>
       </div>
       <div class="flex flex-wrap gap-2 justify-end">
         <button
           type="button"
           @click="viewSubmittedRequest"
-          class="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           View Request
         </button>
@@ -1154,7 +1148,7 @@
         </button>
         <button
           @click="confirmLeave(true)"
-          class="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
         >
           Leave
         </button>
@@ -1174,7 +1168,6 @@ import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import FileUpload from '@/components/FileUpload.vue'
 import InternationalOperationsForm from '@/components/coi/InternationalOperationsForm.vue'
 import ClientProspectCombobox from '@/components/coi/ClientProspectCombobox.vue'
-import DuplicateJustificationModal from '@/components/coi/DuplicateJustificationModal.vue'
 import ClarificationModal from '@/components/coi/ClarificationModal.vue'
 import CreateProspectModal from '@/components/coi/CreateProspectModal.vue'
 import FetchPRMSDataModal from '@/components/integration/FetchPRMSDataModal.vue'
@@ -1560,7 +1553,8 @@ function isSectionComplete(sectionId: string): boolean {
     case 'section-2':
       return !!(formData.value.requested_document)
     case 'section-3': {
-      if (!formData.value.client_id) return false
+      // Accept either a PRMS client (client_id) or a prospect/manual entry (client_name)
+      if (!formData.value.client_id && !formData.value.client_name?.trim()) return false
       // Subsidiary/Affiliate require parent company and ownership % in valid range
       const ct = formData.value.company_type
       if (ct === 'Subsidiary' || ct === 'Affiliate') {
@@ -1572,6 +1566,8 @@ function isSectionComplete(sectionId: string): boolean {
           : !isNaN(pctNum) && pctNum >= 20 && pctNum < 50
         return parentOk && ownershipOk
       }
+      // PIE / Audit: group structure verification required (IESBA 290.13)
+      if (showGroupStructureSection.value && !formData.value.group_structure) return false
       return true
     }
     case 'section-4': {
@@ -2145,6 +2141,8 @@ function onEntityChange() {
 // Auto-save functionality
 let autoSaveInterval: number | null = null
 let serverAutoSaveTimeout: number | null = null
+/** Suppresses isDirty / localStorage writes during programmatic resets (mount, Create Another) */
+let suppressDirtyWatch = false
 
 function startAutoSave() {
   autoSaveInterval = window.setInterval(() => {
@@ -2173,7 +2171,18 @@ function scheduleServerAutoSave() {
     saveStatus.value = 'saving'
     try {
       if (formData.value.id) {
-        await coiStore.updateRequest(formData.value.id, formData.value)
+        try {
+          await coiStore.updateRequest(formData.value.id, formData.value)
+        } catch (updateErr: any) {
+          if (updateErr.response?.status === 404) {
+            console.warn(`Auto-save: draft id=${formData.value.id} gone, creating new`)
+            formData.value.id = undefined
+            const result = await coiStore.createRequest(formData.value)
+            if (result?.id) formData.value.id = result.id
+          } else {
+            throw updateErr
+          }
+        }
       } else {
         const result = await coiStore.createRequest(formData.value)
         if (result?.id) formData.value.id = result.id
@@ -2199,6 +2208,14 @@ function loadFromLocalStorage(): boolean {
     try {
       const parsed = JSON.parse(saved)
       formData.value = { ...formData.value, ...parsed }
+      // Validate restored draft still exists on server; clear stale id if not
+      if (parsed.id) {
+        coiStore.getRequestById(parsed.id).catch(() => {
+          console.warn(`Stale draft id=${parsed.id} not found on server, clearing`)
+          formData.value.id = undefined
+          clearLocalStorage()
+        })
+      }
       return true
     } catch {
       return false
@@ -2217,7 +2234,19 @@ async function handleSaveDraft() {
   loading.value = true
   try {
     if (formData.value.id) {
-      await coiStore.updateRequest(formData.value.id, formData.value)
+      try {
+        await coiStore.updateRequest(formData.value.id, formData.value)
+      } catch (updateErr: any) {
+        if (updateErr.response?.status === 404) {
+          // Stale draft was deleted — create a fresh one
+          console.warn(`Draft id=${formData.value.id} no longer exists, creating new`)
+          formData.value.id = undefined
+          const result = await coiStore.createRequest(formData.value)
+          if (result?.id) formData.value.id = result.id
+        } else {
+          throw updateErr
+        }
+      }
     } else {
       const result = await coiStore.createRequest(formData.value)
       if (result?.id) formData.value.id = result.id
@@ -2237,43 +2266,50 @@ async function handleSaveDraft() {
   }
 }
 
-// Duplicate justification state
-const showJustificationModal = ref(false)
-const duplicateJustification = ref('')
-const detectedDuplicates = ref<any[]>([])
-const pendingRequestId = ref<number | null>(null)
-
 // B5: Success confirmation modal state
 const showSuccessModal = ref(false)
 const submittedRequestId = ref<number | null>(null)
 const submittedRequestCode = ref('')
-const submittedFlagged = ref(false)
+const submittedHasSimilarRequests = ref(false)
 const successModalRef = ref<HTMLElement | null>(null)
 
-// Handle submit
+// Handle submit — always submits; no blocking modal or conflict details shown to requester.
+// All conflict/duplicate assessment is handled by Compliance during their review.
 async function handleSubmit() {
   showConfirmModal.value = false
-  
+  coiStore.clearError()
+  if (serverAutoSaveTimeout) {
+    clearTimeout(serverAutoSaveTimeout)
+    serverAutoSaveTimeout = null
+  }
   loading.value = true
   try {
     // Use existing draft if available; otherwise create a new one
     let requestId: number
     if (formData.value.id) {
-      await coiStore.updateRequest(formData.value.id, formData.value)
-      requestId = formData.value.id
+      try {
+        await coiStore.updateRequest(formData.value.id, formData.value)
+        requestId = formData.value.id
+      } catch (updateErr: any) {
+        if (updateErr.response?.status === 404) {
+          // Stale draft — create fresh
+          console.warn(`Draft id=${formData.value.id} no longer exists, creating new`)
+          formData.value.id = undefined
+          const result = await coiStore.createRequest(formData.value)
+          requestId = result.id
+          formData.value.id = result.id
+        } else {
+          throw updateErr
+        }
+      }
     } else {
       const result = await coiStore.createRequest(formData.value)
       requestId = result.id
       formData.value.id = result.id
     }
-    pendingRequestId.value = requestId
 
-    // Try to submit with justification and lead_source_id if provided
+    // Build submit payload (lead_source_id only — no justification needed)
     const submitPayload: any = {}
-
-    if (duplicateJustification.value) {
-      submitPayload.duplicate_justification = duplicateJustification.value
-    }
 
     // Include lead_source_id for proposals (CRM attribution feature)
     if (formData.value.requested_document === 'Proposal' && formData.value.lead_source_id) {
@@ -2284,86 +2320,104 @@ async function handleSubmit() {
       requestId,
       Object.keys(submitPayload).length > 0 ? submitPayload : undefined
     )
-    // Check for duplicates - normalize to array so we never treat an object as array
-    const rawDuplicates = submitResult?.duplicates
-    const dupesList = Array.isArray(rawDuplicates)
-      ? rawDuplicates
-      : (Array.isArray(rawDuplicates?.matches) ? rawDuplicates.matches : [])
-    const hasDuplicates = Array.isArray(dupesList) && dupesList.length > 0
-    
-    if (hasDuplicates) {
-      showError('Duplication detected! Please review.')
-    } else {
-      clearLocalStorage()
-      stopAutoSave()
-      duplicateJustification.value = ''
-      const fallbackCode = `COI-${new Date().getFullYear()}-${String(requestId).padStart(3, '0')}`
-      submittedRequestId.value = submitResult?.id ?? requestId
-      submittedRequestCode.value = submitResult?.request_id ?? fallbackCode
-      submittedFlagged.value = !!submitResult?.flagged
-      showSuccessModal.value = true
-      if (submitResult?.flagged) {
-        warning('Request submitted but flagged for Compliance review due to potential group conflicts. You will be notified once the review is complete.')
-      }
-      nextTick(() => successModalRef.value?.focus())
-    }
+
+    clearLocalStorage()
+    stopAutoSave()
+    const fallbackCode = `COI-${new Date().getFullYear()}-${String(requestId).padStart(3, '0')}`
+    submittedRequestId.value = submitResult?.id ?? requestId
+    submittedRequestCode.value = submitResult?.request_id ?? fallbackCode
+    submittedHasSimilarRequests.value = !!submitResult?.hasSimilarRequests
+    showSuccessModal.value = true
+    nextTick(() => successModalRef.value?.focus())
   } catch (err: any) {
-    // Check if this is a duplicate blocking error
-    if (err.response?.data?.requiresJustification) {
-      // Normalize to array only (backend may return { matches: [] } or array; never pass a non-array)
-      const dupes = err.response.data.duplicates
-      const list = Array.isArray(dupes)
-        ? dupes
-        : (Array.isArray(dupes?.matches) ? dupes.matches : [])
-      detectedDuplicates.value = Array.isArray(list) ? list : []
-      showJustificationModal.value = true
-      loading.value = false
-      return
+    const data = err.response?.data
+    if (err.response?.status === 400 && data?.requiresGroupStructure) {
+      showError(data.error || 'Group structure verification is required for this client')
+      document.getElementById('section-3')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } else if (err.response?.status === 400 && data?.existing_request_code) {
+      showError(`You already have a pending request (${data.existing_request_code}) for this client.`)
+    } else if (err.response?.status === 400 && data?.field) {
+      showError(data.error || 'Validation failed')
+      document.getElementById('section-3')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } else {
+      showError(data?.error || err.message || 'Failed to submit request')
     }
-    showError(err.response?.data?.error || err.message || 'Failed to submit request')
   } finally {
     loading.value = false
   }
 }
 
-// Submit with justification
-async function submitWithJustification() {
-  if (!duplicateJustification.value.trim()) {
-    showError('Please provide a justification')
-    return
-  }
-  
-  showJustificationModal.value = false
-  loading.value = true
-  
-  try {
-    const submitResult = await coiStore.submitRequest(
-      pendingRequestId.value!,
-      { duplicate_justification: duplicateJustification.value }
-    )
-    clearLocalStorage()
-    stopAutoSave()
-    duplicateJustification.value = ''
-    const rid = pendingRequestId.value!
-    const fallbackCode = `COI-${new Date().getFullYear()}-${String(rid).padStart(3, '0')}`
-    submittedRequestId.value = submitResult?.id ?? rid
-    submittedRequestCode.value = submitResult?.request_id ?? fallbackCode
-    submittedFlagged.value = !!submitResult?.flagged
-    showSuccessModal.value = true
-    nextTick(() => successModalRef.value?.focus())
-  } catch (err: any) {
-    showError(err.response?.data?.error || err.message || 'Failed to submit request')
-  } finally {
-    loading.value = false
-  }
-}
 
 // B5: Success modal actions
 function closeSuccessModalAndReset() {
   showSuccessModal.value = false
   submittedRequestId.value = null
   submittedRequestCode.value = ''
-  submittedFlagged.value = false
+  submittedHasSimilarRequests.value = false
+}
+
+/** Reset form and related refs to initial state (e.g. after "Create another"). Does not clear auth tokens. */
+function resetFormToInitial() {
+  suppressDirtyWatch = true
+  formData.value = {
+    id: null,
+    requestor_name: authStore.user?.name || '',
+    designation: '',
+    entity: 'BDO Al Nisf & Partners',
+    line_of_service: authStore.user?.department || '',
+    requested_document: 'Proposal',
+    language: 'English',
+    client_id: null,
+    client_name: '',
+    client_type: '',
+    client_location: 'State of Kuwait',
+    relationship_with_client: '',
+    regulated_body: '',
+    client_status: '',
+    pie_status: 'No',
+    group_structure: '',
+    parent_company: '',
+    company_type: '',
+    parent_company_id: null,
+    ownership_percentage: null,
+    control_type: '',
+    service_type: '',
+    service_type_cma_code: undefined,
+    service_category: '',
+    service_sub_category: '',
+    global_service_category: '',
+    global_service_type: '',
+    service_description: '',
+    requested_service_period_start: '',
+    requested_service_period_end: '',
+    external_deadline: '',
+    deadline_reason: '',
+    full_ownership_structure: '',
+    related_affiliated_entities: '',
+    international_operations: false,
+    country_code: '',
+    foreign_subsidiaries: '',
+    global_clearance_status: 'Not Required',
+    global_coi_form_data: null,
+    backup_approver_id: null,
+    lead_source_id: null
+  }
+  saveStatus.value = 'idle'
+  lastSavedAt.value = null
+  isDirty.value = false
+  formLoadError.value = null
+  globalCOIFormData.value = null
+  touchedFields.value = {}
+  ownershipRows.value = []
+  locationCountryCode.value = 'KWT'
+  smartSelectValue.value = ''
+  selectedEntityType.value = null
+  selectedProspectId.value = null
+  selectedClientCode.value = ''
+  clearLocalStorage()
+  localStorage.removeItem('coi-edit-request')
+  // Re-enable dirty tracking after the deep watch settles (150ms debounce + nextTick)
+  setTimeout(() => { suppressDirtyWatch = false }, 250)
 }
 
 function viewSubmittedRequest() {
@@ -2374,7 +2428,10 @@ function viewSubmittedRequest() {
 
 function createAnotherRequest() {
   closeSuccessModalAndReset()
-  router.push('/coi/request/new')
+  resetFormToInitial()
+  startAutoSave()
+  // Route is already /coi/request/new — push with catch to suppress NavigationDuplicated
+  router.push('/coi/request/new').catch(() => {})
 }
 
 function goToDashboardFromSuccess() {
@@ -2585,6 +2642,7 @@ function retryFormLoad() {
 
 // Lifecycle
 onMounted(async () => {
+  suppressDirtyWatch = true
   // Ensure Location and Entity dropdowns have options on first paint (synchronous, before any async).
   if (!entities.value?.length) entities.value = [...FALLBACK_ENTITIES]
   if (!countries.value?.length) countries.value = [...FALLBACK_COUNTRIES]
@@ -2614,6 +2672,10 @@ onMounted(async () => {
         pie_status: request.pie_status || 'No',
         group_structure: request.group_structure || '',
         parent_company: request.parent_company || '',
+        company_type: request.company_type || '',
+        parent_company_id: request.parent_company_id || null,
+        ownership_percentage: request.ownership_percentage !== undefined && request.ownership_percentage !== null ? request.ownership_percentage : null,
+        control_type: request.control_type || '',
         service_type: request.service_type || '',
         service_type_cma_code: request.service_type_cma_code ?? undefined,
         service_category: request.service_category || '',
@@ -2628,13 +2690,20 @@ onMounted(async () => {
         full_ownership_structure: request.full_ownership_structure || '',
         related_affiliated_entities: request.related_affiliated_entities || '',
         international_operations: request.international_operations === 1 || request.international_operations === true || false,
+        country_code: request.country_code || '',
         foreign_subsidiaries: request.foreign_subsidiaries || '',
         global_clearance_status: request.global_clearance_status || 'Not Required',
+        global_coi_form_data: typeof request.global_coi_form_data === 'string'
+          ? (() => { try { return JSON.parse(request.global_coi_form_data) } catch { return null } })()
+          : (request.global_coi_form_data || null),
         backup_approver_id: request.backup_approver_id || null,
         lead_source_id: request.lead_source_id || null
       } as typeof formData.value
       isDirty.value = false
       ownershipRows.value = parseOwnershipRowsFromText(formData.value.full_ownership_structure)
+      if (formData.value.global_coi_form_data) {
+        globalCOIFormData.value = formData.value.global_coi_form_data
+      }
       onClientSelect()
       locationCountryCode.value = resolveLocationToCode(request.client_location || 'State of Kuwait')
       localStorage.removeItem('coi-edit-request')
@@ -2671,6 +2740,8 @@ onMounted(async () => {
     if (isDirty.value) e.preventDefault()
   }
   window.addEventListener('beforeunload', beforeUnloadHandler)
+  // Re-enable dirty tracking after all init settles
+  setTimeout(() => { suppressDirtyWatch = false }, 250)
 })
 
 onBeforeRouteLeave((to, _from, next) => {
@@ -2715,6 +2786,7 @@ onUnmounted(() => {
 // Watch for form changes (mark dirty and persist). flush: 'post' + debounce to avoid recursive updates.
 let formDataWatchTimeout: number | null = null
 watch(formData, () => {
+  if (suppressDirtyWatch) return
   isDirty.value = true
   if (formDataWatchTimeout) clearTimeout(formDataWatchTimeout)
   formDataWatchTimeout = window.setTimeout(() => {

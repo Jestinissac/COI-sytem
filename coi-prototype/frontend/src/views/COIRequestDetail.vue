@@ -42,7 +42,7 @@
             <button 
               v-if="request?.status === 'Draft'"
               @click="editDraft"
-              class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors"
+              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
             >
               Edit Draft
             </button>
@@ -399,7 +399,7 @@
               <div v-if="showViewPrmsData" class="px-4 py-3">
                 <button
                   type="button"
-                  class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded px-1 -mx-1"
+                  class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-1 -mx-1"
                   @click="openPrmsModal"
                 >
                   View PRMS data
@@ -605,7 +605,7 @@
               <button
                 v-if="canUploadAttachment"
                 @click="showUploadModal = true"
-                class="px-3 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700"
+                class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 + Upload
               </button>
@@ -642,7 +642,7 @@
                   <div class="flex items-center gap-2 ml-3">
                     <button
                       @click="downloadAttachment(attachment.id)"
-                      class="px-3 py-1.5 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors"
+                      class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                     >
                       Download
                     </button>
@@ -761,7 +761,7 @@
               <div v-for="step in workflowSteps" :key="step.name" class="flex items-center gap-3">
                 <div 
                   class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium"
-                  :class="step.completed ? 'bg-green-500 text-white' : step.current ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-500'"
+                  :class="step.completed ? 'bg-green-500 text-white' : step.current ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'"
                 >
                   <span v-if="step.completed">✓</span>
                   <span v-else>{{ step.index }}</span>
@@ -774,7 +774,7 @@
           </div>
 
           <!-- Engagement Code & Financial Parameters -->
-          <div v-if="request.engagement_code || (authStore.user?.role === 'Finance' && request.status === 'Pending Finance')" class="bg-white rounded-lg shadow-sm">
+          <div v-if="request.stage === 'Engagement' && (request.engagement_code || (authStore.user?.role === 'Finance' && request.status === 'Pending Finance'))" class="bg-white rounded-lg shadow-sm">
             <div class="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
               <h2 class="font-medium text-gray-900">Engagement Code & Financial Details</h2>
             </div>
@@ -851,14 +851,14 @@
               <textarea 
                 v-model="replyToCommentText" 
                 rows="3" 
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                 :placeholder="request.approval_comment_replied_at ? 'Add or replace your reply (optional)' : 'Your reply (optional)'"
               ></textarea>
               <div class="flex gap-2">
                 <button 
                   @click="sendBackToCurrentApprover" 
                   :disabled="actionLoading"
-                  class="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  class="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
                   Send back to {{ request.approval_comment_from_role }}
                 </button>
@@ -881,7 +881,7 @@
               <textarea 
                 v-model="approvalComments" 
                 rows="2" 
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Comments (optional)"
               ></textarea>
               
@@ -921,7 +921,7 @@
                 <button
                   @click="showInfoModal = true"
                   :disabled="actionLoading"
-                  class="w-full px-3 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                  class="w-full px-3 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
                 >
                   Need More Info
                 </button>
@@ -1096,14 +1096,14 @@
           <textarea 
             v-model="infoRequired" 
             rows="4" 
-            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
+            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder="Enter required information (required). E.g.:&#10;- Please provide ownership structure details&#10;- Clarify the relationship with parent company&#10;- Attach supporting documents for PIE status"
           ></textarea>
           <div class="flex gap-2 mt-3">
             <button 
               @click="requestMoreInfo" 
               :disabled="!infoRequired.trim()"
-              class="flex-1 px-3 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+              class="flex-1 px-3 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
             >
               Request Information
             </button>
@@ -1129,7 +1129,7 @@
           <textarea 
             v-model="commentToPreviousText" 
             rows="4" 
-            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
+            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder="Enter your comment or question for the previous approver (required)"
           ></textarea>
           <div class="flex gap-2 mt-3">
@@ -1258,14 +1258,18 @@ const globalCOISummary = computed(() => {
 
 const workflowSteps = computed(() => {
   const status = request.value?.status || ''
-  return [
+  const isEngagement = request.value?.stage === 'Engagement'
+  const steps = [
     { name: 'Draft', index: 1, completed: status !== 'Draft', current: status === 'Draft' },
-    { name: 'Director', index: 2, completed: ['Pending Compliance', 'Pending Partner', 'Pending Finance', 'Approved', 'Active'].includes(status), current: status === 'Pending Director Approval' },
-    { name: 'Compliance', index: 3, completed: ['Pending Partner', 'Pending Finance', 'Approved', 'Active'].includes(status), current: status === 'Pending Compliance' },
-    { name: 'Partner', index: 4, completed: ['Pending Finance', 'Approved', 'Active'].includes(status), current: status === 'Pending Partner' },
-    { name: 'Finance', index: 5, completed: ['Approved', 'Active'].includes(status), current: status === 'Pending Finance' },
-    { name: 'Active', index: 6, completed: status === 'Active', current: status === 'Approved' }
+    { name: 'Director', index: 2, completed: ['Pending Compliance', 'Pending Partner', ...(isEngagement ? ['Pending Finance'] : []), 'Approved', 'Active'].includes(status), current: status === 'Pending Director Approval' },
+    { name: 'Compliance', index: 3, completed: ['Pending Partner', ...(isEngagement ? ['Pending Finance'] : []), 'Approved', 'Active'].includes(status), current: status === 'Pending Compliance' },
+    { name: 'Partner', index: 4, completed: [...(isEngagement ? ['Pending Finance'] : []), 'Approved', 'Active'].includes(status), current: status === 'Pending Partner' },
   ]
+  if (isEngagement) {
+    steps.push({ name: 'Finance', index: 5, completed: ['Approved', 'Active'].includes(status), current: status === 'Pending Finance' })
+  }
+  steps.push({ name: 'Active', index: steps.length + 1, completed: status === 'Active', current: status === 'Approved' })
+  return steps
 })
 
 const canApprove = computed(() => {
